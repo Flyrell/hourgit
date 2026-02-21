@@ -1,0 +1,22 @@
+# Build output
+dist/
+tmp/
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Environment
+.env
+
+# Agents
+.claude

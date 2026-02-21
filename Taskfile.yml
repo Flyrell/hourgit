@@ -1,0 +1,46 @@
+version: '3'
+
+vars:
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "none"
+  BUILD_DATE:
+    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
+  LDFLAGS: >-
+    -s -w
+    -X main.version={{.VERSION}}
+    -X main.commit={{.COMMIT}}
+    -X main.date={{.BUILD_DATE}}
+
+tasks:
+  dev:
+    desc: Start development environment with hot-reload
+    cmd: docker compose up --build
+
+  build:
+    desc: Cross-compile for multiple platforms
+    cmds:
+      - mkdir -p dist
+      - for:
+          - { GOOS: darwin, GOARCH: amd64, SUFFIX: darwin-amd64 }
+          - { GOOS: darwin, GOARCH: arm64, SUFFIX: darwin-arm64 }
+          - { GOOS: linux, GOARCH: amd64, SUFFIX: linux-amd64 }
+          - { GOOS: linux, GOARCH: arm64, SUFFIX: linux-arm64 }
+          - { GOOS: windows, GOARCH: amd64, SUFFIX: windows-amd64.exe }
+        cmd: >-
+          docker run --rm
+          -v "$PWD":/app -w /app
+          -e CGO_ENABLED=0 -e GOOS={{.ITEM.GOOS}} -e GOARCH={{.ITEM.GOARCH}}
+          golang:1.23-alpine
+          go build -ldflags="{{.LDFLAGS}}"
+          -o dist/hour-git-{{.ITEM.SUFFIX}}
+          ./cmd/hour-git
+
+  test:
+    desc: Run all tests
+    cmd: docker run --rm -v "$PWD":/app -w /app golang:1.23-alpine go test -v -count=1 ./...
+
+  lint:
+    desc: Run golangci-lint (format + static analysis)
+    cmd: docker run --rm -v "$PWD":/app -w /app golangci/golangci-lint:v2.1.6-alpine golangci-lint run ./...
