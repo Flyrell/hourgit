@@ -36,9 +36,54 @@ var projectSetCmd = &cobra.Command{
 	},
 }
 
+var projectListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all projects and their repositories",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		return runProjectList(cmd, homeDir)
+	},
+}
+
 func init() {
 	projectSetCmd.Flags().Bool("force", false, "reassign repository to a different project")
 	projectCmd.AddCommand(projectSetCmd)
+	projectCmd.AddCommand(projectListCmd)
+}
+
+func runProjectList(cmd *cobra.Command, homeDir string) error {
+	reg, err := project.ReadRegistry(homeDir)
+	if err != nil {
+		return err
+	}
+
+	if len(reg.Projects) == 0 {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), Silent("No projects found."))
+		return nil
+	}
+
+	for i, p := range reg.Projects {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), Primary(p.Name))
+		if len(p.Repos) == 0 {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), Silent("└── (no repositories assigned)"))
+		} else {
+			for j, r := range p.Repos {
+				if j < len(p.Repos)-1 {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "├── %s\n", r)
+				} else {
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "└── %s\n", r)
+				}
+			}
+		}
+		if i < len(reg.Projects)-1 {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout())
+		}
+	}
+
+	return nil
 }
 
 func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, force bool) error {
