@@ -34,15 +34,15 @@ tasks:
           docker run --rm
           -v "$PWD":/app -w /app
           -e CGO_ENABLED=0 -e GOOS={{.ITEM.GOOS}} -e GOARCH={{.ITEM.GOARCH}}
-          golang:1.23-alpine
+          golang:1.26-alpine
           go build -ldflags="{{.LDFLAGS}}"
           -o dist/hourgit-{{.ITEM.SUFFIX}}
           ./cmd/hour-git
 
   test:
     desc: Run all tests
-    cmd: docker run --rm -v "$PWD":/app -w /app golang:1.23-alpine go test -v -count=1 ./...
+    cmd: docker run --rm -v "$PWD":/app -w /app golang:1.26-alpine go test -v -count=1 ./...
 
   lint:
     desc: Run golangci-lint (format + static analysis)
-    cmd: docker run --rm -v "$PWD":/app -w /app golangci/golangci-lint:v2.1.6-alpine golangci-lint run ./...
+    cmd: docker run --rm -v "$PWD":/app -w /app golangci/golangci-lint:v2.10.1-alpine golangci-lint run ./...
