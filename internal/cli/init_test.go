@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Flyrell/hour-git/internal/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -136,13 +137,51 @@ func TestInitWithProjectFlag(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
 
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 
 	stdout, _, err := execInit("--project", "My Project")
 
 	assert.NoError(t, err)
-	assert.Contains(t, stdout, "project: My Project (not yet implemented)")
+	assert.Contains(t, stdout, "project 'My Project' created")
+	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
 	assert.Contains(t, stdout, "hourgit initialized successfully")
+
+	// Verify projects.json created
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	assert.Len(t, reg.Projects, 1)
+	assert.Equal(t, "My Project", reg.Projects[0].Name)
+
+	// Verify .git/.hourgit written
+	cfg, err := project.ReadRepoConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "My Project", cfg.Project)
+
+	// Verify log dir created
+	_, err = os.Stat(project.LogDir(home, "my-project"))
+	assert.NoError(t, err)
+}
+
+func TestInitWithProjectFlagConflict(t *testing.T) {
+	dir, cleanup := setupInitTest(t)
+	defer cleanup()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	// Pre-assign to a different project
+	require.NoError(t, project.WriteRepoConfig(dir, &project.RepoConfig{Project: "Old Project"}))
+
+	_, stderr, err := execInit("--project", "New Project")
+
+	assert.Error(t, err)
+	assert.Contains(t, stderr, "error: repository is already assigned to project 'Old Project'")
+	assert.Contains(t, stderr, "use 'project set --force' to reassign")
 }
 
 func TestInitCreateHooksDir(t *testing.T) {

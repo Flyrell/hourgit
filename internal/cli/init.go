@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Flyrell/hour-git/internal/project"
 	"github.com/spf13/cobra"
 )
 
@@ -26,21 +27,26 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		project, _ := cmd.Flags().GetString("project")
+		projectName, _ := cmd.Flags().GetString("project")
 		force, _ := cmd.Flags().GetBool("force")
 		merge, _ := cmd.Flags().GetBool("merge")
 
-		return runInit(cmd, dir, project, force, merge)
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+
+		return runInit(cmd, dir, homeDir, projectName, force, merge)
 	},
 }
 
 func init() {
-	initCmd.Flags().String("project", "", "project name (stub, not yet implemented)")
+	initCmd.Flags().String("project", "", "assign repository to a project (creates if needed)")
 	initCmd.Flags().Bool("force", false, "overwrite existing post-checkout hook")
 	initCmd.Flags().Bool("merge", false, "append to existing post-checkout hook")
 }
 
-func runInit(cmd *cobra.Command, dir, project string, force, merge bool) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool) error {
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "error: not a git repository")
@@ -82,8 +88,25 @@ func runInit(cmd *cobra.Command, dir, project string, force, merge bool) error {
 		}
 	}
 
-	if project != "" {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project: %s (not yet implemented)\n", project)
+	if projectName != "" {
+		// Check if repo already has a different project
+		cfg, err := project.ReadRepoConfig(dir)
+		if err != nil {
+			return err
+		}
+		if cfg != nil && cfg.Project != "" && cfg.Project != projectName {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "error: repository is already assigned to project '%s' (use 'project set --force' to reassign)\n", cfg.Project)
+			return fmt.Errorf("repository is already assigned to project '%s'", cfg.Project)
+		}
+
+		entry, created, err := project.RegisterProject(homeDir, dir, projectName)
+		if err != nil {
+			return err
+		}
+		if created {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created\n", entry.Name)
+		}
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", projectName)
 	}
 
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hourgit initialized successfully")

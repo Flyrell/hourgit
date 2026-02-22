@@ -16,6 +16,7 @@ func TestRootHasSubcommands(t *testing.T) {
 
 	assert.Contains(t, names, "init")
 	assert.Contains(t, names, "version")
+	assert.Contains(t, names, "project")
 }
 
 func TestRootUseName(t *testing.T) {
