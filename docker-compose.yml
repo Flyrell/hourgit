@@ -7,6 +7,8 @@ services:
       - .:/app
       - go-mod-cache:/go/pkg/mod
       - go-build-cache:/root/.cache/go-build
+    environment:
+      - AIR_CONFIG=${AIR_CONFIG:-.air.toml}
     tty: true
 
 volumes:

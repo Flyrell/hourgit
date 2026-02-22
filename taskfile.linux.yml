@@ -1,0 +1,6 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Start development environment with hot-reload
+    cmd: docker compose up --build

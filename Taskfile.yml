@@ -1,5 +1,11 @@
 version: '3'
 
+includes:
+  platform:
+    taskfile: taskfile.{{OS}}.yml
+    optional: true
+    flatten: true
+
 vars:
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
@@ -14,10 +20,6 @@ vars:
     -X main.date={{.BUILD_DATE}}
 
 tasks:
-  dev:
-    desc: Start development environment with hot-reload
-    cmd: docker compose up --build
-
   build:
     desc: Cross-compile for multiple platforms
     cmds:
@@ -34,7 +36,7 @@ tasks:
           -e CGO_ENABLED=0 -e GOOS={{.ITEM.GOOS}} -e GOARCH={{.ITEM.GOARCH}}
           golang:1.23-alpine
           go build -ldflags="{{.LDFLAGS}}"
-          -o dist/hour-git-{{.ITEM.SUFFIX}}
+          -o dist/hourgit-{{.ITEM.SUFFIX}}
           ./cmd/hour-git
 
   test:
