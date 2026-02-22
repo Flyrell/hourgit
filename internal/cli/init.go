@@ -112,11 +112,11 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 			return err
 		}
 		if created {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created (%s)\n", entry.Name, entry.ID)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))
 		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", entry.Name)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(entry.Name))))
 	}
 
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hourgit initialized successfully")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
 	return nil
 }
