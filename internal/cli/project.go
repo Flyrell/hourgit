@@ -46,8 +46,7 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 	hookPath := filepath.Join(repoDir, ".git", "hooks", "post-checkout")
 	hookData, err := os.ReadFile(hookPath)
 	if err != nil || !strings.Contains(string(hookData), hookMarker) {
-		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "error: hourgit is not initialized (run 'hour-git init' first)")
-		return fmt.Errorf("hourgit is not initialized")
+		return fmt.Errorf("hourgit is not initialized (run 'hour-git init' first)")
 	}
 
 	// Check existing repo config
@@ -63,8 +62,7 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 		}
 
 		if !force {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "error: repository is already assigned to project '%s' (use --force to reassign)\n", cfg.Project)
-			return fmt.Errorf("repository is already assigned to project '%s'", cfg.Project)
+			return fmt.Errorf("repository is already assigned to project '%s' (use --force to reassign)", cfg.Project)
 		}
 
 		// Remove repo from old project

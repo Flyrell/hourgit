@@ -87,10 +87,10 @@ func TestProjectSetNotInitialized(t *testing.T) {
 	// Create .git but no hook
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 
-	_, stderr, err := execProjectSet(dir, "My Project")
+	_, _, err := execProjectSet(dir, "My Project")
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: hourgit is not initialized")
+	assert.Contains(t, err.Error(), "hourgit is not initialized")
 }
 
 func TestProjectSetSameProjectNoop(t *testing.T) {
@@ -119,11 +119,11 @@ func TestProjectSetDifferentProjectNoForce(t *testing.T) {
 	_, _, err := execProjectSet(dir, "Project A")
 	require.NoError(t, err)
 
-	_, stderr, err := execProjectSet(dir, "Project B")
+	_, _, err = execProjectSet(dir, "Project B")
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: repository is already assigned to project 'Project A'")
-	assert.Contains(t, stderr, "use --force to reassign")
+	assert.Contains(t, err.Error(), "repository is already assigned to project 'Project A'")
+	assert.Contains(t, err.Error(), "use --force to reassign")
 }
 
 func TestProjectSetDifferentProjectWithForce(t *testing.T) {

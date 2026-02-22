@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,6 +33,9 @@ func execInit(args ...string) (string, string, error) {
 	rootCmd.SetErr(stderr)
 	rootCmd.SetArgs(append([]string{"init"}, args...))
 	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Fprint(stderr, "error: "+err.Error()+"\n")
+	}
 	return stdout.String(), stderr.String(), err
 }
 
@@ -64,7 +68,7 @@ func TestInitNotGitRepo(t *testing.T) {
 	_, stderr, err := execInit()
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: not a git repository")
+	assert.Contains(t, stderr, "not a git repository")
 }
 
 func TestInitAlreadyInitialized(t *testing.T) {
@@ -78,7 +82,7 @@ func TestInitAlreadyInitialized(t *testing.T) {
 	_, stderr, err := execInit()
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: hourgit is already initialized")
+	assert.Contains(t, stderr, "hourgit is already initialized")
 }
 
 func TestInitHookExistsNoFlag(t *testing.T) {
@@ -92,7 +96,7 @@ func TestInitHookExistsNoFlag(t *testing.T) {
 	_, stderr, err := execInit()
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: post-checkout hook already exists (use --force to overwrite or --merge to append)")
+	assert.Contains(t, stderr, "post-checkout hook already exists (use --force to overwrite or --merge to append)")
 }
 
 func TestInitHookExistsForce(t *testing.T) {
@@ -180,7 +184,7 @@ func TestInitWithProjectFlagConflict(t *testing.T) {
 	_, stderr, err := execInit("--project", "New Project")
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "error: repository is already assigned to project 'Old Project'")
+	assert.Contains(t, stderr, "repository is already assigned to project 'Old Project'")
 	assert.Contains(t, stderr, "use 'project set --force' to reassign")
 }
 

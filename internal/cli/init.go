@@ -49,7 +49,6 @@ func init() {
 func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool) error {
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
-		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "error: not a git repository")
 		return fmt.Errorf("not a git repository")
 	}
 
@@ -60,13 +59,11 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 		content := string(existing)
 
 		if strings.Contains(content, hookMarker) {
-			_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "error: hourgit is already initialized")
 			return fmt.Errorf("hourgit is already initialized")
 		}
 
 		if !force && !merge {
-			_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "error: post-checkout hook already exists (use --force to overwrite or --merge to append)")
-			return fmt.Errorf("post-checkout hook already exists")
+			return fmt.Errorf("post-checkout hook already exists (use --force to overwrite or --merge to append)")
 		}
 
 		if merge {
@@ -95,8 +92,7 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 			return err
 		}
 		if cfg != nil && cfg.Project != "" && cfg.Project != projectName {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "error: repository is already assigned to project '%s' (use 'project set --force' to reassign)\n", cfg.Project)
-			return fmt.Errorf("repository is already assigned to project '%s'", cfg.Project)
+			return fmt.Errorf("repository is already assigned to project '%s' (use 'project set --force' to reassign)", cfg.Project)
 		}
 
 		entry, created, err := project.RegisterProject(homeDir, dir, projectName)
