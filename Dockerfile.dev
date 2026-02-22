@@ -9,4 +9,4 @@ RUN go mod download
 
 COPY . .
 
-CMD ["air", "-c", ".air.toml"]
+CMD ["sh", "-c", "air -c ${AIR_CONFIG:-.air.toml}"]

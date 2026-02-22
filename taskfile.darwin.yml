@@ -1,0 +1,8 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Start development environment with hot-reload (darwin cross-compilation)
+    env:
+      AIR_CONFIG: .air.darwin.toml
+    cmd: docker compose up --build
