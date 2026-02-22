@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -25,11 +24,7 @@ func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
 		w := rootCmd.ErrOrStderr()
-		msg := "error: " + err.Error()
-		if f, ok := w.(*os.File); ok && isTerminal(f) {
-			msg = "\033[31m" + msg + "\033[0m"
-		}
-		msg += "\n"
+		msg := Error("error: " + err.Error()) + "\n"
 		_, _ = fmt.Fprint(w, msg)
 	}
 	return err
