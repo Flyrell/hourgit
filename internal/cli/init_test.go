@@ -149,7 +149,7 @@ func TestInitWithProjectFlag(t *testing.T) {
 	stdout, _, err := execInit("--project", "My Project")
 
 	assert.NoError(t, err)
-	assert.Contains(t, stdout, "project 'My Project' created")
+	assert.Contains(t, stdout, "project 'My Project' created (")
 	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
 	assert.Contains(t, stdout, "hourgit initialized successfully")
 
@@ -158,15 +158,51 @@ func TestInitWithProjectFlag(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, reg.Projects, 1)
 	assert.Equal(t, "My Project", reg.Projects[0].Name)
+	assert.NotEmpty(t, reg.Projects[0].ID)
 
 	// Verify .git/.hourgit written
 	cfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "My Project", cfg.Project)
+	assert.Equal(t, reg.Projects[0].ID, cfg.ProjectID)
 
 	// Verify log dir created
 	_, err = os.Stat(project.LogDir(home, "my-project"))
 	assert.NoError(t, err)
+}
+
+func TestInitWithProjectFlagByID(t *testing.T) {
+	dir, cleanup := setupInitTest(t)
+	defer cleanup()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	// Create a project in the registry first
+	otherRepo := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(otherRepo, ".git"), 0755))
+	_, _, err := project.RegisterProject(home, otherRepo, "My Project")
+	require.NoError(t, err)
+
+	// Get the project ID
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	projectID := reg.Projects[0].ID
+
+	// Init with the project ID
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+	stdout, _, err := execInit("--project", projectID)
+
+	assert.NoError(t, err)
+	assert.NotContains(t, stdout, "created")
+	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+
+	// Verify repo config uses name, not ID
+	cfg, err := project.ReadRepoConfig(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "My Project", cfg.Project)
+	assert.Equal(t, projectID, cfg.ProjectID)
 }
 
 func TestInitWithProjectFlagConflict(t *testing.T) {
