@@ -22,6 +22,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "hour-git %s (commit: %s, built: %s)\n", appVersion, appCommit, appDate)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hour-git %s (commit: %s, built: %s)", appVersion, appCommit, appDate)))
 	},
 }

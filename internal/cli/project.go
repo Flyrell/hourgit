@@ -72,9 +72,9 @@ func runProjectList(cmd *cobra.Command, homeDir string) error {
 		} else {
 			for j, r := range p.Repos {
 				if j < len(p.Repos)-1 {
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "├── %s\n", r)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("├── %s", r)))
 				} else {
-					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "└── %s\n", r)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("└── %s", r)))
 				}
 			}
 		}
@@ -113,7 +113,7 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 
 	if cfg != nil && cfg.Project != "" {
 		if cfg.Project == resolvedName {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository is already assigned to project '%s'\n", cfg.Project)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository is already assigned to project '%s'", Primary(cfg.Project))))
 			return nil
 		}
 
@@ -137,8 +137,8 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 	}
 
 	if created {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created (%s)\n", entry.Name, entry.ID)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))
 	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", entry.Name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(entry.Name))))
 	return nil
 }

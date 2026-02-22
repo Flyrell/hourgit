@@ -17,6 +17,7 @@ func TestColorHelpers(t *testing.T) {
 		{"Warning", Warning, "be careful"},
 		{"Info", Info, "note this"},
 		{"Silent", Silent, "quiet text"},
+		{"Text", Text, "default text"},
 	}
 
 	for _, tt := range tests {
