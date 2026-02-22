@@ -10,7 +10,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(helloCmd)
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
