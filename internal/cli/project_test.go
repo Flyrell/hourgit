@@ -59,7 +59,7 @@ func TestProjectSetHappyPath(t *testing.T) {
 	stdout, _, err := execProjectSet(dir, "My Project")
 
 	assert.NoError(t, err)
-	assert.Contains(t, stdout, "project 'My Project' created")
+	assert.Contains(t, stdout, "project 'My Project' created (")
 	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
 
 	// Verify registry
@@ -67,12 +67,14 @@ func TestProjectSetHappyPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, reg.Projects, 1)
 	assert.Equal(t, "My Project", reg.Projects[0].Name)
+	assert.NotEmpty(t, reg.Projects[0].ID)
 	assert.Contains(t, reg.Projects[0].Repos, dir)
 
 	// Verify repo config
 	cfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "My Project", cfg.Project)
+	assert.Equal(t, reg.Projects[0].ID, cfg.ProjectID)
 
 	// Verify log dir
 	_, err = os.Stat(project.LogDir(home, "my-project"))
@@ -113,6 +115,59 @@ func TestProjectSetSameProjectNoop(t *testing.T) {
 	assert.Len(t, reg.Projects[0].Repos, 1)
 }
 
+func TestProjectSetByID(t *testing.T) {
+	dir := setupProjectTest(t)
+	home := os.Getenv("HOME")
+
+	// Create a project first
+	_, _, err := execProjectSet(dir, "My Project")
+	require.NoError(t, err)
+
+	// Get the project ID
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	projectID := reg.Projects[0].ID
+
+	// Set up a second repo
+	dir2 := t.TempDir()
+	hooksDir := filepath.Join(dir2, ".git", "hooks")
+	require.NoError(t, os.MkdirAll(hooksDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte(hookContent), 0755))
+
+	// Assign by ID
+	stdout, _, err := execProjectSet(dir2, projectID)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
+	assert.NotContains(t, stdout, "created")
+
+	// Verify repo config uses name, not ID
+	cfg, err := project.ReadRepoConfig(dir2)
+	require.NoError(t, err)
+	assert.Equal(t, "My Project", cfg.Project)
+	assert.Equal(t, projectID, cfg.ProjectID)
+}
+
+func TestProjectSetSameProjectByID(t *testing.T) {
+	dir := setupProjectTest(t)
+	home := os.Getenv("HOME")
+
+	// Create a project
+	_, _, err := execProjectSet(dir, "My Project")
+	require.NoError(t, err)
+
+	// Get the project ID
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	projectID := reg.Projects[0].ID
+
+	// Try to set same project by ID — should be a noop
+	stdout, _, err := execProjectSet(dir, projectID)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "repository is already assigned to project 'My Project'")
+}
+
 func TestProjectSetDifferentProjectNoForce(t *testing.T) {
 	dir := setupProjectTest(t)
 
@@ -136,7 +191,7 @@ func TestProjectSetDifferentProjectWithForce(t *testing.T) {
 	stdout, _, err := execProjectSet(dir, "--force", "Project B")
 
 	assert.NoError(t, err)
-	assert.Contains(t, stdout, "project 'Project B' created")
+	assert.Contains(t, stdout, "project 'Project B' created (")
 	assert.Contains(t, stdout, "repository assigned to project 'Project B'")
 
 	// Verify repo removed from old project
@@ -237,7 +292,7 @@ func TestProjectListNoRepos(t *testing.T) {
 	// Write a registry with a project that has no repos
 	reg := &project.ProjectRegistry{
 		Projects: []project.ProjectEntry{
-			{Name: "Empty Project", Slug: "empty-project", Repos: []string{}},
+			{ID: "abc1234", Name: "Empty Project", Slug: "empty-project", Repos: []string{}},
 		},
 	}
 	require.NoError(t, project.WriteRegistry(home, reg))

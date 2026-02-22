@@ -41,7 +41,7 @@ var initCmd = &cobra.Command{
 }
 
 func init() {
-	initCmd.Flags().String("project", "", "assign repository to a project (creates if needed)")
+	initCmd.Flags().String("project", "", "assign repository to a project by name or ID (creates if needed)")
 	initCmd.Flags().Bool("force", false, "overwrite existing post-checkout hook")
 	initCmd.Flags().Bool("merge", false, "append to existing post-checkout hook")
 }
@@ -91,7 +91,19 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 		if err != nil {
 			return err
 		}
-		if cfg != nil && cfg.Project != "" && cfg.Project != projectName {
+
+		// Resolve identifier to check for match with existing assignment
+		reg, err := project.ReadRegistry(homeDir)
+		if err != nil {
+			return err
+		}
+		resolved := project.ResolveProject(reg, projectName)
+		resolvedName := projectName
+		if resolved != nil {
+			resolvedName = resolved.Name
+		}
+
+		if cfg != nil && cfg.Project != "" && cfg.Project != resolvedName {
 			return fmt.Errorf("repository is already assigned to project '%s' (use 'project set --force' to reassign)", cfg.Project)
 		}
 
@@ -100,9 +112,9 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 			return err
 		}
 		if created {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created\n", entry.Name)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created (%s)\n", entry.Name, entry.ID)
 		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", projectName)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", entry.Name)
 	}
 
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "hourgit initialized successfully")

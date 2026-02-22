@@ -16,7 +16,7 @@ var projectCmd = &cobra.Command{
 }
 
 var projectSetCmd = &cobra.Command{
-	Use:   "set PROJECT_NAME",
+	Use:   "set PROJECT",
 	Short: "Assign repository to a project",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -66,7 +66,7 @@ func runProjectList(cmd *cobra.Command, homeDir string) error {
 	}
 
 	for i, p := range reg.Projects {
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), Primary(p.Name))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", Silent(p.ID), Primary(p.Name))
 		if len(p.Repos) == 0 {
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), Silent("└── (no repositories assigned)"))
 		} else {
@@ -100,9 +100,20 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 		return err
 	}
 
+	// Resolve identifier (could be ID or name)
+	reg, err := project.ReadRegistry(homeDir)
+	if err != nil {
+		return err
+	}
+	resolved := project.ResolveProject(reg, projectName)
+	resolvedName := projectName
+	if resolved != nil {
+		resolvedName = resolved.Name
+	}
+
 	if cfg != nil && cfg.Project != "" {
-		if cfg.Project == projectName {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository is already assigned to project '%s'\n", projectName)
+		if cfg.Project == resolvedName {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository is already assigned to project '%s'\n", cfg.Project)
 			return nil
 		}
 
@@ -111,10 +122,6 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 		}
 
 		// Remove repo from old project
-		reg, err := project.ReadRegistry(homeDir)
-		if err != nil {
-			return err
-		}
 		oldEntry := project.FindProject(reg, cfg.Project)
 		if oldEntry != nil {
 			project.RemoveRepoFromProject(oldEntry, repoDir)
@@ -130,8 +137,8 @@ func runProjectSet(cmd *cobra.Command, repoDir, homeDir, projectName string, for
 	}
 
 	if created {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created\n", entry.Name)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "project '%s' created (%s)\n", entry.Name, entry.ID)
 	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", projectName)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "repository assigned to project '%s'\n", entry.Name)
 	return nil
 }

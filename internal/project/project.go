@@ -6,16 +6,19 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Flyrell/hour-git/internal/hashutil"
 	"github.com/Flyrell/hour-git/internal/stringutil"
 )
 
 // RepoConfig is the per-repo marker stored in .git/.hourgit.
 type RepoConfig struct {
-	Project string `json:"project"`
+	Project   string `json:"project"`
+	ProjectID string `json:"project_id,omitempty"`
 }
 
 // ProjectEntry represents a single project in the global registry.
 type ProjectEntry struct {
+	ID    string   `json:"id"`
 	Name  string   `json:"name"`
 	Slug  string   `json:"slug"`
 	Repos []string `json:"repos"`
@@ -84,6 +87,26 @@ func FindProject(reg *ProjectRegistry, name string) *ProjectEntry {
 	return nil
 }
 
+// FindProjectByID looks up a project by ID in the registry.
+// Returns nil if not found.
+func FindProjectByID(reg *ProjectRegistry, id string) *ProjectEntry {
+	for i := range reg.Projects {
+		if reg.Projects[i].ID == id {
+			return &reg.Projects[i]
+		}
+	}
+	return nil
+}
+
+// ResolveProject looks up a project by ID first, then by name.
+// Returns nil if not found by either.
+func ResolveProject(reg *ProjectRegistry, identifier string) *ProjectEntry {
+	if entry := FindProjectByID(reg, identifier); entry != nil {
+		return entry
+	}
+	return FindProject(reg, identifier)
+}
+
 // ReadRepoConfig reads the per-repo hourgit config from .git/.hourgit.
 // Returns nil if the file does not exist.
 func ReadRepoConfig(repoDir string) (*RepoConfig, error) {
@@ -131,11 +154,12 @@ func RegisterProject(homeDir, repoDir, projectName string) (*ProjectEntry, bool,
 		return nil, false, err
 	}
 
-	entry := FindProject(reg, projectName)
+	entry := ResolveProject(reg, projectName)
 	created := entry == nil
 
 	if created {
 		entry = &ProjectEntry{
+			ID:    hashutil.GenerateID(projectName),
 			Name:  projectName,
 			Slug:  stringutil.Slugify(projectName),
 			Repos: []string{},
@@ -168,7 +192,7 @@ func RegisterProject(homeDir, repoDir, projectName string) (*ProjectEntry, bool,
 	}
 
 	// Write per-repo config
-	if err := WriteRepoConfig(repoDir, &RepoConfig{Project: projectName}); err != nil {
+	if err := WriteRepoConfig(repoDir, &RepoConfig{Project: entry.Name, ProjectID: entry.ID}); err != nil {
 		return nil, false, err
 	}
 
