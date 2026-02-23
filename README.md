@@ -1,4 +1,4 @@
-# Hourgit
+# Hourgit (in development)
 
 > Git-integrated time tracking for developers. No timers. No manual input. Just code.
 
