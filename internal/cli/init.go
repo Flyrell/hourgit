@@ -47,7 +47,7 @@ var initCmd = LeafCommand{
 		if yes {
 			confirm = AlwaysYes()
 		} else {
-			confirm = NewConfirmFunc(cmd.InOrStdin(), cmd.OutOrStdout())
+			confirm = NewConfirmFunc()
 		}
 
 		return runInit(cmd, dir, homeDir, projectName, force, merge, confirm)

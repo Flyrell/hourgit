@@ -22,6 +22,7 @@ func newRootCmd() *cobra.Command {
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 	cmd.CompletionOptions.DisableDefaultCmd = true
+	cmd.SetHelpFunc(colorizedHelpFunc())
 	return cmd
 }
 

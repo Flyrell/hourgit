@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Flyrell/hour-git/internal/schedule"
 	"github.com/Flyrell/hour-git/internal/project"
+	"github.com/Flyrell/hour-git/internal/schedule"
 	"github.com/spf13/cobra"
 	"github.com/teambition/rrule-go"
 )
@@ -28,14 +28,13 @@ var configSetCmd = LeafCommand{
 
 		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
-		prompt := NewPromptFunc(cmd.InOrStdin(), cmd.OutOrStdout())
-		confirm := NewConfirmFunc(cmd.InOrStdin(), cmd.OutOrStdout())
+		kit := NewPromptKit()
 
-		return runConfigSet(cmd, homeDir, repoDir, projectFlag, prompt, confirm)
+		return runConfigSet(cmd, homeDir, repoDir, projectFlag, kit)
 	},
 }.Build()
 
-func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, prompt PromptFunc, confirm ConfirmFunc) error {
+func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, kit PromptKit) error {
 	entry, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
 	if err != nil {
 		return err
@@ -53,31 +52,29 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, prom
 
 	for {
 		printScheduleList(cmd, schedules)
-		_, _ = fmt.Fprintf(w, "\n%s ", Text("[a]dd  [e]dit N  [d]elete N  [q]uit"))
 
-		action, err := prompt("")
+		actionOptions := []string{"Add schedule", "Edit schedule", "Delete schedule", "Save & quit"}
+		actionIdx, err := kit.Select("Action", actionOptions)
 		if err != nil {
 			return err
 		}
 
-		action = strings.TrimSpace(strings.ToLower(action))
-
-		switch {
-		case action == "q" || action == "quit":
+		switch actionIdx {
+		case 3: // Save & quit
 			if err := project.SetSchedules(homeDir, entry.ID, schedules); err != nil {
 				return err
 			}
 			_, _ = fmt.Fprintf(w, "%s\n", Text(fmt.Sprintf("schedule for '%s' saved", Primary(entry.Name))))
 			return nil
 
-		case action == "a" || action == "add":
-			newEntry, err := buildScheduleEntry(prompt, w)
+		case 0: // Add
+			newEntry, err := buildScheduleEntry(kit, w)
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
 			if entriesOverlap(schedules, newEntry) {
-				override, err := confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
+				override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
 				if err != nil {
 					return err
 				}
@@ -87,13 +84,17 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, prom
 			}
 			schedules = append(schedules, newEntry)
 
-		case strings.HasPrefix(action, "e ") || strings.HasPrefix(action, "edit "):
-			idx, err := parseActionIndex(action, len(schedules))
+		case 1: // Edit
+			if len(schedules) == 0 {
+				_, _ = fmt.Fprintf(w, "%s\n", Error("no schedules to edit"))
+				continue
+			}
+			idx, err := selectScheduleIndex(kit, schedules, "Edit which schedule?")
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
-			newEntry, err := buildScheduleEntry(prompt, w)
+			newEntry, err := buildScheduleEntry(kit, w)
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
@@ -103,7 +104,7 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, prom
 			others = append(others, schedules[:idx]...)
 			others = append(others, schedules[idx+1:]...)
 			if entriesOverlap(others, newEntry) {
-				override, err := confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
+				override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
 				if err != nil {
 					return err
 				}
@@ -113,18 +114,28 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, prom
 			}
 			schedules[idx] = newEntry
 
-		case strings.HasPrefix(action, "d ") || strings.HasPrefix(action, "delete "):
-			idx, err := parseActionIndex(action, len(schedules))
+		case 2: // Delete
+			if len(schedules) == 0 {
+				_, _ = fmt.Fprintf(w, "%s\n", Error("no schedules to delete"))
+				continue
+			}
+			idx, err := selectScheduleIndex(kit, schedules, "Delete which schedule?")
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
 			schedules = append(schedules[:idx], schedules[idx+1:]...)
-
-		default:
-			_, _ = fmt.Fprintf(w, "%s\n", Error("unknown action, use [a]dd, [e]dit N, [d]elete N, or [q]uit"))
 		}
 	}
+}
+
+// selectScheduleIndex prompts the user to pick a schedule from the list.
+func selectScheduleIndex(kit PromptKit, schedules []schedule.ScheduleEntry, title string) (int, error) {
+	options := make([]string, len(schedules))
+	for i, s := range schedules {
+		options[i] = fmt.Sprintf("%d. %s", i+1, schedule.FormatScheduleEntry(s))
+	}
+	return kit.Select(title, options)
 }
 
 func printScheduleList(cmd *cobra.Command, schedules []schedule.ScheduleEntry) {
@@ -139,8 +150,8 @@ func printScheduleList(cmd *cobra.Command, schedules []schedule.ScheduleEntry) {
 }
 
 // buildScheduleEntry guides the user through a step-by-step schedule builder.
-func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry, error) {
-	schedType, err := promptScheduleType(prompt, w)
+func buildScheduleEntry(kit PromptKit, w io.Writer) (schedule.ScheduleEntry, error) {
+	schedType, err := promptScheduleType(kit)
 	if err != nil {
 		return schedule.ScheduleEntry{}, err
 	}
@@ -148,12 +159,12 @@ func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry,
 	var rruleStr string
 	switch schedType {
 	case "recurring":
-		rruleStr, err = promptRecurrence(prompt, w)
+		rruleStr, err = promptRecurrence(kit, w)
 		if err != nil {
 			return schedule.ScheduleEntry{}, err
 		}
 	case "oneoff":
-		d, err := promptDate(prompt, w, "Date")
+		d, err := promptDate(kit.Prompt, w, "Date")
 		if err != nil {
 			return schedule.ScheduleEntry{}, err
 		}
@@ -167,11 +178,11 @@ func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry,
 		}
 		rruleStr = r.String()
 	case "range":
-		startDate, err := promptDate(prompt, w, "Start date")
+		startDate, err := promptDate(kit.Prompt, w, "Start date")
 		if err != nil {
 			return schedule.ScheduleEntry{}, err
 		}
-		endDate, err := promptDate(prompt, w, "End date")
+		endDate, err := promptDate(kit.Prompt, w, "End date")
 		if err != nil {
 			return schedule.ScheduleEntry{}, err
 		}
@@ -190,7 +201,7 @@ func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry,
 		rruleStr = r.String()
 	}
 
-	ranges, err := promptTimeRanges(prompt, w)
+	ranges, err := promptTimeRanges(kit, w)
 	if err != nil {
 		return schedule.ScheduleEntry{}, err
 	}
@@ -206,155 +217,135 @@ func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry,
 }
 
 // promptScheduleType asks the user to pick recurring, one-off, or date range.
-func promptScheduleType(prompt PromptFunc, w io.Writer) (string, error) {
-	_, _ = fmt.Fprintf(w, "\n%s\n", Text("Schedule type:"))
-	_, _ = fmt.Fprintf(w, "  %s\n", Text("[1] Recurring  [2] One-off date  [3] Date range"))
-
-	for {
-		input, err := prompt(Text("> "))
-		if err != nil {
-			return "", err
-		}
-		switch strings.TrimSpace(input) {
-		case "1":
-			return "recurring", nil
-		case "2":
-			return "oneoff", nil
-		case "3":
-			return "range", nil
-		default:
-			_, _ = fmt.Fprintf(w, "%s\n", Error("please enter 1, 2, or 3"))
-		}
+func promptScheduleType(kit PromptKit) (string, error) {
+	options := []string{"Recurring", "One-off date", "Date range"}
+	idx, err := kit.Select("Schedule type", options)
+	if err != nil {
+		return "", err
 	}
+	switch idx {
+	case 0:
+		return "recurring", nil
+	case 1:
+		return "oneoff", nil
+	case 2:
+		return "range", nil
+	}
+	return "", fmt.Errorf("invalid selection")
 }
 
 // promptRecurrence builds an RRULE string from user choices.
-func promptRecurrence(prompt PromptFunc, w io.Writer) (string, error) {
-	_, _ = fmt.Fprintf(w, "\n%s\n", Text("Recurrence:"))
-	_, _ = fmt.Fprintf(w, "  %s\n", Text("[1] Every weekday (Mon-Fri)  [2] Every weekend (Sat-Sun)"))
-	_, _ = fmt.Fprintf(w, "  %s\n", Text("[3] Every day                [4] Specific days"))
-	_, _ = fmt.Fprintf(w, "  %s\n", Text("[5] Every N days             [6] Every N weeks"))
+func promptRecurrence(kit PromptKit, w io.Writer) (string, error) {
+	options := []string{
+		"Every weekday (Mon-Fri)",
+		"Every weekend (Sat-Sun)",
+		"Every day",
+		"Specific days",
+		"Every N days",
+		"Every N weeks",
+	}
+	idx, err := kit.Select("Recurrence", options)
+	if err != nil {
+		return "", err
+	}
 
-	for {
-		input, err := prompt(Text("> "))
+	switch idx {
+	case 0:
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:      rrule.WEEKLY,
+			Byweekday: []rrule.Weekday{rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR},
+		})
 		if err != nil {
 			return "", err
 		}
+		return r.String(), nil
 
-		switch strings.TrimSpace(input) {
-		case "1":
-			r, err := rrule.NewRRule(rrule.ROption{
-				Freq:      rrule.WEEKLY,
-				Byweekday: []rrule.Weekday{rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR},
-			})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		case "2":
-			r, err := rrule.NewRRule(rrule.ROption{
-				Freq:      rrule.WEEKLY,
-				Byweekday: []rrule.Weekday{rrule.SA, rrule.SU},
-			})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		case "3":
-			r, err := rrule.NewRRule(rrule.ROption{Freq: rrule.DAILY})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		case "4":
-			days, err := promptDays(prompt, w)
-			if err != nil {
-				return "", err
-			}
-			r, err := rrule.NewRRule(rrule.ROption{
-				Freq:      rrule.WEEKLY,
-				Byweekday: days,
-			})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		case "5":
-			n, err := promptInterval(prompt, w, "days")
-			if err != nil {
-				return "", err
-			}
-			r, err := rrule.NewRRule(rrule.ROption{
-				Freq:     rrule.DAILY,
-				Interval: n,
-			})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		case "6":
-			n, err := promptInterval(prompt, w, "weeks")
-			if err != nil {
-				return "", err
-			}
-			r, err := rrule.NewRRule(rrule.ROption{
-				Freq:     rrule.WEEKLY,
-				Interval: n,
-			})
-			if err != nil {
-				return "", err
-			}
-			return r.String(), nil
-
-		default:
-			_, _ = fmt.Fprintf(w, "%s\n", Error("please enter 1-6"))
+	case 1:
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:      rrule.WEEKLY,
+			Byweekday: []rrule.Weekday{rrule.SA, rrule.SU},
+		})
+		if err != nil {
+			return "", err
 		}
+		return r.String(), nil
+
+	case 2:
+		r, err := rrule.NewRRule(rrule.ROption{Freq: rrule.DAILY})
+		if err != nil {
+			return "", err
+		}
+		return r.String(), nil
+
+	case 3:
+		days, err := promptDays(kit)
+		if err != nil {
+			return "", err
+		}
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:      rrule.WEEKLY,
+			Byweekday: days,
+		})
+		if err != nil {
+			return "", err
+		}
+		return r.String(), nil
+
+	case 4:
+		n, err := promptInterval(kit.Prompt, w, "days")
+		if err != nil {
+			return "", err
+		}
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:     rrule.DAILY,
+			Interval: n,
+		})
+		if err != nil {
+			return "", err
+		}
+		return r.String(), nil
+
+	case 5:
+		n, err := promptInterval(kit.Prompt, w, "weeks")
+		if err != nil {
+			return "", err
+		}
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:     rrule.WEEKLY,
+			Interval: n,
+		})
+		if err != nil {
+			return "", err
+		}
+		return r.String(), nil
 	}
+
+	return "", fmt.Errorf("invalid selection")
 }
 
 var weekdayList = []rrule.Weekday{rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR, rrule.SA, rrule.SU}
 
-// promptDays asks the user to select specific days of the week.
-func promptDays(prompt PromptFunc, w io.Writer) ([]rrule.Weekday, error) {
-	_, _ = fmt.Fprintf(w, "\n%s\n", Text("Select days (comma-separated):"))
-	_, _ = fmt.Fprintf(w, "  %s\n", Text("[1] Mon  [2] Tue  [3] Wed  [4] Thu  [5] Fri  [6] Sat  [7] Sun"))
-
-	for {
-		input, err := prompt(Text("> "))
-		if err != nil {
-			return nil, err
-		}
-
-		parts := strings.Split(strings.TrimSpace(input), ",")
-		var days []rrule.Weekday
-		valid := true
-		for _, p := range parts {
-			n, err := strconv.Atoi(strings.TrimSpace(p))
-			if err != nil || n < 1 || n > 7 {
-				valid = false
-				break
-			}
-			days = append(days, weekdayList[n-1])
-		}
-
-		if !valid || len(days) == 0 {
-			_, _ = fmt.Fprintf(w, "%s\n", Error("please enter day numbers 1-7, comma-separated"))
-			continue
-		}
-
-		return days, nil
+// promptDays asks the user to select specific days of the week using multi-select.
+func promptDays(kit PromptKit) ([]rrule.Weekday, error) {
+	dayNames := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+	indices, err := kit.MultiSelect("Select days", dayNames)
+	if err != nil {
+		return nil, err
 	}
+	if len(indices) == 0 {
+		return nil, fmt.Errorf("at least one day must be selected")
+	}
+	days := make([]rrule.Weekday, len(indices))
+	for i, idx := range indices {
+		days[i] = weekdayList[idx]
+	}
+	return days, nil
 }
 
 // promptInterval asks the user for an interval number.
 func promptInterval(prompt PromptFunc, w io.Writer, unit string) (int, error) {
 	for {
-		input, err := prompt(Text(fmt.Sprintf("Every how many %s? ", unit)))
+		input, err := prompt(fmt.Sprintf("Every how many %s?", unit))
 		if err != nil {
 			return 0, err
 		}
@@ -370,7 +361,7 @@ func promptInterval(prompt PromptFunc, w io.Writer, unit string) (int, error) {
 // promptDate asks the user for a date.
 func promptDate(prompt PromptFunc, w io.Writer, label string) (time.Time, error) {
 	for {
-		input, err := prompt(Text(fmt.Sprintf("%s (e.g. 2026-03-02, tomorrow): ", label)))
+		input, err := prompt(fmt.Sprintf("%s (e.g. 2026-03-02, tomorrow)", label))
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -390,11 +381,11 @@ func promptDate(prompt PromptFunc, w io.Writer, label string) (time.Time, error)
 
 // promptTimeRanges asks the user for one or more start/end time pairs.
 // After each range, the user is asked whether to add another.
-func promptTimeRanges(prompt PromptFunc, w io.Writer) ([]schedule.TimeRange, error) {
+func promptTimeRanges(kit PromptKit, w io.Writer) ([]schedule.TimeRange, error) {
 	var ranges []schedule.TimeRange
 
 	for {
-		from, to, err := promptSingleTimeRange(prompt, w)
+		from, to, err := promptSingleTimeRange(kit.Prompt, w)
 		if err != nil {
 			return nil, err
 		}
@@ -408,11 +399,11 @@ func promptTimeRanges(prompt PromptFunc, w io.Writer) ([]schedule.TimeRange, err
 			continue
 		}
 
-		input, err := prompt(Text("Add another time range? [y/N] "))
+		addMore, err := kit.Confirm("Add another time range?")
 		if err != nil {
 			return nil, err
 		}
-		if strings.TrimSpace(strings.ToLower(input)) != "y" {
+		if !addMore {
 			break
 		}
 	}
@@ -423,7 +414,7 @@ func promptTimeRanges(prompt PromptFunc, w io.Writer) ([]schedule.TimeRange, err
 // promptSingleTimeRange asks the user for a start and end time, validating order.
 func promptSingleTimeRange(prompt PromptFunc, w io.Writer) (string, string, error) {
 	for {
-		fromInput, err := prompt(Text("Start time (e.g. 9am, 9:00, 14:30): "))
+		fromInput, err := prompt("Start time (e.g. 9am, 9:00, 14:30)")
 		if err != nil {
 			return "", "", err
 		}
@@ -433,7 +424,7 @@ func promptSingleTimeRange(prompt PromptFunc, w io.Writer) (string, string, erro
 			continue
 		}
 
-		toInput, err := prompt(Text("End time (e.g. 5pm, 17:00, 14:30): "))
+		toInput, err := prompt("End time (e.g. 5pm, 17:00, 14:30)")
 		if err != nil {
 			return "", "", err
 		}
@@ -480,19 +471,4 @@ func entriesOverlap(existing []schedule.ScheduleEntry, candidate schedule.Schedu
 		}
 	}
 	return false
-}
-
-func parseActionIndex(action string, count int) (int, error) {
-	parts := strings.Fields(action)
-	if len(parts) < 2 {
-		return 0, fmt.Errorf("expected a number after the action")
-	}
-	n, err := strconv.Atoi(parts[1])
-	if err != nil {
-		return 0, fmt.Errorf("invalid number: %s", parts[1])
-	}
-	if n < 1 || n > count {
-		return 0, fmt.Errorf("number out of range (1-%d)", count)
-	}
-	return n - 1, nil
 }

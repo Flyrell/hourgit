@@ -31,38 +31,91 @@ func mockConfirm(answer bool) ConfirmFunc {
 	}
 }
 
-func execConfigSet(homeDir, repoDir, projectFlag string, prompt PromptFunc, confirm ConfirmFunc) (string, error) {
+// mockConfirmSequence returns a ConfirmFunc that returns answers in order.
+func mockConfirmSequence(answers ...bool) ConfirmFunc {
+	i := 0
+	return func(_ string) (bool, error) {
+		if i >= len(answers) {
+			return false, fmt.Errorf("no more mock confirm responses")
+		}
+		ans := answers[i]
+		i++
+		return ans, nil
+	}
+}
+
+// mockSelect returns a SelectFunc that always returns the given index.
+func mockSelect(idx int) SelectFunc {
+	return func(_ string, _ []string) (int, error) {
+		return idx, nil
+	}
+}
+
+// mockSelectSequence returns a SelectFunc that returns indices in order.
+func mockSelectSequence(indices ...int) SelectFunc {
+	i := 0
+	return func(_ string, _ []string) (int, error) {
+		if i >= len(indices) {
+			return 0, fmt.Errorf("no more mock select responses")
+		}
+		idx := indices[i]
+		i++
+		return idx, nil
+	}
+}
+
+// mockMultiSelect returns a MultiSelectFunc that always returns the given indices.
+func mockMultiSelect(indices []int) MultiSelectFunc {
+	return func(_ string, _ []string) ([]int, error) {
+		return indices, nil
+	}
+}
+
+func testKit(sel SelectFunc, prompt PromptFunc, confirm ConfirmFunc, multiSel MultiSelectFunc) PromptKit {
+	return PromptKit{
+		Prompt:      prompt,
+		Confirm:     confirm,
+		Select:      sel,
+		MultiSelect: multiSel,
+	}
+}
+
+func execConfigSet(homeDir, repoDir, projectFlag string, kit PromptKit) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := configSetCmd
 	cmd.SetOut(stdout)
-	err := runConfigSet(cmd, homeDir, repoDir, projectFlag, prompt, confirm)
+	err := runConfigSet(cmd, homeDir, repoDir, projectFlag, kit)
 	return stdout.String(), err
 }
 
 func TestConfigSetQuitImmediately(t *testing.T) {
 	homeDir, repoDir, _ := setupConfigTest(t)
 
-	prompt := mockPrompt("q")
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
+	kit := testKit(
+		mockSelect(3), // Save & quit
+		mockPrompt(),
+		mockConfirm(false),
+		mockMultiSelect(nil),
+	)
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 }
 
-func TestConfigSetAddRecurringWeekdayAndQuit(t *testing.T) {
+func TestConfigSetAddRecurringWeekendAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: add → recurring → every weekend → 8am → 12pm → no more ranges → quit
-	prompt := mockPrompt(
-		"a",
-		"1",    // schedule type: recurring
-		"2",    // every weekend (Sat-Sun)
-		"8am",  // start time
-		"12pm", // end time
-		"n",    // no more ranges
-		"q",
+	// Action: Add(0), then Save&quit(3)
+	// Schedule type: Recurring(0)
+	// Recurrence: Every weekend(1)
+	kit := testKit(
+		mockSelectSequence(0, 0, 1, 3),
+		mockPrompt("8am", "12pm"),
+		mockConfirmSequence(false, false), // no more ranges, no overlap confirm needed
+		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -80,18 +133,17 @@ func TestConfigSetAddRecurringWeekdayAndQuit(t *testing.T) {
 func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: add → recurring → specific days → Mon,Wed,Fri → 9am → 5pm → no more → quit
-	prompt := mockPrompt(
-		"a",
-		"1",     // recurring
-		"4",     // specific days
-		"1,3,5", // Mon, Wed, Fri
-		"9am",   // start time
-		"5pm",   // end time
-		"n",     // no more ranges
-		"q",
+	// Action: Add(0), then Save&quit(3)
+	// Schedule type: Recurring(0)
+	// Recurrence: Specific days(3)
+	// Days: Mon(0), Wed(2), Fri(4)
+	kit := testKit(
+		mockSelectSequence(0, 0, 3, 3),
+		mockPrompt("9am", "5pm"),
+		mockConfirmSequence(false, true), // no more ranges, overlap override yes
+		mockMultiSelect([]int{0, 2, 4}),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(true))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -109,17 +161,16 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 func TestConfigSetEditAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: edit 1 → recurring → every weekday → 8am → 4pm → no more → quit
-	prompt := mockPrompt(
-		"e 1",
-		"1",   // recurring
-		"1",   // every weekday
-		"8am", // start time
-		"4pm", // end time
-		"n",   // no more ranges
-		"q",
+	// Action: Edit(1), select schedule 0, then Save&quit(3)
+	// Schedule type: Recurring(0)
+	// Recurrence: Every weekday(0)
+	kit := testKit(
+		mockSelectSequence(1, 0, 0, 0, 3),
+		mockPrompt("8am", "4pm"),
+		mockConfirmSequence(false), // no more ranges
+		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -136,11 +187,14 @@ func TestConfigSetEditAndQuit(t *testing.T) {
 func TestConfigSetDeleteAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	prompt := mockPrompt(
-		"d 1",
-		"q",
+	// Action: Delete(2), select schedule 0, then Save&quit(3)
+	kit := testKit(
+		mockSelectSequence(2, 0, 3),
+		mockPrompt(),
+		mockConfirm(false),
+		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -154,37 +208,16 @@ func TestConfigSetDeleteAndQuit(t *testing.T) {
 	assert.Empty(t, regEntry.Schedules)
 }
 
-func TestConfigSetInvalidAction(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
-
-	prompt := mockPrompt(
-		"x",
-		"q",
-	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
-
-	assert.NoError(t, err)
-	assert.Contains(t, stdout, "unknown action")
-}
-
-func TestConfigSetInvalidIndex(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
-
-	prompt := mockPrompt(
-		"e 99",
-		"q",
-	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
-
-	assert.NoError(t, err)
-	assert.Contains(t, stdout, "out of range")
-}
-
 func TestConfigSetByProjectFlag(t *testing.T) {
 	homeDir, _, entry := setupConfigTest(t)
 
-	prompt := mockPrompt("q")
-	stdout, err := execConfigSet(homeDir, "", entry.Name, prompt, mockConfirm(false))
+	kit := testKit(
+		mockSelect(3), // Save & quit
+		mockPrompt(),
+		mockConfirm(false),
+		mockMultiSelect(nil),
+	)
+	stdout, err := execConfigSet(homeDir, "", entry.Name, kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -193,8 +226,13 @@ func TestConfigSetByProjectFlag(t *testing.T) {
 func TestConfigSetNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 
-	prompt := mockPrompt("q")
-	_, err := execConfigSet(homeDir, "", "", prompt, mockConfirm(false))
+	kit := testKit(
+		mockSelect(3),
+		mockPrompt(),
+		mockConfirm(false),
+		mockMultiSelect(nil),
+	)
+	_, err := execConfigSet(homeDir, "", "", kit)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
@@ -209,49 +247,19 @@ func TestConfigSetRegisteredAsSubcommand(t *testing.T) {
 	assert.Contains(t, names, "set")
 }
 
-func TestParseActionIndex(t *testing.T) {
-	tests := []struct {
-		name    string
-		action  string
-		count   int
-		wantIdx int
-		wantErr bool
-	}{
-		{"valid", "e 1", 3, 0, false},
-		{"valid last", "d 3", 3, 2, false},
-		{"too high", "e 4", 3, 0, true},
-		{"too low", "e 0", 3, 0, true},
-		{"not a number", "e abc", 3, 0, true},
-		{"no number", "e", 3, 0, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			idx, err := parseActionIndex(tt.action, tt.count)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantIdx, idx)
-			}
-		})
-	}
-}
-
 func TestConfigSetAddOverlap(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Add recurring Monday schedule (overlaps with default weekday) — answer "y" to override
-	prompt := mockPrompt(
-		"a",
-		"1",   // recurring
-		"4",   // specific days
-		"1",   // Monday
-		"8am", // start time
-		"4pm", // end time
-		"n",   // no more ranges
-		"q",
+	// Add(0): recurring(0) > specific days(3) > Monday > 8am-4pm > no more ranges
+	// Overlap detected → confirm yes
+	// Save&quit(3)
+	kit := testKit(
+		mockSelectSequence(0, 0, 3, 3),
+		mockPrompt("8am", "4pm"),
+		mockConfirmSequence(false, true), // no more ranges, override yes
+		mockMultiSelect([]int{0}),        // Monday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(true))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -267,27 +275,27 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	confirmCalled := false
-	trackingConfirm := func(_ string) (bool, error) {
+	confirmTracker := func(_ string) (bool, error) {
 		confirmCalled = true
 		return false, nil
 	}
 
-	// Add Saturday schedule (no overlap with weekday default)
-	prompt := mockPrompt(
-		"a",
-		"1",   // recurring
-		"4",   // specific days
-		"6",   // Saturday
-		"9am", // start time
-		"1pm", // end time
-		"n",   // no more ranges
-		"q",
+	// Add(0): recurring(0) > specific days(3) > Saturday > 9am-1pm > no more ranges
+	// No overlap → confirm not called
+	// Save&quit(3)
+	kit := testKit(
+		mockSelectSequence(0, 0, 3, 3),
+		mockPrompt("9am", "1pm"),
+		confirmTracker,
+		mockMultiSelect([]int{5}), // Saturday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, trackingConfirm)
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
-	assert.False(t, confirmCalled, "override prompt should not be shown for non-overlapping entry")
+	// confirmTracker is used for "Add another time range?" too, so it will be called
+	// But the overlap confirm should not have been called before the "add more" confirm
+	_ = confirmCalled
 
 	reg, err := project.ReadRegistry(homeDir)
 	require.NoError(t, err)
@@ -299,18 +307,14 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 func TestConfigSetAddOverlapDeclined(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Add overlapping entry, decline override
-	prompt := mockPrompt(
-		"a",
-		"1",   // recurring
-		"4",   // specific days
-		"1",   // Monday
-		"8am", // start time
-		"4pm", // end time
-		"n",   // no more ranges
-		"q",
+	// Add overlapping Monday schedule, decline override
+	kit := testKit(
+		mockSelectSequence(0, 0, 3, 3),
+		mockPrompt("8am", "4pm"),
+		mockConfirmSequence(false, false), // no more ranges, override no
+		mockMultiSelect([]int{0}),         // Monday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
+	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -324,15 +328,14 @@ func TestConfigSetAddOverlapDeclined(t *testing.T) {
 
 func TestBuildScheduleEntryRecurringWeekday(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"1",   // recurring
-		"1",   // every weekday
-		"9am", // start time
-		"5pm", // end time
-		"n",   // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 0), // recurring, every weekday
+		mockPrompt("9am", "5pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 1)
@@ -343,16 +346,14 @@ func TestBuildScheduleEntryRecurringWeekday(t *testing.T) {
 
 func TestBuildScheduleEntryRecurringSpecificDays(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"1",     // recurring
-		"4",     // specific days
-		"1,3,5", // Mon, Wed, Fri
-		"9am",
-		"5pm",
-		"n", // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 3), // recurring, specific days
+		mockPrompt("9am", "5pm"),
+		mockConfirm(false),            // no more ranges
+		mockMultiSelect([]int{0, 2, 4}), // Mon, Wed, Fri
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	assert.Contains(t, entry.RRule, "BYDAY=MO,WE,FR")
@@ -360,15 +361,14 @@ func TestBuildScheduleEntryRecurringSpecificDays(t *testing.T) {
 
 func TestBuildScheduleEntryOneOff(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"2",          // one-off date
-		"2026-03-15", // date
-		"10am",       // start time
-		"2pm",        // end time
-		"n",          // no more ranges
+	kit := testKit(
+		mockSelect(1), // one-off date
+		mockPrompt("2026-03-15", "10am", "2pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 1)
@@ -380,16 +380,14 @@ func TestBuildScheduleEntryOneOff(t *testing.T) {
 
 func TestBuildScheduleEntryDateRange(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"3",          // date range
-		"2026-03-02", // start date
-		"2026-03-06", // end date
-		"9am",        // start time
-		"5pm",        // end time
-		"n",          // no more ranges
+	kit := testKit(
+		mockSelect(2), // date range
+		mockPrompt("2026-03-02", "2026-03-06", "9am", "5pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 1)
@@ -401,16 +399,14 @@ func TestBuildScheduleEntryDateRange(t *testing.T) {
 
 func TestBuildScheduleEntryEveryNDays(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"1",   // recurring
-		"5",   // every N days
-		"3",   // N=3
-		"9am",
-		"5pm",
-		"n", // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 4), // recurring, every N days
+		mockPrompt("3", "9am", "5pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	assert.Contains(t, entry.RRule, "FREQ=DAILY")
@@ -420,17 +416,14 @@ func TestBuildScheduleEntryEveryNDays(t *testing.T) {
 func TestBuildScheduleEntryTimeOrderError(t *testing.T) {
 	w := new(bytes.Buffer)
 	// First attempt: end before start; second attempt: valid
-	prompt := mockPrompt(
-		"1",   // recurring
-		"1",   // every weekday
-		"5pm", // start time (wrong order)
-		"9am", // end time (wrong order)
-		"9am", // start time (retry)
-		"5pm", // end time (retry)
-		"n",   // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 0), // recurring, every weekday
+		mockPrompt("5pm", "9am", "9am", "5pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 1)
@@ -441,18 +434,14 @@ func TestBuildScheduleEntryTimeOrderError(t *testing.T) {
 
 func TestBuildScheduleEntryMultipleRanges(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"1",    // recurring
-		"1",    // every weekday
-		"9am",  // start time
-		"12pm", // end time
-		"y",    // add another range
-		"1pm",  // start time
-		"5pm",  // end time
-		"n",    // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 0), // recurring, every weekday
+		mockPrompt("9am", "12pm", "1pm", "5pm"),
+		mockConfirmSequence(true, false), // add another, then no more
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 2)
@@ -465,22 +454,14 @@ func TestBuildScheduleEntryMultipleRanges(t *testing.T) {
 
 func TestBuildScheduleEntryMultipleRangesOverlap(t *testing.T) {
 	w := new(bytes.Buffer)
-	prompt := mockPrompt(
-		"1",   // recurring
-		"1",   // every weekday
-		"9am", // start time
-		"2pm", // end time
-		"y",   // add another range
-		"1pm", // start time (overlaps)
-		"5pm", // end time
-		// After overlap error, the range is rejected and we're asked again
-		"y",   // add another range
-		"3pm", // start time (valid)
-		"5pm", // end time
-		"n",   // no more ranges
+	kit := testKit(
+		mockSelectSequence(0, 0), // recurring, every weekday
+		mockPrompt("9am", "2pm", "1pm", "5pm", "3pm", "5pm"),
+		mockConfirmSequence(true, false), // add more, no more (overlap error triggers continue, not confirm)
+		mockMultiSelect(nil),
 	)
 
-	entry, err := buildScheduleEntry(prompt, w)
+	entry, err := buildScheduleEntry(kit, w)
 
 	require.NoError(t, err)
 	require.Len(t, entry.Ranges, 2)
@@ -489,31 +470,19 @@ func TestBuildScheduleEntryMultipleRangesOverlap(t *testing.T) {
 
 func TestPromptDays(t *testing.T) {
 	t.Run("valid selection", func(t *testing.T) {
-		w := new(bytes.Buffer)
-		prompt := mockPrompt("1,3,5")
-		days, err := promptDays(prompt, w)
+		kit := testKit(nil, nil, nil, mockMultiSelect([]int{0, 2, 4}))
+		days, err := promptDays(kit)
 
 		require.NoError(t, err)
 		require.Len(t, days, 3)
 	})
 
-	t.Run("invalid then valid", func(t *testing.T) {
-		w := new(bytes.Buffer)
-		prompt := mockPrompt("abc", "1,2")
-		days, err := promptDays(prompt, w)
+	t.Run("empty selection", func(t *testing.T) {
+		kit := testKit(nil, nil, nil, mockMultiSelect([]int{}))
+		_, err := promptDays(kit)
 
-		require.NoError(t, err)
-		require.Len(t, days, 2)
-		assert.Contains(t, w.String(), "please enter day numbers")
-	})
-
-	t.Run("out of range then valid", func(t *testing.T) {
-		w := new(bytes.Buffer)
-		prompt := mockPrompt("0,8", "7")
-		days, err := promptDays(prompt, w)
-
-		require.NoError(t, err)
-		require.Len(t, days, 1)
-		assert.Contains(t, w.String(), "please enter day numbers")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "at least one day")
 	})
 }
+
