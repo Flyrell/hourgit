@@ -40,15 +40,24 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, kit 
 		return err
 	}
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 
+	return runScheduleEditor(cmd, kit, schedules, entry.Name, func(s []schedule.ScheduleEntry) error {
+		return project.SetSchedules(homeDir, entry.ID, s)
+	})
+}
+
+// runScheduleEditor runs the interactive schedule editor loop.
+// label is used in output messages (e.g. project name or "defaults").
+// save is called when the user chooses "Save & quit".
+func runScheduleEditor(cmd *cobra.Command, kit PromptKit, schedules []schedule.ScheduleEntry, label string, save func([]schedule.ScheduleEntry) error) error {
 	w := cmd.OutOrStdout()
-	_, _ = fmt.Fprintf(w, "%s\n\n", Text(fmt.Sprintf("Editing schedule for '%s'", Primary(entry.Name))))
+	_, _ = fmt.Fprintf(w, "%s\n\n", Text(fmt.Sprintf("Editing schedule for '%s'", Primary(label))))
 
 	for {
 		printScheduleList(cmd, schedules)
@@ -61,10 +70,10 @@ func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, kit 
 
 		switch actionIdx {
 		case 3: // Save & quit
-			if err := project.SetSchedules(homeDir, entry.ID, schedules); err != nil {
+			if err := save(schedules); err != nil {
 				return err
 			}
-			_, _ = fmt.Fprintf(w, "%s\n", Text(fmt.Sprintf("schedule for '%s' saved", Primary(entry.Name))))
+			_, _ = fmt.Fprintf(w, "%s\n", Text(fmt.Sprintf("schedule for '%s' saved", Primary(label))))
 			return nil
 
 		case 0: // Add

@@ -21,17 +21,17 @@ var projectListCmd = LeafCommand{
 }.Build()
 
 func runProjectList(cmd *cobra.Command, homeDir string) error {
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	if len(reg.Projects) == 0 {
+	if len(cfg.Projects) == 0 {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), Silent("No projects found."))
 		return nil
 	}
 
-	for i, p := range reg.Projects {
+	for i, p := range cfg.Projects {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s  %s\n", Silent(p.ID), Primary(p.Name))
 		if len(p.Repos) == 0 {
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), Silent("└── (no repositories assigned)"))
@@ -44,7 +44,7 @@ func runProjectList(cmd *cobra.Command, homeDir string) error {
 				}
 			}
 		}
-		if i < len(reg.Projects)-1 {
+		if i < len(cfg.Projects)-1 {
 			_, _ = fmt.Fprintln(cmd.OutOrStdout())
 		}
 	}

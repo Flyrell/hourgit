@@ -35,12 +35,12 @@ func runConfigGet(cmd *cobra.Command, homeDir, repoDir, projectFlag string) erro
 		return err
 	}
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("Schedule for '%s':", Primary(entry.Name))))
 

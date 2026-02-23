@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/Flyrell/hour-git/internal/schedule"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,50 +17,53 @@ func TestHourgitDir(t *testing.T) {
 	assert.Equal(t, "/home/user/.hourgit", HourgitDir("/home/user"))
 }
 
-func TestRegistryPath(t *testing.T) {
-	assert.Equal(t, "/home/user/.hourgit/projects.json", RegistryPath("/home/user"))
+func TestConfigPath(t *testing.T) {
+	assert.Equal(t, "/home/user/.hourgit/config.json", ConfigPath("/home/user"))
 }
 
 func TestLogDir(t *testing.T) {
 	assert.Equal(t, "/home/user/.hourgit/my-project", LogDir("/home/user", "my-project"))
 }
 
-func TestReadRegistryMissing(t *testing.T) {
+func TestReadConfigMissing(t *testing.T) {
 	home := t.TempDir()
 
-	reg, err := ReadRegistry(home)
+	cfg, err := ReadConfig(home)
 
 	require.NoError(t, err)
-	assert.Empty(t, reg.Projects)
+	assert.Empty(t, cfg.Projects)
+	assert.NotEmpty(t, cfg.Defaults)
 }
 
-func TestRegistryRoundTrip(t *testing.T) {
+func TestConfigRoundTrip(t *testing.T) {
 	home := t.TempDir()
 
-	original := &ProjectRegistry{
+	original := &Config{
+		Defaults: schedule.DefaultSchedules(),
 		Projects: []ProjectEntry{
 			{ID: "abc1234", Name: "Test", Slug: "test", Repos: []string{"/repo1"}},
 		},
 	}
 
-	require.NoError(t, WriteRegistry(home, original))
+	require.NoError(t, WriteConfig(home, original))
 
-	loaded, err := ReadRegistry(home)
+	loaded, err := ReadConfig(home)
 	require.NoError(t, err)
 	assert.Equal(t, original.Projects, loaded.Projects)
+	assert.NotEmpty(t, loaded.Defaults)
 }
 
 func TestFindProject(t *testing.T) {
-	reg := &ProjectRegistry{
+	cfg := &Config{
 		Projects: []ProjectEntry{
 			{ID: "aaa1111", Name: "Alpha", Slug: "alpha"},
 			{ID: "bbb2222", Name: "Beta", Slug: "beta"},
 		},
 	}
 
-	assert.NotNil(t, FindProject(reg, "Alpha"))
-	assert.Equal(t, "alpha", FindProject(reg, "Alpha").Slug)
-	assert.Nil(t, FindProject(reg, "Gamma"))
+	assert.NotNil(t, FindProject(cfg, "Alpha"))
+	assert.Equal(t, "alpha", FindProject(cfg, "Alpha").Slug)
+	assert.Nil(t, FindProject(cfg, "Gamma"))
 }
 
 func TestReadRepoConfigMissing(t *testing.T) {
@@ -98,7 +102,7 @@ func TestRemoveRepoFromProject(t *testing.T) {
 }
 
 func TestResolveProject(t *testing.T) {
-	reg := &ProjectRegistry{
+	cfg := &Config{
 		Projects: []ProjectEntry{
 			{ID: "aaa1111", Name: "Alpha", Slug: "alpha"},
 			{ID: "bbb2222", Name: "Beta", Slug: "beta"},
@@ -106,17 +110,17 @@ func TestResolveProject(t *testing.T) {
 	}
 
 	// Resolve by ID
-	found := ResolveProject(reg, "bbb2222")
+	found := ResolveProject(cfg, "bbb2222")
 	assert.NotNil(t, found)
 	assert.Equal(t, "Beta", found.Name)
 
 	// Resolve by name
-	found = ResolveProject(reg, "Alpha")
+	found = ResolveProject(cfg, "Alpha")
 	assert.NotNil(t, found)
 	assert.Equal(t, "aaa1111", found.ID)
 
 	// Not found
-	assert.Nil(t, ResolveProject(reg, "nonexistent"))
+	assert.Nil(t, ResolveProject(cfg, "nonexistent"))
 }
 
 func TestResolveOrCreateExisting(t *testing.T) {
@@ -153,9 +157,9 @@ func TestResolveOrCreateNew(t *testing.T) {
 	assert.Regexp(t, hexPattern, result.Entry.ID)
 
 	// Verify project was actually persisted
-	reg, err := ReadRegistry(home)
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
+	assert.Len(t, cfg.Projects, 1)
 }
 
 func TestResolveOrCreateDeclined(t *testing.T) {
@@ -169,9 +173,9 @@ func TestResolveOrCreateDeclined(t *testing.T) {
 	assert.Nil(t, result)
 
 	// Verify no project created
-	reg, err := ReadRegistry(home)
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Empty(t, reg.Projects)
+	assert.Empty(t, cfg.Projects)
 }
 
 func TestCreateProjectNew(t *testing.T) {
@@ -185,11 +189,11 @@ func TestCreateProjectNew(t *testing.T) {
 	assert.Regexp(t, hexPattern, entry.ID)
 	assert.Empty(t, entry.Repos)
 
-	// Verify registry
-	reg, err := ReadRegistry(home)
+	// Verify config
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
-	assert.Equal(t, entry.ID, reg.Projects[0].ID)
+	assert.Len(t, cfg.Projects, 1)
+	assert.Equal(t, entry.ID, cfg.Projects[0].ID)
 
 	// Verify log dir
 	_, err = os.Stat(LogDir(home, "my-project"))
@@ -218,16 +222,16 @@ func TestAssignProject(t *testing.T) {
 	err = AssignProject(home, repo, entry)
 	require.NoError(t, err)
 
-	// Verify registry updated
-	reg, err := ReadRegistry(home)
+	// Verify config updated
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Contains(t, reg.Projects[0].Repos, repo)
+	assert.Contains(t, cfg.Projects[0].Repos, repo)
 
 	// Verify repo config
-	cfg, err := ReadRepoConfig(repo)
+	repoCfg, err := ReadRepoConfig(repo)
 	require.NoError(t, err)
-	assert.Equal(t, "My Project", cfg.Project)
-	assert.Equal(t, entry.ID, cfg.ProjectID)
+	assert.Equal(t, "My Project", repoCfg.Project)
+	assert.Equal(t, entry.ID, repoCfg.ProjectID)
 }
 
 func TestAssignProjectIdempotent(t *testing.T) {
@@ -241,9 +245,9 @@ func TestAssignProjectIdempotent(t *testing.T) {
 	require.NoError(t, AssignProject(home, repo, entry))
 	require.NoError(t, AssignProject(home, repo, entry))
 
-	reg, err := ReadRegistry(home)
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects[0].Repos, 1)
+	assert.Len(t, cfg.Projects[0].Repos, 1)
 }
 
 func TestRemoveProject(t *testing.T) {
@@ -256,9 +260,9 @@ func TestRemoveProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, entry.ID, removed.ID)
 
-	reg, err := ReadRegistry(home)
+	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
-	assert.Empty(t, reg.Projects)
+	assert.Empty(t, cfg.Projects)
 }
 
 func TestRemoveProjectByID(t *testing.T) {
@@ -344,16 +348,17 @@ func TestRemoveHookFromRepoMissing(t *testing.T) {
 }
 
 func TestFindProjectByID(t *testing.T) {
-	reg := &ProjectRegistry{
+	cfg := &Config{
 		Projects: []ProjectEntry{
 			{ID: "aaa1111", Name: "Alpha", Slug: "alpha"},
 			{ID: "bbb2222", Name: "Beta", Slug: "beta"},
 		},
 	}
 
-	found := FindProjectByID(reg, "bbb2222")
+	found := FindProjectByID(cfg, "bbb2222")
 	assert.NotNil(t, found)
 	assert.Equal(t, "Beta", found.Name)
 
-	assert.Nil(t, FindProjectByID(reg, "nonexistent"))
+	assert.Nil(t, FindProjectByID(cfg, "nonexistent"))
 }
+

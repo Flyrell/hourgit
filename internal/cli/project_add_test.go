@@ -26,12 +26,12 @@ func TestProjectAddHappyPath(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project 'My Project' created (")
 
-	// Verify registry
-	reg, err := project.ReadRegistry(home)
+	// Verify config
+	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
-	assert.Equal(t, "My Project", reg.Projects[0].Name)
-	assert.Empty(t, reg.Projects[0].Repos)
+	assert.Len(t, cfg.Projects, 1)
+	assert.Equal(t, "My Project", cfg.Projects[0].Name)
+	assert.Empty(t, cfg.Projects[0].Repos)
 
 	// Verify log dir
 	_, err = os.Stat(project.LogDir(home, "my-project"))

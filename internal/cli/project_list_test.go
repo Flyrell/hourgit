@@ -88,13 +88,13 @@ func TestProjectListMultipleRepos(t *testing.T) {
 func TestProjectListNoRepos(t *testing.T) {
 	home := t.TempDir()
 
-	// Write a registry with a project that has no repos
-	reg := &project.ProjectRegistry{
+	// Write a config with a project that has no repos
+	cfg := &project.Config{
 		Projects: []project.ProjectEntry{
 			{ID: "abc1234", Name: "Empty Project", Slug: "empty-project", Repos: []string{}},
 		},
 	}
-	require.NoError(t, project.WriteRegistry(home, reg))
+	require.NoError(t, project.WriteConfig(home, cfg))
 
 	stdout, err := execProjectList(home)
 

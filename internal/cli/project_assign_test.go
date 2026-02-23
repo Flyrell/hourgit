@@ -62,19 +62,19 @@ func TestProjectAssignHappyPathNewProject(t *testing.T) {
 	assert.Contains(t, stdout, "project 'My Project' created (")
 	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
 
-	// Verify registry
-	reg, err := project.ReadRegistry(home)
+	// Verify config
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
-	assert.Equal(t, "My Project", reg.Projects[0].Name)
-	assert.NotEmpty(t, reg.Projects[0].ID)
-	assert.Contains(t, reg.Projects[0].Repos, dir)
+	assert.Len(t, appCfg.Projects, 1)
+	assert.Equal(t, "My Project", appCfg.Projects[0].Name)
+	assert.NotEmpty(t, appCfg.Projects[0].ID)
+	assert.Contains(t, appCfg.Projects[0].Repos, dir)
 
 	// Verify repo config
-	cfg, err := project.ReadRepoConfig(dir)
+	repoCfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "My Project", cfg.Project)
-	assert.Equal(t, reg.Projects[0].ID, cfg.ProjectID)
+	assert.Equal(t, "My Project", repoCfg.Project)
+	assert.Equal(t, appCfg.Projects[0].ID, repoCfg.ProjectID)
 
 	// Verify log dir
 	_, err = os.Stat(project.LogDir(home, "my-project"))
@@ -134,10 +134,10 @@ func TestProjectAssignSameProjectNoop(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "repository is already assigned to project 'My Project'")
 
-	// Verify still one repo in registry
-	reg, err := project.ReadRegistry(home)
+	// Verify still one repo in config
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects[0].Repos, 1)
+	assert.Len(t, appCfg.Projects[0].Repos, 1)
 }
 
 func TestProjectAssignByID(t *testing.T) {
@@ -149,9 +149,9 @@ func TestProjectAssignByID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the project ID
-	reg, err := project.ReadRegistry(home)
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	projectID := reg.Projects[0].ID
+	projectID := appCfg.Projects[0].ID
 
 	// Set up a second repo
 	dir2 := t.TempDir()
@@ -167,10 +167,10 @@ func TestProjectAssignByID(t *testing.T) {
 	assert.NotContains(t, stdout, "created")
 
 	// Verify repo config uses name, not ID
-	cfg, err := project.ReadRepoConfig(dir2)
+	repoCfg, err := project.ReadRepoConfig(dir2)
 	require.NoError(t, err)
-	assert.Equal(t, "My Project", cfg.Project)
-	assert.Equal(t, projectID, cfg.ProjectID)
+	assert.Equal(t, "My Project", repoCfg.Project)
+	assert.Equal(t, projectID, repoCfg.ProjectID)
 }
 
 func TestProjectAssignSameProjectByID(t *testing.T) {
@@ -182,9 +182,9 @@ func TestProjectAssignSameProjectByID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the project ID
-	reg, err := project.ReadRegistry(home)
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	projectID := reg.Projects[0].ID
+	projectID := appCfg.Projects[0].ID
 
 	// Try to assign same project by ID — should be a noop
 	stdout, _, err := execProjectAssign(dir, AlwaysYes(), projectID)
@@ -220,21 +220,21 @@ func TestProjectAssignDifferentProjectWithForce(t *testing.T) {
 	assert.Contains(t, stdout, "repository assigned to project 'Project B'")
 
 	// Verify repo removed from old project
-	reg, err := project.ReadRegistry(home)
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
 
-	oldEntry := project.FindProject(reg, "Project A")
+	oldEntry := project.FindProject(appCfg, "Project A")
 	require.NotNil(t, oldEntry)
 	assert.Empty(t, oldEntry.Repos)
 
-	newEntry := project.FindProject(reg, "Project B")
+	newEntry := project.FindProject(appCfg, "Project B")
 	require.NotNil(t, newEntry)
 	assert.Contains(t, newEntry.Repos, dir)
 
 	// Verify repo config updated
-	cfg, err := project.ReadRepoConfig(dir)
+	repoCfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "Project B", cfg.Project)
+	assert.Equal(t, "Project B", repoCfg.Project)
 }
 
 func TestProjectAssignRegisteredAsSubcommand(t *testing.T) {

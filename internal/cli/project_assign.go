@@ -80,14 +80,14 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 		}
 
 		// Remove repo from old project
-		reg, err := project.ReadRegistry(homeDir)
+		appCfg, err := project.ReadConfig(homeDir)
 		if err != nil {
 			return err
 		}
-		oldEntry := project.FindProject(reg, cfg.Project)
+		oldEntry := project.FindProject(appCfg, cfg.Project)
 		if oldEntry != nil {
 			project.RemoveRepoFromProject(oldEntry, repoDir)
-			if err := project.WriteRegistry(homeDir, reg); err != nil {
+			if err := project.WriteConfig(homeDir, appCfg); err != nil {
 				return err
 			}
 		}

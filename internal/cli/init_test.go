@@ -161,18 +161,18 @@ func TestInitWithProjectFlag(t *testing.T) {
 	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
 	assert.Contains(t, stdout, "hourgit initialized successfully")
 
-	// Verify projects.json created
-	reg, err := project.ReadRegistry(home)
+	// Verify config.json created
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
-	assert.Equal(t, "My Project", reg.Projects[0].Name)
-	assert.NotEmpty(t, reg.Projects[0].ID)
+	assert.Len(t, appCfg.Projects, 1)
+	assert.Equal(t, "My Project", appCfg.Projects[0].Name)
+	assert.NotEmpty(t, appCfg.Projects[0].ID)
 
 	// Verify .git/.hourgit written
-	cfg, err := project.ReadRepoConfig(dir)
+	repoCfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "My Project", cfg.Project)
-	assert.Equal(t, reg.Projects[0].ID, cfg.ProjectID)
+	assert.Equal(t, "My Project", repoCfg.Project)
+	assert.Equal(t, appCfg.Projects[0].ID, repoCfg.ProjectID)
 
 	// Verify log dir created
 	_, err = os.Stat(project.LogDir(home, "my-project"))
@@ -201,10 +201,10 @@ func TestInitWithProjectFlagByID(t *testing.T) {
 	assert.Contains(t, stdout, "hourgit initialized successfully")
 
 	// Verify repo config uses name, not ID
-	cfg, err := project.ReadRepoConfig(dir)
+	repoCfg, err := project.ReadRepoConfig(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "My Project", cfg.Project)
-	assert.Equal(t, projectID, cfg.ProjectID)
+	assert.Equal(t, "My Project", repoCfg.Project)
+	assert.Equal(t, projectID, repoCfg.ProjectID)
 }
 
 func TestInitWithProjectFlagConflict(t *testing.T) {
@@ -240,9 +240,9 @@ func TestInitWithProjectFlagDeclined(t *testing.T) {
 	assert.Contains(t, stdout, "hourgit initialized successfully")
 
 	// Verify no project created
-	reg, err := project.ReadRegistry(home)
+	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Empty(t, reg.Projects)
+	assert.Empty(t, appCfg.Projects)
 }
 
 func TestInitCreateHooksDir(t *testing.T) {

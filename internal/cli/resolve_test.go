@@ -24,9 +24,9 @@ func setupResolveTest(t *testing.T) (homeDir string, repoDir string, entry *proj
 	require.NoError(t, project.AssignProject(homeDir, repoDir, entry))
 
 	// Re-read entry to get updated state
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	entry = project.FindProjectByID(reg, entry.ID)
+	entry = project.FindProjectByID(cfg, entry.ID)
 
 	return homeDir, repoDir, entry
 }

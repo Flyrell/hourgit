@@ -36,12 +36,12 @@ var projectRemoveCmd = LeafCommand{
 
 func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm ConfirmFunc) error {
 	// Look up the project first to check repos
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	entry := project.ResolveProject(reg, identifier)
+	entry := project.ResolveProject(cfg, identifier)
 	if entry == nil {
 		return fmt.Errorf("project '%s' not found", identifier)
 	}
