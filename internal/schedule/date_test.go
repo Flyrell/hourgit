@@ -1,0 +1,106 @@
+package schedule
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestParseDate(t *testing.T) {
+	// Fixed reference time: Wednesday, January 15, 2025
+	now := time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		input   string
+		want    time.Time
+		wantErr bool
+	}{
+		// Relative
+		{
+			name:  "today",
+			input: "today",
+			want:  time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "tomorrow",
+			input: "tomorrow",
+			want:  time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC),
+		},
+
+		// Weekday (now is Wednesday)
+		{
+			name:  "monday",
+			input: "monday",
+			want:  time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "next tuesday",
+			input: "next tuesday",
+			want:  time.Date(2025, 1, 21, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "friday",
+			input: "friday",
+			want:  time.Date(2025, 1, 17, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "wednesday (same day goes to next week)",
+			input: "wednesday",
+			want:  time.Date(2025, 1, 22, 0, 0, 0, 0, time.UTC),
+		},
+
+		// With "on " prefix
+		{
+			name:  "on monday",
+			input: "on monday",
+			want:  time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC),
+		},
+
+		// Absolute dates
+		{
+			name:  "ISO date",
+			input: "2024-01-15",
+			want:  time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "jan 2",
+			input: "jan 2",
+			want:  time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "jan 2 2026",
+			input: "jan 2 2026",
+			want:  time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "january 15",
+			input: "january 15",
+			want:  time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "january 15 2026",
+			input: "january 15 2026",
+			want:  time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+
+		// Errors
+		{name: "empty", input: "", wantErr: true},
+		{name: "garbage", input: "not a date", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDate(tt.input, now)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tt.want, *got)
+		})
+	}
+}
