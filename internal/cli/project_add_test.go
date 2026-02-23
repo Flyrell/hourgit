@@ -10,14 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execProjectAdd(homeDir string, args ...string) (string, error) {
+func execProjectAdd(homeDir string, name string) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := projectAddCmd
 	cmd.SetOut(stdout)
-	if len(args) != 1 {
-		return "", nil
-	}
-	err := runProjectAdd(cmd, homeDir, args[0])
+	err := runProjectAdd(cmd, homeDir, name)
 	return stdout.String(), err
 }
 

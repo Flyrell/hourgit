@@ -61,7 +61,7 @@ func TestInitInGitRepo(t *testing.T) {
 	hookPath := filepath.Join(dir, ".git", "hooks", "post-checkout")
 	content, err := os.ReadFile(hookPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), hookMarker)
+	assert.Contains(t, string(content), project.HookMarker)
 	assert.Contains(t, string(content), "#!/bin/sh")
 
 	info, err := os.Stat(hookPath)
@@ -122,7 +122,7 @@ func TestInitHookExistsForce(t *testing.T) {
 
 	content, err := os.ReadFile(filepath.Join(hooksDir, "post-checkout"))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), hookMarker)
+	assert.Contains(t, string(content), project.HookMarker)
 	assert.NotContains(t, string(content), "echo existing")
 }
 
@@ -142,7 +142,7 @@ func TestInitHookExistsMerge(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join(hooksDir, "post-checkout"))
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "echo existing")
-	assert.Contains(t, string(content), hookMarker)
+	assert.Contains(t, string(content), project.HookMarker)
 }
 
 func TestInitWithProjectFlag(t *testing.T) {

@@ -119,6 +119,61 @@ func TestResolveProject(t *testing.T) {
 	assert.Nil(t, ResolveProject(reg, "nonexistent"))
 }
 
+func TestResolveOrCreateExisting(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	promptCalled := false
+	result, err := ResolveOrCreate(home, "My Project", func(_ string) (bool, error) {
+		promptCalled = true
+		return false, nil
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.False(t, result.Created)
+	assert.Equal(t, entry.ID, result.Entry.ID)
+	assert.False(t, promptCalled)
+}
+
+func TestResolveOrCreateNew(t *testing.T) {
+	home := t.TempDir()
+
+	result, err := ResolveOrCreate(home, "New Project", func(name string) (bool, error) {
+		assert.Equal(t, "New Project", name)
+		return true, nil
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.Created)
+	assert.Equal(t, "New Project", result.Entry.Name)
+	assert.Regexp(t, hexPattern, result.Entry.ID)
+
+	// Verify project was actually persisted
+	reg, err := ReadRegistry(home)
+	require.NoError(t, err)
+	assert.Len(t, reg.Projects, 1)
+}
+
+func TestResolveOrCreateDeclined(t *testing.T) {
+	home := t.TempDir()
+
+	result, err := ResolveOrCreate(home, "New Project", func(_ string) (bool, error) {
+		return false, nil
+	})
+
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+
+	// Verify no project created
+	reg, err := ReadRegistry(home)
+	require.NoError(t, err)
+	assert.Empty(t, reg.Projects)
+}
+
 func TestCreateProjectNew(t *testing.T) {
 	home := t.TempDir()
 

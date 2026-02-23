@@ -47,7 +47,7 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 	// Check hourgit is initialized
 	hookPath := filepath.Join(repoDir, ".git", "hooks", "post-checkout")
 	hookData, err := os.ReadFile(hookPath)
-	if err != nil || !strings.Contains(string(hookData), hookMarker) {
+	if err != nil || !strings.Contains(string(hookData), project.HookMarker) {
 		return fmt.Errorf("hourgit is not initialized (run 'hour-git init' first)")
 	}
 
@@ -57,19 +57,20 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 		return err
 	}
 
-	// Resolve identifier (could be ID or name)
-	reg, err := project.ReadRegistry(homeDir)
+	// Resolve project (may prompt to create)
+	result, err := project.ResolveOrCreate(homeDir, projectName, func(name string) (bool, error) {
+		return confirm(fmt.Sprintf("Project '%s' does not exist. Create it?", name))
+	})
 	if err != nil {
 		return err
 	}
-	resolved := project.ResolveProject(reg, projectName)
-	resolvedName := projectName
-	if resolved != nil {
-		resolvedName = resolved.Name
+	if result == nil {
+		return fmt.Errorf("aborted")
 	}
 
+	// Check existing assignment
 	if cfg != nil && cfg.Project != "" {
-		if cfg.Project == resolvedName {
+		if cfg.Project == result.Entry.Name {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository is already assigned to project '%s'", Primary(cfg.Project))))
 			return nil
 		}
@@ -79,6 +80,10 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 		}
 
 		// Remove repo from old project
+		reg, err := project.ReadRegistry(homeDir)
+		if err != nil {
+			return err
+		}
 		oldEntry := project.FindProject(reg, cfg.Project)
 		if oldEntry != nil {
 			project.RemoveRepoFromProject(oldEntry, repoDir)
@@ -88,31 +93,14 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 		}
 	}
 
-	// If project doesn't exist, prompt to create it
-	var entry *project.ProjectEntry
-	if resolved == nil {
-		prompt := fmt.Sprintf("Project '%s' does not exist. Create it?", projectName)
-		confirmed, err := confirm(prompt)
-		if err != nil {
-			return err
-		}
-		if !confirmed {
-			return fmt.Errorf("aborted")
-		}
-
-		entry, err = project.CreateProject(homeDir, projectName)
-		if err != nil {
-			return err
-		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))
-	} else {
-		entry = resolved
+	if result.Created {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(result.Entry.Name), Silent(result.Entry.ID))))
 	}
 
-	if err := project.AssignProject(homeDir, repoDir, entry); err != nil {
+	if err := project.AssignProject(homeDir, repoDir, result.Entry); err != nil {
 		return err
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(entry.Name))))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(result.Entry.Name))))
 	return nil
 }

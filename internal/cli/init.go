@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const hookMarker = "# Installed by hourgit"
-
 const hookContent = `#!/bin/sh
 # Installed by hourgit
 # TODO: hourgit log --type checkout <branch>
@@ -68,7 +66,7 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 	if existing, err := os.ReadFile(hookPath); err == nil {
 		content := string(existing)
 
-		if strings.Contains(content, hookMarker) {
+		if strings.Contains(content, project.HookMarker) {
 			return fmt.Errorf("hourgit is already initialized")
 		}
 
@@ -102,48 +100,31 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 			return err
 		}
 
-		// Resolve identifier to check for match with existing assignment
-		reg, err := project.ReadRegistry(homeDir)
+		// Resolve project (may prompt to create)
+		result, err := project.ResolveOrCreate(homeDir, projectName, func(name string) (bool, error) {
+			return confirm(fmt.Sprintf("Project '%s' does not exist. Create it?", name))
+		})
 		if err != nil {
 			return err
 		}
-		resolved := project.ResolveProject(reg, projectName)
-		resolvedName := projectName
-		if resolved != nil {
-			resolvedName = resolved.Name
+		if result == nil {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text("project assignment skipped"))
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
+			return nil
 		}
 
-		if cfg != nil && cfg.Project != "" && cfg.Project != resolvedName {
+		if cfg != nil && cfg.Project != "" && cfg.Project != result.Entry.Name {
 			return fmt.Errorf("repository is already assigned to project '%s' (use 'project assign --force' to reassign)", cfg.Project)
 		}
 
-		// If project doesn't exist, prompt to create
-		var entry *project.ProjectEntry
-		if resolved == nil {
-			prompt := fmt.Sprintf("Project '%s' does not exist. Create it?", projectName)
-			confirmed, err := confirm(prompt)
-			if err != nil {
-				return err
-			}
-			if !confirmed {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text("project assignment skipped"))
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
-				return nil
-			}
-
-			entry, err = project.CreateProject(homeDir, projectName)
-			if err != nil {
-				return err
-			}
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))
-		} else {
-			entry = resolved
+		if result.Created {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(result.Entry.Name), Silent(result.Entry.ID))))
 		}
 
-		if err := project.AssignProject(homeDir, dir, entry); err != nil {
+		if err := project.AssignProject(homeDir, dir, result.Entry); err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(entry.Name))))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(result.Entry.Name))))
 	}
 
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
