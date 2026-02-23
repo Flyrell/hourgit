@@ -6,18 +6,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:           "hour-git",
-	Short:         "A Git time-tracking CLI tool",
-	SilenceUsage:  true,
-	SilenceErrors: true,
-}
+var rootCmd = newRootCmd()
 
-func init() {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
-	rootCmd.AddCommand(initCmd)
-	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(projectCmd)
+func newRootCmd() *cobra.Command {
+	cmd := GroupCommand{
+		Use:   "hour-git",
+		Short: "A Git time-tracking CLI tool",
+		Subcommands: []*cobra.Command{
+			initCmd,
+			versionCmd,
+			projectCmd,
+		},
+	}.Build()
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.CompletionOptions.DisableDefaultCmd = true
+	return cmd
 }
 
 func Execute() error {

@@ -39,6 +39,14 @@ func execInit(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
+func execInitDirect(dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc) (string, error) {
+	stdout := new(bytes.Buffer)
+	cmd := initCmd
+	cmd.SetOut(stdout)
+	err := runInit(cmd, dir, homeDir, projectName, force, merge, confirm)
+	return stdout.String(), err
+}
+
 func TestInitInGitRepo(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
@@ -146,7 +154,7 @@ func TestInitWithProjectFlag(t *testing.T) {
 
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 
-	stdout, _, err := execInit("--project", "My Project")
+	stdout, _, err := execInit("--project", "My Project", "--yes")
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project 'My Project' created (")
@@ -179,15 +187,9 @@ func TestInitWithProjectFlagByID(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	// Create a project in the registry first
-	otherRepo := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(otherRepo, ".git"), 0755))
-	_, _, err := project.RegisterProject(home, otherRepo, "My Project")
+	entry, err := project.CreateProject(home, "My Project")
 	require.NoError(t, err)
-
-	// Get the project ID
-	reg, err := project.ReadRegistry(home)
-	require.NoError(t, err)
-	projectID := reg.Projects[0].ID
+	projectID := entry.ID
 
 	// Init with the project ID
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
@@ -217,11 +219,30 @@ func TestInitWithProjectFlagConflict(t *testing.T) {
 	// Pre-assign to a different project
 	require.NoError(t, project.WriteRepoConfig(dir, &project.RepoConfig{Project: "Old Project"}))
 
-	_, stderr, err := execInit("--project", "New Project")
+	_, stderr, err := execInit("--project", "New Project", "--yes")
 
 	assert.Error(t, err)
 	assert.Contains(t, stderr, "repository is already assigned to project 'Old Project'")
-	assert.Contains(t, stderr, "use 'project set --force' to reassign")
+	assert.Contains(t, stderr, "use 'project assign --force' to reassign")
+}
+
+func TestInitWithProjectFlagDeclined(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	decline := func(_ string) (bool, error) { return false, nil }
+	stdout, err := execInitDirect(dir, home, "My Project", false, false, decline)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project assignment skipped")
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+
+	// Verify no project created
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	assert.Empty(t, reg.Projects)
 }
 
 func TestInitCreateHooksDir(t *testing.T) {
