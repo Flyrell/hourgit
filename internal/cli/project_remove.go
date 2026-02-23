@@ -27,7 +27,7 @@ var projectRemoveCmd = LeafCommand{
 		if yes {
 			confirm = AlwaysYes()
 		} else {
-			confirm = NewConfirmFunc(cmd.InOrStdin(), cmd.OutOrStdout())
+			confirm = NewConfirmFunc()
 		}
 
 		return runProjectRemove(cmd, homeDir, args[0], confirm)

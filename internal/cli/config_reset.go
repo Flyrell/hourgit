@@ -31,7 +31,7 @@ var configResetCmd = LeafCommand{
 		if yes {
 			confirm = AlwaysYes()
 		} else {
-			confirm = NewConfirmFunc(cmd.InOrStdin(), cmd.OutOrStdout())
+			confirm = NewConfirmFunc()
 		}
 
 		return runConfigReset(cmd, homeDir, repoDir, projectFlag, confirm)
