@@ -53,8 +53,8 @@ func TestConfigReadMultipleWindows(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	custom := []schedule.ScheduleEntry{
-		{From: "09:00", To: "12:00", RRule: "FREQ=WEEKLY;BYDAY=MO"},
-		{From: "13:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=MO"},
+		{Ranges: []schedule.TimeRange{{From: "09:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO"},
+		{Ranges: []schedule.TimeRange{{From: "13:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO"},
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
@@ -81,7 +81,7 @@ func TestConfigReadNoWorkingHours(t *testing.T) {
 
 	// Set schedule to a specific date outside the test month
 	custom := []schedule.ScheduleEntry{
-		{From: "09:00", To: "17:00", RRule: "DTSTART:20260315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []schedule.TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 

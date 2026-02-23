@@ -23,7 +23,7 @@ func TestConfigResetHappyPath(t *testing.T) {
 
 	// Set a custom schedule first
 	custom := []schedule.ScheduleEntry{
-		{From: "06:00", To: "14:00", RRule: "FREQ=DAILY"},
+		{Ranges: []schedule.TimeRange{{From: "06:00", To: "14:00"}}, RRule: "FREQ=DAILY"},
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
@@ -43,7 +43,7 @@ func TestConfigResetDeclined(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	custom := []schedule.ScheduleEntry{
-		{From: "06:00", To: "14:00", RRule: "FREQ=DAILY"},
+		{Ranges: []schedule.TimeRange{{From: "06:00", To: "14:00"}}, RRule: "FREQ=DAILY"},
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 

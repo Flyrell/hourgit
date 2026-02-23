@@ -30,8 +30,8 @@ func TestExpandSchedulesWeekdays(t *testing.T) {
 
 func TestExpandSchedulesMultipleEntries(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "09:00", To: "12:00", RRule: "FREQ=WEEKLY;BYDAY=MO"},
-		{From: "13:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=MO"},
+		{Ranges: []TimeRange{{From: "09:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO"},
+		{Ranges: []TimeRange{{From: "13:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO"},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -53,10 +53,38 @@ func TestExpandSchedulesMultipleEntries(t *testing.T) {
 	}
 }
 
+func TestExpandSchedulesMultiRangeEntry(t *testing.T) {
+	// A single entry with two ranges should produce two windows per day
+	entries := []ScheduleEntry{
+		{
+			Ranges: []TimeRange{
+				{From: "09:00", To: "12:00"},
+				{From: "13:00", To: "17:00"},
+			},
+			RRule: "FREQ=WEEKLY;BYDAY=MO",
+		},
+	}
+	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
+
+	result, err := ExpandSchedules(entries, from, to)
+
+	require.NoError(t, err)
+	require.Equal(t, 4, len(result)) // 4 Mondays
+	for _, ds := range result {
+		assert.Equal(t, time.Monday, ds.Date.Weekday())
+		require.Len(t, ds.Windows, 2)
+		assert.Equal(t, TimeOfDay{Hour: 9, Minute: 0}, ds.Windows[0].From)
+		assert.Equal(t, TimeOfDay{Hour: 12, Minute: 0}, ds.Windows[0].To)
+		assert.Equal(t, TimeOfDay{Hour: 13, Minute: 0}, ds.Windows[1].From)
+		assert.Equal(t, TimeOfDay{Hour: 17, Minute: 0}, ds.Windows[1].To)
+	}
+}
+
 func TestExpandSchedulesOverride(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "09:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
-		{From: "08:00", To: "16:00", RRule: "FREQ=WEEKLY;BYDAY=MO", Override: true},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
+		{Ranges: []TimeRange{{From: "08:00", To: "16:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO", Override: true},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -80,9 +108,43 @@ func TestExpandSchedulesOverride(t *testing.T) {
 	}
 }
 
+func TestExpandSchedulesOverrideMultiRange(t *testing.T) {
+	// Override with a multi-range entry should replace all windows for that day
+	entries := []ScheduleEntry{
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
+		{
+			Ranges: []TimeRange{
+				{From: "08:00", To: "12:00"},
+				{From: "13:00", To: "16:00"},
+			},
+			RRule:    "FREQ=WEEKLY;BYDAY=MO",
+			Override: true,
+		},
+	}
+	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
+
+	result, err := ExpandSchedules(entries, from, to)
+
+	require.NoError(t, err)
+	assert.Equal(t, 20, len(result))
+
+	for _, ds := range result {
+		if ds.Date.Weekday() == time.Monday {
+			require.Len(t, ds.Windows, 2)
+			assert.Equal(t, TimeOfDay{Hour: 8, Minute: 0}, ds.Windows[0].From)
+			assert.Equal(t, TimeOfDay{Hour: 12, Minute: 0}, ds.Windows[0].To)
+			assert.Equal(t, TimeOfDay{Hour: 13, Minute: 0}, ds.Windows[1].From)
+			assert.Equal(t, TimeOfDay{Hour: 16, Minute: 0}, ds.Windows[1].To)
+		} else {
+			require.Len(t, ds.Windows, 1)
+		}
+	}
+}
+
 func TestExpandSchedulesOneOffDate(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "10:00", To: "14:00", RRule: "DTSTART:20260215T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []TimeRange{{From: "10:00", To: "14:00"}}, RRule: "DTSTART:20260215T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -98,7 +160,7 @@ func TestExpandSchedulesOneOffDate(t *testing.T) {
 
 func TestExpandSchedulesOneOffDateOutOfRange(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "10:00", To: "14:00", RRule: "DTSTART:20260315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []TimeRange{{From: "10:00", To: "14:00"}}, RRule: "DTSTART:20260315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -111,7 +173,7 @@ func TestExpandSchedulesOneOffDateOutOfRange(t *testing.T) {
 
 func TestExpandSchedulesDateRange(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "09:00", To: "17:00", RRule: "DTSTART:20260302T000000Z\nRRULE:FREQ=DAILY;UNTIL=20260306T235959Z"},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260302T000000Z\nRRULE:FREQ=DAILY;UNTIL=20260306T235959Z"},
 	}
 	from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 3, 31, 23, 59, 59, 0, time.UTC)
@@ -126,7 +188,7 @@ func TestExpandSchedulesDateRange(t *testing.T) {
 
 func TestExpandSchedulesBareEntry(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "09:00", To: "17:00"},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -146,7 +208,7 @@ func TestExpandSchedulesEmpty(t *testing.T) {
 
 func TestExpandSchedulesInvalidEntry(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "bad", To: "17:00", RRule: "FREQ=DAILY"},
+		{Ranges: []TimeRange{{From: "bad", To: "17:00"}}, RRule: "FREQ=DAILY"},
 	}
 	_, err := ExpandSchedules(entries, time.Now(), time.Now())
 	assert.Error(t, err)
@@ -155,8 +217,8 @@ func TestExpandSchedulesInvalidEntry(t *testing.T) {
 func TestExpandSchedulesAccumulate(t *testing.T) {
 	// Split shift: two entries for the same days without override → both windows appear
 	entries := []ScheduleEntry{
-		{From: "08:00", To: "12:00", RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
-		{From: "13:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
+		{Ranges: []TimeRange{{From: "08:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
+		{Ranges: []TimeRange{{From: "13:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)
@@ -177,9 +239,9 @@ func TestExpandSchedulesAccumulate(t *testing.T) {
 
 func TestExpandSchedulesSortedByDate(t *testing.T) {
 	entries := []ScheduleEntry{
-		{From: "09:00", To: "17:00", RRule: "DTSTART:20260220T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
-		{From: "09:00", To: "17:00", RRule: "DTSTART:20260210T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
-		{From: "09:00", To: "17:00", RRule: "DTSTART:20260215T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260220T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260210T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+		{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260215T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
 	}
 	from := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)

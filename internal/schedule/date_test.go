@@ -126,3 +126,47 @@ func TestParseDate(t *testing.T) {
 		})
 	}
 }
+
+func TestParseDate_NonUTCTimezone(t *testing.T) {
+	// Use a fixed-offset timezone to avoid dependency on tzdata in Docker.
+	cet := time.FixedZone("CET", 1*60*60) // UTC+1
+
+	// Wednesday, January 15, 2025 in CET
+	now := time.Date(2025, 1, 15, 10, 30, 0, 0, cet)
+
+	tests := []struct {
+		name  string
+		input string
+		want  time.Time
+	}{
+		{
+			name:  "today returns UTC midnight",
+			input: "today",
+			want:  time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "tomorrow returns UTC midnight",
+			input: "tomorrow",
+			want:  time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "weekday returns UTC midnight",
+			input: "monday",
+			want:  time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "absolute date returns UTC midnight",
+			input: "2025-03-15",
+			want:  time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDate(tt.input, now)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tt.want, *got)
+		})
+	}
+}
