@@ -190,15 +190,14 @@ func buildScheduleEntry(prompt PromptFunc, w io.Writer) (schedule.ScheduleEntry,
 		rruleStr = r.String()
 	}
 
-	from, to, err := promptTimeRange(prompt, w)
+	ranges, err := promptTimeRanges(prompt, w)
 	if err != nil {
 		return schedule.ScheduleEntry{}, err
 	}
 
 	entry := schedule.ScheduleEntry{
-		From:  from,
-		To:    to,
-		RRule: rruleStr,
+		Ranges: ranges,
+		RRule:  rruleStr,
 	}
 
 	_, _ = fmt.Fprintf(w, "\n  %s\n", Text("→ "+schedule.FormatScheduleEntry(entry)))
@@ -389,8 +388,40 @@ func promptDate(prompt PromptFunc, w io.Writer, label string) (time.Time, error)
 	}
 }
 
-// promptTimeRange asks the user for a start and end time, validating order.
-func promptTimeRange(prompt PromptFunc, w io.Writer) (string, string, error) {
+// promptTimeRanges asks the user for one or more start/end time pairs.
+// After each range, the user is asked whether to add another.
+func promptTimeRanges(prompt PromptFunc, w io.Writer) ([]schedule.TimeRange, error) {
+	var ranges []schedule.TimeRange
+
+	for {
+		from, to, err := promptSingleTimeRange(prompt, w)
+		if err != nil {
+			return nil, err
+		}
+		ranges = append(ranges, schedule.TimeRange{From: from, To: to})
+
+		// Validate collected ranges so far
+		if err := schedule.ValidateRanges(ranges); err != nil {
+			_, _ = fmt.Fprintf(w, "%s\n", Error(err.Error()))
+			// Remove the last range that caused the error
+			ranges = ranges[:len(ranges)-1]
+			continue
+		}
+
+		input, err := prompt(Text("Add another time range? [y/N] "))
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(strings.ToLower(input)) != "y" {
+			break
+		}
+	}
+
+	return ranges, nil
+}
+
+// promptSingleTimeRange asks the user for a start and end time, validating order.
+func promptSingleTimeRange(prompt PromptFunc, w io.Writer) (string, string, error) {
 	for {
 		fromInput, err := prompt(Text("Start time (e.g. 9am, 9:00, 14:30): "))
 		if err != nil {

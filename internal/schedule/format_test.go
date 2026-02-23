@@ -87,28 +87,39 @@ func TestFormatScheduleEntry(t *testing.T) {
 	}{
 		{
 			name:  "recurring weekday",
-			entry: ScheduleEntry{From: "09:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
+			entry: ScheduleEntry{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"},
 			want:  "9:00 AM - 5:00 PM, every weekday",
 		},
 		{
 			name:  "one-off date",
-			entry: ScheduleEntry{From: "10:00", To: "14:00", RRule: "DTSTART:20250315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
+			entry: ScheduleEntry{Ranges: []TimeRange{{From: "10:00", To: "14:00"}}, RRule: "DTSTART:20250315T000000Z\nRRULE:FREQ=DAILY;COUNT=1"},
 			want:  "10:00 AM - 2:00 PM, on Mar 15",
 		},
 		{
 			name:  "date range",
-			entry: ScheduleEntry{From: "09:00", To: "17:00", RRule: "DTSTART:20260302T000000Z\nRRULE:FREQ=DAILY;UNTIL=20260306T235959Z"},
+			entry: ScheduleEntry{Ranges: []TimeRange{{From: "09:00", To: "17:00"}}, RRule: "DTSTART:20260302T000000Z\nRRULE:FREQ=DAILY;UNTIL=20260306T235959Z"},
 			want:  "9:00 AM - 5:00 PM, Mar 2 – Mar 6",
 		},
 		{
 			name:  "bare time range",
-			entry: ScheduleEntry{From: "08:00", To: "16:00"},
+			entry: ScheduleEntry{Ranges: []TimeRange{{From: "08:00", To: "16:00"}}},
 			want:  "8:00 AM - 4:00 PM",
 		},
 		{
 			name:  "recurring with override",
-			entry: ScheduleEntry{From: "08:00", To: "16:00", RRule: "FREQ=WEEKLY;BYDAY=MO", Override: true},
+			entry: ScheduleEntry{Ranges: []TimeRange{{From: "08:00", To: "16:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO", Override: true},
 			want:  "8:00 AM - 4:00 PM, every Monday (override)",
+		},
+		{
+			name: "multiple ranges",
+			entry: ScheduleEntry{
+				Ranges: []TimeRange{
+					{From: "09:00", To: "12:00"},
+					{From: "13:00", To: "17:00"},
+				},
+				RRule: "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+			},
+			want: "9:00 AM - 12:00 PM + 1:00 PM - 5:00 PM, every weekday",
 		},
 	}
 	for _, tt := range tests {

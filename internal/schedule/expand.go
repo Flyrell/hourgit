@@ -32,7 +32,10 @@ func ExpandSchedules(entries []ScheduleEntry, from, to time.Time) ([]DaySchedule
 			return nil, err
 		}
 
-		window := TimeWindow{From: s.From, To: s.To}
+		windows := make([]TimeWindow, len(s.Ranges))
+		for i, r := range s.Ranges {
+			windows[i] = TimeWindow(r)
+		}
 
 		if s.RRule != nil {
 			// For unbounded recurring rules (no DTSTART), set DTSTART to
@@ -50,9 +53,9 @@ func ExpandSchedules(entries []ScheduleEntry, from, to time.Time) ([]DaySchedule
 			for _, d := range dates {
 				key := d.Format("2006-01-02")
 				if entry.Override {
-					dayMap[key] = []TimeWindow{window}
+					dayMap[key] = append([]TimeWindow{}, windows...)
 				} else {
-					dayMap[key] = append(dayMap[key], window)
+					dayMap[key] = append(dayMap[key], windows...)
 				}
 			}
 		}

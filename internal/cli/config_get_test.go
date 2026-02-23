@@ -65,8 +65,8 @@ func TestConfigGetCustomSchedule(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	custom := []schedule.ScheduleEntry{
-		{From: "08:00", To: "12:00", RRule: "FREQ=WEEKLY;BYDAY=MO,WE,FR"},
-		{From: "13:00", To: "17:00", RRule: "FREQ=WEEKLY;BYDAY=TU,TH"},
+		{Ranges: []schedule.TimeRange{{From: "08:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,WE,FR"},
+		{Ranges: []schedule.TimeRange{{From: "13:00", To: "17:00"}}, RRule: "FREQ=WEEKLY;BYDAY=TU,TH"},
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 

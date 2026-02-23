@@ -25,10 +25,10 @@ func parseDate(s string, now time.Time) (*time.Time, error) {
 	// Relative dates
 	switch s {
 	case "today":
-		d := truncateToDay(now)
+		d := toUTCMidnight(now)
 		return &d, nil
 	case "tomorrow":
-		d := truncateToDay(now).AddDate(0, 0, 1)
+		d := toUTCMidnight(now).AddDate(0, 0, 1)
 		return &d, nil
 	}
 
@@ -54,19 +54,21 @@ func parseDate(s string, now time.Time) (*time.Time, error) {
 
 	for _, layout := range layouts {
 		if t, err := time.ParseInLocation(layout, s, now.Location()); err == nil {
-			// For layouts without a year, use the current year
+			year := t.Year()
 			if !hasYear(layout) {
-				t = time.Date(now.Year(), t.Month(), t.Day(), 0, 0, 0, 0, now.Location())
+				year = now.Year()
 			}
-			return &t, nil
+			d := time.Date(year, t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+			return &d, nil
 		}
 	}
 
 	return nil, fmt.Errorf("unrecognized date %q", s)
 }
 
-func truncateToDay(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+// toUTCMidnight returns the same calendar date as t but at midnight UTC.
+func toUTCMidnight(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 var weekdays = map[string]time.Weekday{
@@ -87,7 +89,7 @@ func parseWeekday(s string) (time.Weekday, bool) {
 // nextWeekday returns the next occurrence of the given weekday after now.
 // If now is that weekday, it returns the following week.
 func nextWeekday(now time.Time, wd time.Weekday) time.Time {
-	today := truncateToDay(now)
+	today := toUTCMidnight(now)
 	daysAhead := int(wd) - int(today.Weekday())
 	if daysAhead <= 0 {
 		daysAhead += 7

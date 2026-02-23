@@ -80,8 +80,14 @@ func FormatDaySchedule(ds DaySchedule) string {
 }
 
 // FormatScheduleEntry returns a full human-readable line for a schedule entry.
+// Multiple time ranges are joined with " + ".
 func FormatScheduleEntry(e ScheduleEntry) string {
-	timeRange := FormatTimeRange(e.From, e.To)
+	rangeParts := make([]string, len(e.Ranges))
+	for i, r := range e.Ranges {
+		rangeParts[i] = FormatTimeRange(r.From, r.To)
+	}
+	timeRange := strings.Join(rangeParts, " + ")
+
 	var result string
 	if e.RRule != "" {
 		dateInfo := FormatRRuleDateInfo(e.RRule)

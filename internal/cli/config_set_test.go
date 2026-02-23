@@ -52,13 +52,14 @@ func TestConfigSetQuitImmediately(t *testing.T) {
 func TestConfigSetAddRecurringWeekdayAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: add → recurring → every weekend → 8am → 12pm → quit
+	// Guided flow: add → recurring → every weekend → 8am → 12pm → no more ranges → quit
 	prompt := mockPrompt(
 		"a",
 		"1",    // schedule type: recurring
 		"2",    // every weekend (Sat-Sun)
 		"8am",  // start time
 		"12pm", // end time
+		"n",    // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
@@ -70,15 +71,16 @@ func TestConfigSetAddRecurringWeekdayAndQuit(t *testing.T) {
 	require.NoError(t, err)
 	schedules := project.GetSchedules(reg, entry.ID)
 	assert.Len(t, schedules, 2) // default + new
-	assert.Equal(t, "08:00", schedules[1].From)
-	assert.Equal(t, "12:00", schedules[1].To)
+	require.Len(t, schedules[1].Ranges, 1)
+	assert.Equal(t, "08:00", schedules[1].Ranges[0].From)
+	assert.Equal(t, "12:00", schedules[1].Ranges[0].To)
 	assert.Contains(t, schedules[1].RRule, "BYDAY=SA,SU")
 }
 
 func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: add → recurring → specific days → Mon,Wed,Fri → 9am → 5pm → quit
+	// Guided flow: add → recurring → specific days → Mon,Wed,Fri → 9am → 5pm → no more → quit
 	prompt := mockPrompt(
 		"a",
 		"1",     // recurring
@@ -86,6 +88,7 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 		"1,3,5", // Mon, Wed, Fri
 		"9am",   // start time
 		"5pm",   // end time
+		"n",     // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(true))
@@ -97,21 +100,23 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 	require.NoError(t, err)
 	schedules := project.GetSchedules(reg, entry.ID)
 	assert.Len(t, schedules, 2)
-	assert.Equal(t, "09:00", schedules[1].From)
-	assert.Equal(t, "17:00", schedules[1].To)
+	require.Len(t, schedules[1].Ranges, 1)
+	assert.Equal(t, "09:00", schedules[1].Ranges[0].From)
+	assert.Equal(t, "17:00", schedules[1].Ranges[0].To)
 	assert.Contains(t, schedules[1].RRule, "BYDAY=MO,WE,FR")
 }
 
 func TestConfigSetEditAndQuit(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
-	// Guided flow: edit 1 → recurring → every weekday → 8am → 4pm → quit
+	// Guided flow: edit 1 → recurring → every weekday → 8am → 4pm → no more → quit
 	prompt := mockPrompt(
 		"e 1",
 		"1",   // recurring
 		"1",   // every weekday
 		"8am", // start time
 		"4pm", // end time
+		"n",   // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
@@ -123,8 +128,9 @@ func TestConfigSetEditAndQuit(t *testing.T) {
 	require.NoError(t, err)
 	schedules := project.GetSchedules(reg, entry.ID)
 	assert.Len(t, schedules, 1)
-	assert.Equal(t, "08:00", schedules[0].From)
-	assert.Equal(t, "16:00", schedules[0].To)
+	require.Len(t, schedules[0].Ranges, 1)
+	assert.Equal(t, "08:00", schedules[0].Ranges[0].From)
+	assert.Equal(t, "16:00", schedules[0].Ranges[0].To)
 }
 
 func TestConfigSetDeleteAndQuit(t *testing.T) {
@@ -237,11 +243,12 @@ func TestConfigSetAddOverlap(t *testing.T) {
 	// Add recurring Monday schedule (overlaps with default weekday) — answer "y" to override
 	prompt := mockPrompt(
 		"a",
-		"1",     // recurring
-		"4",     // specific days
-		"1",     // Monday
-		"8am",   // start time
-		"4pm",   // end time
+		"1",   // recurring
+		"4",   // specific days
+		"1",   // Monday
+		"8am", // start time
+		"4pm", // end time
+		"n",   // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(true))
@@ -273,6 +280,7 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 		"6",   // Saturday
 		"9am", // start time
 		"1pm", // end time
+		"n",   // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, trackingConfirm)
@@ -299,6 +307,7 @@ func TestConfigSetAddOverlapDeclined(t *testing.T) {
 		"1",   // Monday
 		"8am", // start time
 		"4pm", // end time
+		"n",   // no more ranges
 		"q",
 	)
 	stdout, err := execConfigSet(homeDir, repoDir, "", prompt, mockConfirm(false))
@@ -320,13 +329,15 @@ func TestBuildScheduleEntryRecurringWeekday(t *testing.T) {
 		"1",   // every weekday
 		"9am", // start time
 		"5pm", // end time
+		"n",   // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
 
 	require.NoError(t, err)
-	assert.Equal(t, "09:00", entry.From)
-	assert.Equal(t, "17:00", entry.To)
+	require.Len(t, entry.Ranges, 1)
+	assert.Equal(t, "09:00", entry.Ranges[0].From)
+	assert.Equal(t, "17:00", entry.Ranges[0].To)
 	assert.Contains(t, entry.RRule, "BYDAY=MO,TU,WE,TH,FR")
 }
 
@@ -338,6 +349,7 @@ func TestBuildScheduleEntryRecurringSpecificDays(t *testing.T) {
 		"1,3,5", // Mon, Wed, Fri
 		"9am",
 		"5pm",
+		"n", // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
@@ -353,13 +365,15 @@ func TestBuildScheduleEntryOneOff(t *testing.T) {
 		"2026-03-15", // date
 		"10am",       // start time
 		"2pm",        // end time
+		"n",          // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
 
 	require.NoError(t, err)
-	assert.Equal(t, "10:00", entry.From)
-	assert.Equal(t, "14:00", entry.To)
+	require.Len(t, entry.Ranges, 1)
+	assert.Equal(t, "10:00", entry.Ranges[0].From)
+	assert.Equal(t, "14:00", entry.Ranges[0].To)
 	assert.Contains(t, entry.RRule, "DTSTART")
 	assert.Contains(t, entry.RRule, "COUNT=1")
 }
@@ -372,13 +386,15 @@ func TestBuildScheduleEntryDateRange(t *testing.T) {
 		"2026-03-06", // end date
 		"9am",        // start time
 		"5pm",        // end time
+		"n",          // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
 
 	require.NoError(t, err)
-	assert.Equal(t, "09:00", entry.From)
-	assert.Equal(t, "17:00", entry.To)
+	require.Len(t, entry.Ranges, 1)
+	assert.Equal(t, "09:00", entry.Ranges[0].From)
+	assert.Equal(t, "17:00", entry.Ranges[0].To)
 	assert.Contains(t, entry.RRule, "DTSTART")
 	assert.Contains(t, entry.RRule, "UNTIL")
 }
@@ -391,6 +407,7 @@ func TestBuildScheduleEntryEveryNDays(t *testing.T) {
 		"3",   // N=3
 		"9am",
 		"5pm",
+		"n", // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
@@ -410,14 +427,64 @@ func TestBuildScheduleEntryTimeOrderError(t *testing.T) {
 		"9am", // end time (wrong order)
 		"9am", // start time (retry)
 		"5pm", // end time (retry)
+		"n",   // no more ranges
 	)
 
 	entry, err := buildScheduleEntry(prompt, w)
 
 	require.NoError(t, err)
-	assert.Equal(t, "09:00", entry.From)
-	assert.Equal(t, "17:00", entry.To)
+	require.Len(t, entry.Ranges, 1)
+	assert.Equal(t, "09:00", entry.Ranges[0].From)
+	assert.Equal(t, "17:00", entry.Ranges[0].To)
 	assert.Contains(t, w.String(), "end time must be after start time")
+}
+
+func TestBuildScheduleEntryMultipleRanges(t *testing.T) {
+	w := new(bytes.Buffer)
+	prompt := mockPrompt(
+		"1",    // recurring
+		"1",    // every weekday
+		"9am",  // start time
+		"12pm", // end time
+		"y",    // add another range
+		"1pm",  // start time
+		"5pm",  // end time
+		"n",    // no more ranges
+	)
+
+	entry, err := buildScheduleEntry(prompt, w)
+
+	require.NoError(t, err)
+	require.Len(t, entry.Ranges, 2)
+	assert.Equal(t, "09:00", entry.Ranges[0].From)
+	assert.Equal(t, "12:00", entry.Ranges[0].To)
+	assert.Equal(t, "13:00", entry.Ranges[1].From)
+	assert.Equal(t, "17:00", entry.Ranges[1].To)
+	assert.Contains(t, entry.RRule, "BYDAY=MO,TU,WE,TH,FR")
+}
+
+func TestBuildScheduleEntryMultipleRangesOverlap(t *testing.T) {
+	w := new(bytes.Buffer)
+	prompt := mockPrompt(
+		"1",   // recurring
+		"1",   // every weekday
+		"9am", // start time
+		"2pm", // end time
+		"y",   // add another range
+		"1pm", // start time (overlaps)
+		"5pm", // end time
+		// After overlap error, the range is rejected and we're asked again
+		"y",   // add another range
+		"3pm", // start time (valid)
+		"5pm", // end time
+		"n",   // no more ranges
+	)
+
+	entry, err := buildScheduleEntry(prompt, w)
+
+	require.NoError(t, err)
+	require.Len(t, entry.Ranges, 2)
+	assert.Contains(t, w.String(), "overlap")
 }
 
 func TestPromptDays(t *testing.T) {
