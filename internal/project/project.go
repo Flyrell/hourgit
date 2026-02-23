@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Flyrell/hour-git/internal/hashutil"
+	"github.com/Flyrell/hour-git/internal/schedule"
 	"github.com/Flyrell/hour-git/internal/stringutil"
 )
 
@@ -24,10 +25,11 @@ type RepoConfig struct {
 
 // ProjectEntry represents a single project in the global registry.
 type ProjectEntry struct {
-	ID    string   `json:"id"`
-	Name  string   `json:"name"`
-	Slug  string   `json:"slug"`
-	Repos []string `json:"repos"`
+	ID        string                   `json:"id"`
+	Name      string                   `json:"name"`
+	Slug      string                   `json:"slug"`
+	Repos     []string                 `json:"repos"`
+	Schedules []schedule.ScheduleEntry `json:"schedules,omitempty"`
 }
 
 // ProjectRegistry holds all registered projects.
@@ -194,10 +196,11 @@ func CreateProject(homeDir, name string) (*ProjectEntry, error) {
 	}
 
 	entry := ProjectEntry{
-		ID:    hashutil.GenerateID(name),
-		Name:  name,
-		Slug:  stringutil.Slugify(name),
-		Repos: []string{},
+		ID:        hashutil.GenerateID(name),
+		Name:      name,
+		Slug:      stringutil.Slugify(name),
+		Repos:     []string{},
+		Schedules: schedule.DefaultSchedules(),
 	}
 	reg.Projects = append(reg.Projects, entry)
 
@@ -282,6 +285,36 @@ func RemoveRepoConfig(repoDir string) error {
 		return nil
 	}
 	return err
+}
+
+// GetSchedules returns the schedules for a project, falling back to defaults if empty.
+func GetSchedules(reg *ProjectRegistry, projectID string) []schedule.ScheduleEntry {
+	entry := FindProjectByID(reg, projectID)
+	if entry == nil || len(entry.Schedules) == 0 {
+		return schedule.DefaultSchedules()
+	}
+	return entry.Schedules
+}
+
+// SetSchedules updates the schedules for a project in the registry.
+func SetSchedules(homeDir, projectID string, schedules []schedule.ScheduleEntry) error {
+	reg, err := ReadRegistry(homeDir)
+	if err != nil {
+		return err
+	}
+
+	entry := FindProjectByID(reg, projectID)
+	if entry == nil {
+		return fmt.Errorf("project '%s' not found", projectID)
+	}
+
+	entry.Schedules = schedules
+	return WriteRegistry(homeDir, reg)
+}
+
+// ResetSchedules resets a project's schedules to the defaults.
+func ResetSchedules(homeDir, projectID string) error {
+	return SetSchedules(homeDir, projectID, schedule.DefaultSchedules())
 }
 
 // RemoveHookFromRepo removes the hourgit section from the post-checkout hook.

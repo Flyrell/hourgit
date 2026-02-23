@@ -37,6 +37,15 @@ func TestParseTimeOfDay(t *testing.T) {
 		{name: "9 am", input: "9 am", want: TimeOfDay{Hour: 9, Minute: 0}},
 		{name: "9:30 pm", input: "9:30 pm", want: TimeOfDay{Hour: 21, Minute: 30}},
 
+		// Dot-separator 12-hour
+		{name: "9.30am", input: "9.30am", want: TimeOfDay{Hour: 9, Minute: 30}},
+		{name: "9.30pm", input: "9.30pm", want: TimeOfDay{Hour: 21, Minute: 30}},
+		{name: "12.00pm", input: "12.00pm", want: TimeOfDay{Hour: 12, Minute: 0}},
+
+		// Dot-separator 24-hour
+		{name: "14.00", input: "14.00", want: TimeOfDay{Hour: 14, Minute: 0}},
+		{name: "09.30", input: "09.30", want: TimeOfDay{Hour: 9, Minute: 30}},
+
 		// Errors
 		{name: "empty", input: "", wantErr: true},
 		{name: "garbage", input: "not a time", wantErr: true},
@@ -54,6 +63,24 @@ func TestParseTimeOfDay(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestTimeOfDayBefore(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b TimeOfDay
+		want bool
+	}{
+		{"earlier hour", TimeOfDay{8, 0}, TimeOfDay{9, 0}, true},
+		{"later hour", TimeOfDay{10, 0}, TimeOfDay{9, 0}, false},
+		{"same hour earlier minute", TimeOfDay{9, 0}, TimeOfDay{9, 30}, true},
+		{"equal", TimeOfDay{9, 0}, TimeOfDay{9, 0}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.a.Before(tt.b))
 		})
 	}
 }

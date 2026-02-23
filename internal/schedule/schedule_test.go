@@ -18,11 +18,12 @@ func TestParseSchedule(t *testing.T) {
 		input     string
 		wantFrom  TimeOfDay
 		wantTo    TimeOfDay
-		wantDate  *time.Time
 		wantRRule bool
 		wantFreq  rrule.Frequency
 		wantDays  []rrule.Weekday
 		wantIntvl int
+		wantCount int
+		wantDt    *time.Time // expected DTSTART
 		wantErr   bool
 	}{
 		{
@@ -38,32 +39,44 @@ func TestParseSchedule(t *testing.T) {
 			wantTo:   TimeOfDay{Hour: 17, Minute: 0},
 		},
 		{
-			name:     "today",
-			input:    "from 9:00 to 17:00 today",
-			wantFrom: TimeOfDay{Hour: 9, Minute: 0},
-			wantTo:   TimeOfDay{Hour: 17, Minute: 0},
-			wantDate: timePtr(time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)),
+			name:      "today",
+			input:     "from 9:00 to 17:00 today",
+			wantFrom:  TimeOfDay{Hour: 9, Minute: 0},
+			wantTo:    TimeOfDay{Hour: 17, Minute: 0},
+			wantRRule: true,
+			wantFreq:  rrule.DAILY,
+			wantCount: 1,
+			wantDt:    timePtr(time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)),
 		},
 		{
-			name:     "tomorrow",
-			input:    "from 9am to 5pm tomorrow",
-			wantFrom: TimeOfDay{Hour: 9, Minute: 0},
-			wantTo:   TimeOfDay{Hour: 17, Minute: 0},
-			wantDate: timePtr(time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC)),
+			name:      "tomorrow",
+			input:     "from 9am to 5pm tomorrow",
+			wantFrom:  TimeOfDay{Hour: 9, Minute: 0},
+			wantTo:    TimeOfDay{Hour: 17, Minute: 0},
+			wantRRule: true,
+			wantFreq:  rrule.DAILY,
+			wantCount: 1,
+			wantDt:    timePtr(time.Date(2025, 1, 16, 0, 0, 0, 0, time.UTC)),
 		},
 		{
-			name:     "on Monday",
-			input:    "from 10am to 2pm on Monday",
-			wantFrom: TimeOfDay{Hour: 10, Minute: 0},
-			wantTo:   TimeOfDay{Hour: 14, Minute: 0},
-			wantDate: timePtr(time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC)),
+			name:      "on Monday",
+			input:     "from 10am to 2pm on Monday",
+			wantFrom:  TimeOfDay{Hour: 10, Minute: 0},
+			wantTo:    TimeOfDay{Hour: 14, Minute: 0},
+			wantRRule: true,
+			wantFreq:  rrule.DAILY,
+			wantCount: 1,
+			wantDt:    timePtr(time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC)),
 		},
 		{
-			name:     "ISO date",
-			input:    "from 9am to 5pm on 2024-01-15",
-			wantFrom: TimeOfDay{Hour: 9, Minute: 0},
-			wantTo:   TimeOfDay{Hour: 17, Minute: 0},
-			wantDate: timePtr(time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)),
+			name:      "ISO date",
+			input:     "from 9am to 5pm on 2024-01-15",
+			wantFrom:  TimeOfDay{Hour: 9, Minute: 0},
+			wantTo:    TimeOfDay{Hour: 17, Minute: 0},
+			wantRRule: true,
+			wantFreq:  rrule.DAILY,
+			wantCount: 1,
+			wantDt:    timePtr(time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)),
 		},
 		{
 			name:      "every day",
@@ -137,13 +150,6 @@ func TestParseSchedule(t *testing.T) {
 			assert.Equal(t, tt.wantFrom, got.From, "From mismatch")
 			assert.Equal(t, tt.wantTo, got.To, "To mismatch")
 
-			if tt.wantDate != nil {
-				require.NotNil(t, got.Date, "expected Date to be set")
-				assert.Equal(t, *tt.wantDate, *got.Date, "Date mismatch")
-			} else {
-				assert.Nil(t, got.Date, "expected Date to be nil")
-			}
-
 			if tt.wantRRule {
 				require.NotNil(t, got.RRule, "expected RRule to be set")
 				opts := got.RRule.OrigOptions
@@ -153,6 +159,12 @@ func TestParseSchedule(t *testing.T) {
 				}
 				if tt.wantIntvl > 0 {
 					assert.Equal(t, tt.wantIntvl, opts.Interval, "Interval mismatch")
+				}
+				if tt.wantCount > 0 {
+					assert.Equal(t, tt.wantCount, opts.Count, "Count mismatch")
+				}
+				if tt.wantDt != nil {
+					assert.Equal(t, *tt.wantDt, opts.Dtstart, "Dtstart mismatch")
 				}
 			} else {
 				assert.Nil(t, got.RRule, "expected RRule to be nil")

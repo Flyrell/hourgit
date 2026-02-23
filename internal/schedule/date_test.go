@@ -86,6 +86,28 @@ func TestParseDate(t *testing.T) {
 			want:  time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
 		},
 
+		// Day-first formats
+		{
+			name:  "2 jan",
+			input: "2 jan",
+			want:  time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "2 jan 2026",
+			input: "2 jan 2026",
+			want:  time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "15 january",
+			input: "15 january",
+			want:  time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:  "15 january 2026",
+			input: "15 january 2026",
+			want:  time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+		},
+
 		// Errors
 		{name: "empty", input: "", wantErr: true},
 		{name: "garbage", input: "not a date", wantErr: true},

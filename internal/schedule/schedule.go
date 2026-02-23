@@ -19,13 +19,19 @@ func (t TimeOfDay) String() string {
 	return fmt.Sprintf("%02d:%02d", t.Hour, t.Minute)
 }
 
+// Before reports whether t is strictly before other.
+func (t TimeOfDay) Before(other TimeOfDay) bool {
+	if t.Hour != other.Hour {
+		return t.Hour < other.Hour
+	}
+	return t.Minute < other.Minute
+}
+
 // Schedule is the result of parsing a natural language schedule string.
-// Date and RRule are mutually exclusive.
 type Schedule struct {
 	From  TimeOfDay    // always required
 	To    TimeOfDay    // always required
-	Date  *time.Time   // specific date (nil if recurring or bare time range)
-	RRule *rrule.RRule // recurrence rule (nil if one-off)
+	RRule *rrule.RRule // recurrence rule (always present for storable schedules)
 }
 
 // ParseSchedule parses a natural language schedule string into a Schedule.
@@ -72,7 +78,16 @@ func ParseScheduleWithNow(input string, now time.Time) (Schedule, error) {
 		if err != nil {
 			return Schedule{}, fmt.Errorf("invalid date: %w", err)
 		}
-		schedule.Date = d
+		// Convert single date to RRULE with DTSTART+COUNT=1
+		r, err := rrule.NewRRule(rrule.ROption{
+			Freq:    rrule.DAILY,
+			Count:   1,
+			Dtstart: *d,
+		})
+		if err != nil {
+			return Schedule{}, fmt.Errorf("failed to create date rule: %w", err)
+		}
+		schedule.RRule = r
 	}
 
 	return schedule, nil
