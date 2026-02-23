@@ -1,0 +1,63 @@
+package cli
+
+import (
+	"bytes"
+	"os"
+	"testing"
+
+	"github.com/Flyrell/hour-git/internal/project"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func execProjectAdd(homeDir string, args ...string) (string, error) {
+	stdout := new(bytes.Buffer)
+	cmd := projectAddCmd
+	cmd.SetOut(stdout)
+	if len(args) != 1 {
+		return "", nil
+	}
+	err := runProjectAdd(cmd, homeDir, args[0])
+	return stdout.String(), err
+}
+
+func TestProjectAddHappyPath(t *testing.T) {
+	home := t.TempDir()
+
+	stdout, err := execProjectAdd(home, "My Project")
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'My Project' created (")
+
+	// Verify registry
+	reg, err := project.ReadRegistry(home)
+	require.NoError(t, err)
+	assert.Len(t, reg.Projects, 1)
+	assert.Equal(t, "My Project", reg.Projects[0].Name)
+	assert.Empty(t, reg.Projects[0].Repos)
+
+	// Verify log dir
+	_, err = os.Stat(project.LogDir(home, "my-project"))
+	assert.NoError(t, err)
+}
+
+func TestProjectAddDuplicate(t *testing.T) {
+	home := t.TempDir()
+
+	_, err := execProjectAdd(home, "My Project")
+	require.NoError(t, err)
+
+	_, err = execProjectAdd(home, "My Project")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+func TestProjectAddRegisteredAsSubcommand(t *testing.T) {
+	commands := projectCmd.Commands()
+	names := make([]string, len(commands))
+	for i, cmd := range commands {
+		names[i] = cmd.Name()
+	}
+	assert.Contains(t, names, "add")
+}

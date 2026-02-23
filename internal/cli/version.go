@@ -18,10 +18,11 @@ func SetVersionInfo(version, commit, date string) {
 	appDate = date
 }
 
-var versionCmd = &cobra.Command{
+var versionCmd = LeafCommand{
 	Use:   "version",
 	Short: "Print the version information",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hour-git %s (commit: %s, built: %s)", appVersion, appCommit, appDate)))
+		return nil
 	},
-}
+}.Build()

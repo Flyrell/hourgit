@@ -18,9 +18,17 @@ const hookContent = `#!/bin/sh
 echo "hourgit: post-checkout hook triggered"
 `
 
-var initCmd = &cobra.Command{
+var initCmd = LeafCommand{
 	Use:   "init",
 	Short: "Initialize hourgit in a git repository",
+	StrFlags: []StringFlag{
+		{Name: "project", Usage: "assign repository to a project by name or ID (creates if needed)"},
+	},
+	BoolFlags: []BoolFlag{
+		{Name: "force", Usage: "overwrite existing post-checkout hook"},
+		{Name: "merge", Usage: "append to existing post-checkout hook"},
+		{Name: "yes", Usage: "skip confirmation prompt"},
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -30,23 +38,25 @@ var initCmd = &cobra.Command{
 		projectName, _ := cmd.Flags().GetString("project")
 		force, _ := cmd.Flags().GetBool("force")
 		merge, _ := cmd.Flags().GetBool("merge")
+		yes, _ := cmd.Flags().GetBool("yes")
 
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
 
-		return runInit(cmd, dir, homeDir, projectName, force, merge)
+		var confirm ConfirmFunc
+		if yes {
+			confirm = AlwaysYes()
+		} else {
+			confirm = NewConfirmFunc(cmd.InOrStdin(), cmd.OutOrStdout())
+		}
+
+		return runInit(cmd, dir, homeDir, projectName, force, merge, confirm)
 	},
-}
+}.Build()
 
-func init() {
-	initCmd.Flags().String("project", "", "assign repository to a project by name or ID (creates if needed)")
-	initCmd.Flags().Bool("force", false, "overwrite existing post-checkout hook")
-	initCmd.Flags().Bool("merge", false, "append to existing post-checkout hook")
-}
-
-func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc) error {
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository")
@@ -104,15 +114,34 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 		}
 
 		if cfg != nil && cfg.Project != "" && cfg.Project != resolvedName {
-			return fmt.Errorf("repository is already assigned to project '%s' (use 'project set --force' to reassign)", cfg.Project)
+			return fmt.Errorf("repository is already assigned to project '%s' (use 'project assign --force' to reassign)", cfg.Project)
 		}
 
-		entry, created, err := project.RegisterProject(homeDir, dir, projectName)
-		if err != nil {
-			return err
-		}
-		if created {
+		// If project doesn't exist, prompt to create
+		var entry *project.ProjectEntry
+		if resolved == nil {
+			prompt := fmt.Sprintf("Project '%s' does not exist. Create it?", projectName)
+			confirmed, err := confirm(prompt)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text("project assignment skipped"))
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
+				return nil
+			}
+
+			entry, err = project.CreateProject(homeDir, projectName)
+			if err != nil {
+				return err
+			}
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))
+		} else {
+			entry = resolved
+		}
+
+		if err := project.AssignProject(homeDir, dir, entry); err != nil {
+			return err
 		}
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("repository assigned to project '%s'", Primary(entry.Name))))
 	}

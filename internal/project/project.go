@@ -3,12 +3,16 @@ package project
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Flyrell/hour-git/internal/hashutil"
 	"github.com/Flyrell/hour-git/internal/stringutil"
 )
+
+const hookMarker = "# Installed by hourgit"
 
 // RepoConfig is the per-repo marker stored in .git/.hourgit.
 type RepoConfig struct {
@@ -145,56 +149,137 @@ func RemoveRepoFromProject(entry *ProjectEntry, repoDir string) {
 	entry.Repos = repos
 }
 
-// RegisterProject ensures a project exists in the registry, adds the repo to it,
-// creates the log directory, and writes the per-repo config.
-// Returns the project entry and whether it was newly created.
-func RegisterProject(homeDir, repoDir, projectName string) (*ProjectEntry, bool, error) {
+// CreateProject creates a new project in the registry.
+// Returns an error if a project with the same name already exists.
+func CreateProject(homeDir, name string) (*ProjectEntry, error) {
 	reg, err := ReadRegistry(homeDir)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	entry := ResolveProject(reg, projectName)
-	created := entry == nil
+	if existing := FindProject(reg, name); existing != nil {
+		return nil, fmt.Errorf("project '%s' already exists (%s)", name, existing.ID)
+	}
 
-	if created {
-		entry = &ProjectEntry{
-			ID:    hashutil.GenerateID(projectName),
-			Name:  projectName,
-			Slug:  stringutil.Slugify(projectName),
-			Repos: []string{},
-		}
-		reg.Projects = append(reg.Projects, *entry)
-		// Point to the entry in the slice
-		entry = &reg.Projects[len(reg.Projects)-1]
+	entry := ProjectEntry{
+		ID:    hashutil.GenerateID(name),
+		Name:  name,
+		Slug:  stringutil.Slugify(name),
+		Repos: []string{},
+	}
+	reg.Projects = append(reg.Projects, entry)
+
+	if err := os.MkdirAll(LogDir(homeDir, entry.Slug), 0755); err != nil {
+		return nil, err
+	}
+
+	if err := WriteRegistry(homeDir, reg); err != nil {
+		return nil, err
+	}
+
+	return &entry, nil
+}
+
+// AssignProject assigns a repository to an existing project.
+// It adds repoDir to the project's repos list (deduplicated) and writes the per-repo config.
+func AssignProject(homeDir, repoDir string, entry *ProjectEntry) error {
+	reg, err := ReadRegistry(homeDir)
+	if err != nil {
+		return err
+	}
+
+	regEntry := FindProjectByID(reg, entry.ID)
+	if regEntry == nil {
+		return fmt.Errorf("project '%s' not found in registry", entry.Name)
 	}
 
 	// Add repo if not already present
 	found := false
-	for _, r := range entry.Repos {
+	for _, r := range regEntry.Repos {
 		if r == repoDir {
 			found = true
 			break
 		}
 	}
 	if !found {
-		entry.Repos = append(entry.Repos, repoDir)
+		regEntry.Repos = append(regEntry.Repos, repoDir)
 	}
 
-	// Create log directory
-	if err := os.MkdirAll(LogDir(homeDir, entry.Slug), 0755); err != nil {
-		return nil, false, err
-	}
-
-	// Write registry
 	if err := WriteRegistry(homeDir, reg); err != nil {
-		return nil, false, err
+		return err
 	}
 
-	// Write per-repo config
-	if err := WriteRepoConfig(repoDir, &RepoConfig{Project: entry.Name, ProjectID: entry.ID}); err != nil {
-		return nil, false, err
-	}
-
-	return entry, created, nil
+	return WriteRepoConfig(repoDir, &RepoConfig{Project: regEntry.Name, ProjectID: regEntry.ID})
 }
+
+// RemoveProject removes a project from the registry by ID or name.
+// Returns the removed entry so the caller can handle cleanup.
+func RemoveProject(homeDir, identifier string) (*ProjectEntry, error) {
+	reg, err := ReadRegistry(homeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	idx := -1
+	for i := range reg.Projects {
+		if reg.Projects[i].ID == identifier || reg.Projects[i].Name == identifier {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return nil, fmt.Errorf("project '%s' not found", identifier)
+	}
+
+	removed := reg.Projects[idx]
+	reg.Projects = append(reg.Projects[:idx], reg.Projects[idx+1:]...)
+
+	if err := WriteRegistry(homeDir, reg); err != nil {
+		return nil, err
+	}
+
+	return &removed, nil
+}
+
+// RemoveRepoConfig deletes the per-repo hourgit config (.git/.hourgit).
+func RemoveRepoConfig(repoDir string) error {
+	path := filepath.Join(repoDir, ".git", ".hourgit")
+	err := os.Remove(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
+}
+
+// RemoveHookFromRepo removes the hourgit section from the post-checkout hook.
+// If the hook becomes empty after removal, it is deleted.
+func RemoveHookFromRepo(repoDir string) error {
+	hookPath := filepath.Join(repoDir, ".git", "hooks", "post-checkout")
+	data, err := os.ReadFile(hookPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	content := string(data)
+	markerIdx := strings.Index(content, hookMarker)
+	if markerIdx == -1 {
+		return nil
+	}
+
+	before := content[:markerIdx]
+	// Trim trailing whitespace from before section
+	before = strings.TrimRight(before, " \t\n")
+
+	// If only a shebang line remains (or nothing), the hook is hourgit-only
+	if before == "" || strings.TrimSpace(before) == "#!/bin/sh" {
+		return os.Remove(hookPath)
+	}
+
+	// Write back the non-hourgit portion
+	return os.WriteFile(hookPath, []byte(before+"\n"), 0755)
+}
+
