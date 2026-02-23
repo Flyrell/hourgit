@@ -6,9 +6,15 @@ import (
 	"time"
 )
 
+// ParseDate parses a date expression relative to the current time.
+func ParseDate(s string) (*time.Time, error) {
+	return parseDate(s, time.Now())
+}
+
 // parseDate parses a date expression relative to now.
 // Supports: "today", "tomorrow", "monday", "next tuesday", "on Monday",
-// "2024-01-15", "Jan 2", "Jan 2 2006", "January 2", "January 2 2006".
+// "2024-01-15", "Jan 2", "Jan 2 2006", "January 2", "January 2 2006",
+// "2 Jan", "2 Jan 2006", "2 January", "2 January 2006".
 func parseDate(s string, now time.Time) (*time.Time, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 
@@ -40,6 +46,10 @@ func parseDate(s string, now time.Time) (*time.Time, error) {
 		"jan 2 2006",
 		"january 2",
 		"january 2 2006",
+		"2 jan",
+		"2 jan 2006",
+		"2 january",
+		"2 january 2006",
 	}
 
 	for _, layout := range layouts {

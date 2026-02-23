@@ -10,18 +10,31 @@ import (
 var (
 	// 9:30am, 9:30pm
 	timeColonAMPM = regexp.MustCompile(`^(\d{1,2}):(\d{2})\s*(am|pm)$`)
+	// 9.30am, 9.30pm
+	timeDotAMPM = regexp.MustCompile(`^(\d{1,2})\.(\d{2})\s*(am|pm)$`)
 	// 9am, 2pm
 	timeAMPM = regexp.MustCompile(`^(\d{1,2})\s*(am|pm)$`)
 	// 14:00, 09:30
 	time24h = regexp.MustCompile(`^(\d{1,2}):(\d{2})$`)
+	// 14.00, 09.30
+	timeDot24h = regexp.MustCompile(`^(\d{1,2})\.(\d{2})$`)
 )
 
+// ParseTimeOfDay parses a time string into a TimeOfDay.
+// Supported formats: "9:30am", "9.30am", "9am", "14:00", "14.00".
+func ParseTimeOfDay(s string) (TimeOfDay, error) {
+	return parseTimeOfDay(s)
+}
+
 // parseTimeOfDay parses a time string into a TimeOfDay.
-// Supported formats: "9:30am", "9am", "14:00".
 func parseTimeOfDay(s string) (TimeOfDay, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 
 	if m := timeColonAMPM.FindStringSubmatch(s); m != nil {
+		return parseHourMinuteAMPM(m[1], m[2], m[3])
+	}
+
+	if m := timeDotAMPM.FindStringSubmatch(s); m != nil {
 		return parseHourMinuteAMPM(m[1], m[2], m[3])
 	}
 
@@ -30,6 +43,10 @@ func parseTimeOfDay(s string) (TimeOfDay, error) {
 	}
 
 	if m := time24h.FindStringSubmatch(s); m != nil {
+		return parseHourMinute24(m[1], m[2])
+	}
+
+	if m := timeDot24h.FindStringSubmatch(s); m != nil {
 		return parseHourMinute24(m[1], m[2])
 	}
 

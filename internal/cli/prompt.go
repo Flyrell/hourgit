@@ -32,3 +32,21 @@ func AlwaysYes() ConfirmFunc {
 		return true, nil
 	}
 }
+
+// PromptFunc prompts the user for free-text input and returns the response.
+type PromptFunc func(prompt string) (string, error)
+
+// NewPromptFunc creates a PromptFunc that reads a line from the given reader/writer.
+func NewPromptFunc(in io.Reader, out io.Writer) PromptFunc {
+	return func(prompt string) (string, error) {
+		_, _ = fmt.Fprint(out, prompt)
+		scanner := bufio.NewScanner(in)
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				return "", err
+			}
+			return "", nil
+		}
+		return strings.TrimSpace(scanner.Text()), nil
+	}
+}
