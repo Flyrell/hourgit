@@ -12,7 +12,9 @@ import (
 	"github.com/Flyrell/hour-git/internal/stringutil"
 )
 
-const hookMarker = "# Installed by hourgit"
+// HookMarker is the comment marker written into the post-checkout hook.
+// Use this constant for detection — never redefine it elsewhere.
+const HookMarker = "# Installed by hourgit"
 
 // RepoConfig is the per-repo marker stored in .git/.hourgit.
 type RepoConfig struct {
@@ -109,6 +111,36 @@ func ResolveProject(reg *ProjectRegistry, identifier string) *ProjectEntry {
 		return entry
 	}
 	return FindProject(reg, identifier)
+}
+
+// ResolveOrCreateResult holds the outcome of ResolveOrCreate.
+type ResolveOrCreateResult struct {
+	Entry   *ProjectEntry
+	Created bool
+}
+
+// ResolveOrCreate looks up a project by ID or name. If not found, it prompts
+// the user to create it. Returns nil result (no error) if the user declines.
+func ResolveOrCreate(homeDir, identifier string, promptCreate func(name string) (bool, error)) (*ResolveOrCreateResult, error) {
+	reg, err := ReadRegistry(homeDir)
+	if err != nil {
+		return nil, err
+	}
+	if entry := ResolveProject(reg, identifier); entry != nil {
+		return &ResolveOrCreateResult{Entry: entry, Created: false}, nil
+	}
+	confirmed, err := promptCreate(identifier)
+	if err != nil {
+		return nil, err
+	}
+	if !confirmed {
+		return nil, nil
+	}
+	entry, err := CreateProject(homeDir, identifier)
+	if err != nil {
+		return nil, err
+	}
+	return &ResolveOrCreateResult{Entry: entry, Created: true}, nil
 }
 
 // ReadRepoConfig reads the per-repo hourgit config from .git/.hourgit.
@@ -265,7 +297,7 @@ func RemoveHookFromRepo(repoDir string) error {
 	}
 
 	content := string(data)
-	markerIdx := strings.Index(content, hookMarker)
+	markerIdx := strings.Index(content, HookMarker)
 	if markerIdx == -1 {
 		return nil
 	}
