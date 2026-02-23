@@ -120,9 +120,9 @@ func TestConfigSetAddRecurringWeekendAndQuit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Len(t, schedules, 2) // default + new
 	require.Len(t, schedules[1].Ranges, 1)
 	assert.Equal(t, "08:00", schedules[1].Ranges[0].From)
@@ -148,9 +148,9 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Len(t, schedules, 2)
 	require.Len(t, schedules[1].Ranges, 1)
 	assert.Equal(t, "09:00", schedules[1].Ranges[0].From)
@@ -175,9 +175,9 @@ func TestConfigSetEditAndQuit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Len(t, schedules, 1)
 	require.Len(t, schedules[0].Ranges, 1)
 	assert.Equal(t, "08:00", schedules[0].Ranges[0].From)
@@ -199,12 +199,12 @@ func TestConfigSetDeleteAndQuit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Equal(t, schedule.DefaultSchedules(), schedules)
 
-	regEntry := project.FindProjectByID(reg, entry.ID)
+	regEntry := project.FindProjectByID(cfg, entry.ID)
 	assert.Empty(t, regEntry.Schedules)
 }
 
@@ -264,9 +264,9 @@ func TestConfigSetAddOverlap(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	require.Len(t, schedules, 2)
 	assert.True(t, schedules[1].Override, "new entry should have override set")
 }
@@ -297,9 +297,9 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 	// But the overlap confirm should not have been called before the "add more" confirm
 	_ = confirmCalled
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	require.Len(t, schedules, 2)
 	assert.False(t, schedules[1].Override)
 }
@@ -319,9 +319,9 @@ func TestConfigSetAddOverlapDeclined(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	require.Len(t, schedules, 2)
 	assert.False(t, schedules[1].Override, "entry should not have override when declined")
 }

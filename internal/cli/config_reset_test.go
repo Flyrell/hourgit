@@ -33,9 +33,9 @@ func TestConfigResetHappyPath(t *testing.T) {
 	assert.Contains(t, stdout, "reset to default")
 
 	// Verify schedules are back to default
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Equal(t, schedule.DefaultSchedules(), schedules)
 }
 
@@ -54,9 +54,9 @@ func TestConfigResetDeclined(t *testing.T) {
 	assert.Contains(t, err.Error(), "aborted")
 
 	// Verify schedule unchanged
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	require.NoError(t, err)
-	schedules := project.GetSchedules(reg, entry.ID)
+	schedules := project.GetSchedules(cfg, entry.ID)
 	assert.Equal(t, custom, schedules)
 }
 

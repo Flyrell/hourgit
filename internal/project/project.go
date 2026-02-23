@@ -32,9 +32,10 @@ type ProjectEntry struct {
 	Schedules []schedule.ScheduleEntry `json:"schedules,omitempty"`
 }
 
-// ProjectRegistry holds all registered projects.
-type ProjectRegistry struct {
-	Projects []ProjectEntry `json:"projects"`
+// Config holds the global hourgit configuration including projects and defaults.
+type Config struct {
+	Defaults []schedule.ScheduleEntry `json:"defaults"`
+	Projects []ProjectEntry           `json:"projects"`
 }
 
 // HourgitDir returns the global hourgit config directory.
@@ -42,9 +43,9 @@ func HourgitDir(homeDir string) string {
 	return filepath.Join(homeDir, ".hourgit")
 }
 
-// RegistryPath returns the path to the global projects.json.
-func RegistryPath(homeDir string) string {
-	return filepath.Join(HourgitDir(homeDir), "projects.json")
+// ConfigPath returns the path to the global config.json.
+func ConfigPath(homeDir string) string {
+	return filepath.Join(HourgitDir(homeDir), "config.json")
 }
 
 // LogDir returns the directory for a project's log entries.
@@ -52,55 +53,57 @@ func LogDir(homeDir, slug string) string {
 	return filepath.Join(HourgitDir(homeDir), slug)
 }
 
-// ReadRegistry reads the global project registry.
-// Returns an empty registry if the file does not exist.
-func ReadRegistry(homeDir string) (*ProjectRegistry, error) {
-	data, err := os.ReadFile(RegistryPath(homeDir))
+// ReadConfig reads the global hourgit configuration.
+// Returns a fresh config with factory defaults if the file does not exist.
+func ReadConfig(homeDir string) (*Config, error) {
+	data, err := os.ReadFile(ConfigPath(homeDir))
 	if errors.Is(err, os.ErrNotExist) {
-		return &ProjectRegistry{}, nil
+		return &Config{
+			Defaults: schedule.DefaultSchedules(),
+		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	var reg ProjectRegistry
-	if err := json.Unmarshal(data, &reg); err != nil {
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	return &reg, nil
+	return &cfg, nil
 }
 
-// WriteRegistry writes the global project registry, creating the directory if needed.
-func WriteRegistry(homeDir string, reg *ProjectRegistry) error {
+// WriteConfig writes the global hourgit configuration, creating the directory if needed.
+func WriteConfig(homeDir string, cfg *Config) error {
 	dir := HourgitDir(homeDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
 
-	data, err := json.MarshalIndent(reg, "", "  ")
+	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(RegistryPath(homeDir), data, 0644)
+	return os.WriteFile(ConfigPath(homeDir), data, 0644)
 }
 
-// FindProject looks up a project by name in the registry.
+// FindProject looks up a project by name in the config.
 // Returns nil if not found.
-func FindProject(reg *ProjectRegistry, name string) *ProjectEntry {
-	for i := range reg.Projects {
-		if reg.Projects[i].Name == name {
-			return &reg.Projects[i]
+func FindProject(cfg *Config, name string) *ProjectEntry {
+	for i := range cfg.Projects {
+		if cfg.Projects[i].Name == name {
+			return &cfg.Projects[i]
 		}
 	}
 	return nil
 }
 
-// FindProjectByID looks up a project by ID in the registry.
+// FindProjectByID looks up a project by ID in the config.
 // Returns nil if not found.
-func FindProjectByID(reg *ProjectRegistry, id string) *ProjectEntry {
-	for i := range reg.Projects {
-		if reg.Projects[i].ID == id {
-			return &reg.Projects[i]
+func FindProjectByID(cfg *Config, id string) *ProjectEntry {
+	for i := range cfg.Projects {
+		if cfg.Projects[i].ID == id {
+			return &cfg.Projects[i]
 		}
 	}
 	return nil
@@ -108,11 +111,11 @@ func FindProjectByID(reg *ProjectRegistry, id string) *ProjectEntry {
 
 // ResolveProject looks up a project by ID first, then by name.
 // Returns nil if not found by either.
-func ResolveProject(reg *ProjectRegistry, identifier string) *ProjectEntry {
-	if entry := FindProjectByID(reg, identifier); entry != nil {
+func ResolveProject(cfg *Config, identifier string) *ProjectEntry {
+	if entry := FindProjectByID(cfg, identifier); entry != nil {
 		return entry
 	}
-	return FindProject(reg, identifier)
+	return FindProject(cfg, identifier)
 }
 
 // ResolveOrCreateResult holds the outcome of ResolveOrCreate.
@@ -124,11 +127,11 @@ type ResolveOrCreateResult struct {
 // ResolveOrCreate looks up a project by ID or name. If not found, it prompts
 // the user to create it. Returns nil result (no error) if the user declines.
 func ResolveOrCreate(homeDir, identifier string, promptCreate func(name string) (bool, error)) (*ResolveOrCreateResult, error) {
-	reg, err := ReadRegistry(homeDir)
+	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return nil, err
 	}
-	if entry := ResolveProject(reg, identifier); entry != nil {
+	if entry := ResolveProject(cfg, identifier); entry != nil {
 		return &ResolveOrCreateResult{Entry: entry, Created: false}, nil
 	}
 	confirmed, err := promptCreate(identifier)
@@ -156,16 +159,16 @@ func ReadRepoConfig(repoDir string) (*RepoConfig, error) {
 		return nil, err
 	}
 
-	var cfg RepoConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	var rc RepoConfig
+	if err := json.Unmarshal(data, &rc); err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	return &rc, nil
 }
 
 // WriteRepoConfig writes the per-repo hourgit config to .git/.hourgit.
-func WriteRepoConfig(repoDir string, cfg *RepoConfig) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
+func WriteRepoConfig(repoDir string, rc *RepoConfig) error {
+	data, err := json.MarshalIndent(rc, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -183,15 +186,15 @@ func RemoveRepoFromProject(entry *ProjectEntry, repoDir string) {
 	entry.Repos = repos
 }
 
-// CreateProject creates a new project in the registry.
+// CreateProject creates a new project in the config.
 // Returns an error if a project with the same name already exists.
 func CreateProject(homeDir, name string) (*ProjectEntry, error) {
-	reg, err := ReadRegistry(homeDir)
+	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return nil, err
 	}
 
-	if existing := FindProject(reg, name); existing != nil {
+	if existing := FindProject(cfg, name); existing != nil {
 		return nil, fmt.Errorf("project '%s' already exists (%s)", name, existing.ID)
 	}
 
@@ -200,15 +203,15 @@ func CreateProject(homeDir, name string) (*ProjectEntry, error) {
 		Name:      name,
 		Slug:      stringutil.Slugify(name),
 		Repos:     []string{},
-		Schedules: schedule.DefaultSchedules(),
+		Schedules: GetDefaults(cfg),
 	}
-	reg.Projects = append(reg.Projects, entry)
+	cfg.Projects = append(cfg.Projects, entry)
 
 	if err := os.MkdirAll(LogDir(homeDir, entry.Slug), 0755); err != nil {
 		return nil, err
 	}
 
-	if err := WriteRegistry(homeDir, reg); err != nil {
+	if err := WriteConfig(homeDir, cfg); err != nil {
 		return nil, err
 	}
 
@@ -218,46 +221,46 @@ func CreateProject(homeDir, name string) (*ProjectEntry, error) {
 // AssignProject assigns a repository to an existing project.
 // It adds repoDir to the project's repos list (deduplicated) and writes the per-repo config.
 func AssignProject(homeDir, repoDir string, entry *ProjectEntry) error {
-	reg, err := ReadRegistry(homeDir)
+	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	regEntry := FindProjectByID(reg, entry.ID)
-	if regEntry == nil {
+	cfgEntry := FindProjectByID(cfg, entry.ID)
+	if cfgEntry == nil {
 		return fmt.Errorf("project '%s' not found in registry", entry.Name)
 	}
 
 	// Add repo if not already present
 	found := false
-	for _, r := range regEntry.Repos {
+	for _, r := range cfgEntry.Repos {
 		if r == repoDir {
 			found = true
 			break
 		}
 	}
 	if !found {
-		regEntry.Repos = append(regEntry.Repos, repoDir)
+		cfgEntry.Repos = append(cfgEntry.Repos, repoDir)
 	}
 
-	if err := WriteRegistry(homeDir, reg); err != nil {
+	if err := WriteConfig(homeDir, cfg); err != nil {
 		return err
 	}
 
-	return WriteRepoConfig(repoDir, &RepoConfig{Project: regEntry.Name, ProjectID: regEntry.ID})
+	return WriteRepoConfig(repoDir, &RepoConfig{Project: cfgEntry.Name, ProjectID: cfgEntry.ID})
 }
 
-// RemoveProject removes a project from the registry by ID or name.
+// RemoveProject removes a project from the config by ID or name.
 // Returns the removed entry so the caller can handle cleanup.
 func RemoveProject(homeDir, identifier string) (*ProjectEntry, error) {
-	reg, err := ReadRegistry(homeDir)
+	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return nil, err
 	}
 
 	idx := -1
-	for i := range reg.Projects {
-		if reg.Projects[i].ID == identifier || reg.Projects[i].Name == identifier {
+	for i := range cfg.Projects {
+		if cfg.Projects[i].ID == identifier || cfg.Projects[i].Name == identifier {
 			idx = i
 			break
 		}
@@ -267,10 +270,10 @@ func RemoveProject(homeDir, identifier string) (*ProjectEntry, error) {
 		return nil, fmt.Errorf("project '%s' not found", identifier)
 	}
 
-	removed := reg.Projects[idx]
-	reg.Projects = append(reg.Projects[:idx], reg.Projects[idx+1:]...)
+	removed := cfg.Projects[idx]
+	cfg.Projects = append(cfg.Projects[:idx], cfg.Projects[idx+1:]...)
 
-	if err := WriteRegistry(homeDir, reg); err != nil {
+	if err := WriteConfig(homeDir, cfg); err != nil {
 		return nil, err
 	}
 
@@ -287,34 +290,67 @@ func RemoveRepoConfig(repoDir string) error {
 	return err
 }
 
+// GetDefaults returns the user's default schedules, falling back to factory settings.
+func GetDefaults(cfg *Config) []schedule.ScheduleEntry {
+	if len(cfg.Defaults) > 0 {
+		return cfg.Defaults
+	}
+	return schedule.DefaultSchedules()
+}
+
+// SetDefaults updates the default schedules in the config.
+func SetDefaults(homeDir string, schedules []schedule.ScheduleEntry) error {
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	cfg.Defaults = schedules
+	return WriteConfig(homeDir, cfg)
+}
+
+// ResetDefaults resets the default schedules to factory settings.
+func ResetDefaults(homeDir string) error {
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	cfg.Defaults = schedule.DefaultSchedules()
+	return WriteConfig(homeDir, cfg)
+}
+
 // GetSchedules returns the schedules for a project, falling back to defaults if empty.
-func GetSchedules(reg *ProjectRegistry, projectID string) []schedule.ScheduleEntry {
-	entry := FindProjectByID(reg, projectID)
+func GetSchedules(cfg *Config, projectID string) []schedule.ScheduleEntry {
+	entry := FindProjectByID(cfg, projectID)
 	if entry == nil || len(entry.Schedules) == 0 {
-		return schedule.DefaultSchedules()
+		return GetDefaults(cfg)
 	}
 	return entry.Schedules
 }
 
-// SetSchedules updates the schedules for a project in the registry.
+// SetSchedules updates the schedules for a project in the config.
 func SetSchedules(homeDir, projectID string, schedules []schedule.ScheduleEntry) error {
-	reg, err := ReadRegistry(homeDir)
+	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
-	entry := FindProjectByID(reg, projectID)
+	entry := FindProjectByID(cfg, projectID)
 	if entry == nil {
 		return fmt.Errorf("project '%s' not found", projectID)
 	}
 
 	entry.Schedules = schedules
-	return WriteRegistry(homeDir, reg)
+	return WriteConfig(homeDir, cfg)
 }
 
-// ResetSchedules resets a project's schedules to the defaults.
+// ResetSchedules resets a project's schedules to the current defaults.
 func ResetSchedules(homeDir, projectID string) error {
-	return SetSchedules(homeDir, projectID, schedule.DefaultSchedules())
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	defaults := GetDefaults(cfg)
+	return SetSchedules(homeDir, projectID, defaults)
 }
 
 // RemoveHookFromRepo removes the hourgit section from the post-checkout hook.
@@ -347,4 +383,3 @@ func RemoveHookFromRepo(repoDir string) error {
 	// Write back the non-hourgit portion
 	return os.WriteFile(hookPath, []byte(before+"\n"), 0755)
 }
-

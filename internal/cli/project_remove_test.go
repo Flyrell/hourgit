@@ -30,10 +30,10 @@ func TestProjectRemoveNoRepos(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project 'My Project' removed")
 
-	// Verify removed from registry
-	reg, err := project.ReadRegistry(home)
+	// Verify removed from config
+	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Empty(t, reg.Projects)
+	assert.Empty(t, cfg.Projects)
 }
 
 func TestProjectRemoveWithReposConfirmed(t *testing.T) {
@@ -81,9 +81,9 @@ func TestProjectRemoveWithReposDeclined(t *testing.T) {
 	assert.Contains(t, err.Error(), "aborted")
 
 	// Verify project still exists
-	reg, err := project.ReadRegistry(home)
+	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Len(t, reg.Projects, 1)
+	assert.Len(t, cfg.Projects, 1)
 }
 
 func TestProjectRemoveNotFound(t *testing.T) {
@@ -115,11 +115,11 @@ func TestProjectRemoveMissingRepo(t *testing.T) {
 	require.NoError(t, err)
 
 	// Manually add a non-existent repo path
-	reg, err := project.ReadRegistry(home)
+	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	reg.Projects[0].Repos = []string{"/nonexistent/repo"}
-	require.NoError(t, project.WriteRegistry(home, reg))
-	entry.Repos = reg.Projects[0].Repos
+	cfg.Projects[0].Repos = []string{"/nonexistent/repo"}
+	require.NoError(t, project.WriteConfig(home, cfg))
+	entry.Repos = cfg.Projects[0].Repos
 
 	stdout, err := execProjectRemove(home, "My Project", AlwaysYes())
 

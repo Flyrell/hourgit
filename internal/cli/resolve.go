@@ -9,13 +9,13 @@ import (
 // ResolveProjectContext finds the active project using the --project flag or
 // the current repo's .git/.hourgit config.
 func ResolveProjectContext(homeDir, repoDir, projectFlag string) (*project.ProjectEntry, error) {
-	reg, err := project.ReadRegistry(homeDir)
+	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return nil, err
 	}
 
 	if projectFlag != "" {
-		entry := project.ResolveProject(reg, projectFlag)
+		entry := project.ResolveProject(cfg, projectFlag)
 		if entry == nil {
 			return nil, fmt.Errorf("project '%s' not found", projectFlag)
 		}
@@ -23,20 +23,20 @@ func ResolveProjectContext(homeDir, repoDir, projectFlag string) (*project.Proje
 	}
 
 	if repoDir != "" {
-		cfg, err := project.ReadRepoConfig(repoDir)
+		repoCfg, err := project.ReadRepoConfig(repoDir)
 		if err != nil {
 			return nil, err
 		}
-		if cfg != nil {
-			entry := project.FindProjectByID(reg, cfg.ProjectID)
+		if repoCfg != nil {
+			entry := project.FindProjectByID(cfg, repoCfg.ProjectID)
 			if entry != nil {
 				return entry, nil
 			}
-			entry = project.FindProject(reg, cfg.Project)
+			entry = project.FindProject(cfg, repoCfg.Project)
 			if entry != nil {
 				return entry, nil
 			}
-			return nil, fmt.Errorf("project '%s' from repo config not found in registry", cfg.Project)
+			return nil, fmt.Errorf("project '%s' from repo config not found in registry", repoCfg.Project)
 		}
 	}
 

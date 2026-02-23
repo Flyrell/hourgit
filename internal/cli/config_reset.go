@@ -10,7 +10,7 @@ import (
 
 var configResetCmd = LeafCommand{
 	Use:   "reset",
-	Short: "Reset a project's schedule to the default (Mon-Fri 9am-5pm)",
+	Short: "Reset a project's schedule to the defaults",
 	StrFlags: []StringFlag{
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
 	},
@@ -44,7 +44,7 @@ func runConfigReset(cmd *cobra.Command, homeDir, repoDir, projectFlag string, co
 		return err
 	}
 
-	confirmed, err := confirm(fmt.Sprintf("Reset schedule for '%s' to default (Mon-Fri 9am-5pm)?", entry.Name))
+	confirmed, err := confirm(fmt.Sprintf("Reset schedule for '%s' to defaults?", entry.Name))
 	if err != nil {
 		return err
 	}
@@ -56,6 +56,6 @@ func runConfigReset(cmd *cobra.Command, homeDir, repoDir, projectFlag string, co
 		return err
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("schedule for '%s' reset to default", Primary(entry.Name))))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("schedule for '%s' reset to defaults", Primary(entry.Name))))
 	return nil
 }
