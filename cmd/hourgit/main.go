@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/Flyrell/hourgit/internal/cli"
+	"github.com/Flyrell/hourgit/internal/project"
 )
 
 var (
@@ -14,6 +15,7 @@ var (
 
 func main() {
 	cli.SetVersionInfo(version, commit, date)
+	project.SetVersion(version)
 	if err := cli.Execute(); err != nil {
 		os.Exit(1)
 	}

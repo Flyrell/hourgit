@@ -23,7 +23,7 @@ func setupProjectTest(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
 	require.NoError(t, os.WriteFile(
 		filepath.Join(hooksDir, "post-checkout"),
-		[]byte(hookContent), 0755,
+		[]byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755,
 	))
 
 	return dir
@@ -157,7 +157,7 @@ func TestProjectAssignByID(t *testing.T) {
 	dir2 := t.TempDir()
 	hooksDir := filepath.Join(dir2, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	// Assign by ID
 	stdout, _, err := execProjectAssign(dir2, AlwaysYes(), projectID)

@@ -10,11 +10,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const hookContent = `#!/bin/sh
-# Installed by hourgit
-# TODO: hourgit log --type checkout <branch>
-echo "hourgit: post-checkout hook triggered"
-`
+func hookScript(binPath, version string) string {
+	return fmt.Sprintf(`#!/bin/sh
+%s (version: %s)
+
+# Only act on branch checkouts (flag=1), skip file checkouts (flag=0)
+[ "$3" = "0" ] && exit 0
+
+# Resolve branch names from SHA refs provided by git ($1=prev HEAD, $2=new HEAD)
+PREV=$(git name-rev --name-only "$1" 2>/dev/null)
+NEXT=$(git name-rev --name-only "$2" 2>/dev/null)
+
+if [ -n "$PREV" ] && [ -n "$NEXT" ] && [ "$PREV" != "$NEXT" ]; then
+  %s checkout --prev "$PREV" --next "$NEXT" 2>/dev/null || true
+fi
+`, project.HookMarker, version, binPath)
+}
 
 var initCmd = LeafCommand{
 	Use:   "init",
@@ -43,6 +54,15 @@ var initCmd = LeafCommand{
 			return err
 		}
 
+		binPath, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("could not resolve binary path: %w", err)
+		}
+		binPath, err = filepath.EvalSymlinks(binPath)
+		if err != nil {
+			return fmt.Errorf("could not resolve binary path: %w", err)
+		}
+
 		var confirm ConfirmFunc
 		if yes {
 			confirm = AlwaysYes()
@@ -57,11 +77,11 @@ var initCmd = LeafCommand{
 			selectFn = NewSelectFunc()
 		}
 
-		return runInit(cmd, dir, homeDir, projectName, force, merge, confirm, selectFn)
+		return runInit(cmd, dir, homeDir, projectName, force, merge, binPath, confirm, selectFn)
 	},
 }.Build()
 
-func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc, selectFn SelectFunc) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository")
@@ -69,6 +89,7 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 
 	hooksDir := filepath.Join(gitDir, "hooks")
 	hookPath := filepath.Join(hooksDir, "post-checkout")
+	hook := hookScript(binPath, appVersion)
 
 	if existing, err := os.ReadFile(hookPath); err == nil {
 		content := string(existing)
@@ -82,12 +103,12 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 		}
 
 		if merge {
-			merged := content + "\n" + hookContent
+			merged := content + "\n" + hook
 			if err := os.WriteFile(hookPath, []byte(merged), 0755); err != nil {
 				return err
 			}
 		} else {
-			if err := os.WriteFile(hookPath, []byte(hookContent), 0755); err != nil {
+			if err := os.WriteFile(hookPath, []byte(hook), 0755); err != nil {
 				return err
 			}
 		}
@@ -95,7 +116,7 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 		if err := os.MkdirAll(hooksDir, 0755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(hookPath, []byte(hookContent), 0755); err != nil {
+		if err := os.WriteFile(hookPath, []byte(hook), 0755); err != nil {
 			return err
 		}
 	}
