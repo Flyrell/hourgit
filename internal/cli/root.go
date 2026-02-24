@@ -17,6 +17,7 @@ func newRootCmd() *cobra.Command {
 			logCmd,
 			editCmd,
 			checkoutCmd,
+			generateCmd,
 			reportCmd,
 			historyCmd,
 			versionCmd,

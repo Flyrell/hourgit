@@ -25,20 +25,42 @@ type ReportData struct {
 
 // BuildReport computes a monthly time report from checkout entries, manual log
 // entries, and expanded day schedules. Time is attributed to branches based on
-// checkout ranges clipped to schedule windows.
+// checkout ranges clipped to schedule windows. Days listed in generatedDays
+// (format "2006-01-02") are excluded from checkout attribution — they have
+// already been materialized as editable log entries by the generate command.
 func BuildReport(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,
 	daySchedules []schedule.DaySchedule,
 	year int, month time.Month,
 	now time.Time,
+	generatedDays []string,
 ) ReportData {
 	daysInMonth := daysIn(year, month)
+
+	generatedSet := make(map[int]bool, len(generatedDays))
+	for _, ds := range generatedDays {
+		t, err := time.Parse("2006-01-02", ds)
+		if err != nil {
+			continue
+		}
+		if t.Year() == year && t.Month() == month {
+			generatedSet[t.Day()] = true
+		}
+	}
 
 	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
 	logBucket, logMinsByDay := buildLogBucket(logs, year, month)
 	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
-	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth)
+
+	// Zero out checkout attribution for generated days
+	for day := range generatedSet {
+		for branch := range checkoutBucket {
+			delete(checkoutBucket[branch], day)
+		}
+	}
+
+	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, generatedSet)
 	rows := mergeAndSortRows(checkoutBucket, logBucket)
 
 	return ReportData{
@@ -47,6 +69,20 @@ func BuildReport(
 		DaysInMonth: daysInMonth,
 		Rows:        rows,
 	}
+}
+
+// BuildCheckoutAttribution computes raw checkout time per branch per day
+// (before schedule deduction). Used by the generate command to materialize
+// checkout time into editable log entries.
+func BuildCheckoutAttribution(
+	checkouts []entry.CheckoutEntry,
+	daySchedules []schedule.DaySchedule,
+	year int, month time.Month,
+	now time.Time,
+) map[string]map[int]int {
+	daysInMonth := daysIn(year, month)
+	scheduleWindows, _ := buildScheduleLookup(daySchedules, year, month)
+	return buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
 }
 
 // buildScheduleLookup builds day -> windows and day -> total scheduled minutes maps.
@@ -164,8 +200,11 @@ func buildCheckoutBucket(
 
 // deductScheduleOverrun reduces checkout minutes proportionally when
 // checkoutMins + logMins exceed the scheduled minutes for a day.
-func deductScheduleOverrun(checkoutBucket map[string]map[int]int, logMinsByDay, scheduledMins map[int]int, daysInMonth int) {
+func deductScheduleOverrun(checkoutBucket map[string]map[int]int, logMinsByDay, scheduledMins map[int]int, daysInMonth int, generatedDays map[int]bool) {
 	for day := 1; day <= daysInMonth; day++ {
+		if generatedDays[day] {
+			continue
+		}
 		maxMins := scheduledMins[day]
 		if maxMins <= 0 {
 			continue

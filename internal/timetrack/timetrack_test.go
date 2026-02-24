@@ -46,7 +46,7 @@ func TestBuildReport_SingleCheckoutFullMonth(t *testing.T) {
 		}
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month))
+	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)
@@ -73,7 +73,7 @@ func TestBuildReport_TwoCheckoutsSplitDay(t *testing.T) {
 		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Previous: "feature-a", Next: "feature-b"},
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month))
+	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 2, len(report.Rows))
 
@@ -98,7 +98,7 @@ func TestBuildReport_ManualLogDeduction(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
 	}
 
-	report := BuildReport(checkouts, logs, days, year, month, afterMonth(year, month))
+	report := BuildReport(checkouts, logs, days, year, month, afterMonth(year, month), nil)
 
 	rowCheckout := findRow(report, "feature-x")
 	rowLog := findRow(report, "research")
@@ -120,7 +120,7 @@ func TestBuildReport_LogTaskKeyFallback(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 60, Message: "did research", Task: ""},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month))
+	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "did research", report.Rows[0].Name)
@@ -135,7 +135,7 @@ func TestBuildReport_NoCheckoutsLogsOnly(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 180, Message: "analysis", Task: "analysis"},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month))
+	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "analysis", report.Rows[0].Name)
@@ -150,7 +150,7 @@ func TestBuildReport_CheckoutBeforeMonthStart(t *testing.T) {
 		{ID: "c1", Timestamp: time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-y"},
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month))
+	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-y", report.Rows[0].Name)
@@ -160,7 +160,7 @@ func TestBuildReport_CheckoutBeforeMonthStart(t *testing.T) {
 func TestBuildReport_EmptyMonth(t *testing.T) {
 	year, month := 2025, time.January
 
-	report := BuildReport(nil, nil, nil, year, month, afterMonth(year, month))
+	report := BuildReport(nil, nil, nil, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 0, len(report.Rows))
 	assert.Equal(t, 31, report.DaysInMonth)
@@ -179,7 +179,7 @@ func TestBuildReport_SortedByTotalDescending(t *testing.T) {
 		{ID: "l3", Start: time.Date(2025, 1, 3, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "big", Task: "big"},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month))
+	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 2, len(report.Rows))
 	assert.Equal(t, "big", report.Rows[0].Name)
@@ -202,7 +202,7 @@ func TestBuildReport_LastCheckoutCappedAtNow(t *testing.T) {
 
 	// "now" is Jan 2 at 13:00 — should only get 4h (9-13), not 8h (9-17)
 	now := time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC)
-	report := BuildReport(checkouts, nil, days, year, month, now)
+	report := BuildReport(checkouts, nil, days, year, month, now, nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)

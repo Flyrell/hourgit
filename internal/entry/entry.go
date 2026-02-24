@@ -15,5 +15,6 @@ type Entry struct {
 	Minutes   int       `json:"minutes"`
 	Message   string    `json:"message"`
 	Task      string    `json:"task,omitempty"`
+	Source    string    `json:"source,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
