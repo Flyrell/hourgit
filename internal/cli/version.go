@@ -22,7 +22,11 @@ var versionCmd = LeafCommand{
 	Use:   "version",
 	Short: "Print the version information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hourgit %s (commit: %s, built: %s)", appVersion, appCommit, appDate)))
-		return nil
+		return runVersion(cmd)
 	},
 }.Build()
+
+func runVersion(cmd *cobra.Command) error {
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hourgit %s (commit: %s, built: %s)", appVersion, appCommit, appDate)))
+	return nil
+}
