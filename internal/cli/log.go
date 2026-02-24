@@ -144,7 +144,7 @@ func runLog(
 	}
 
 	// 5. Check schedule warnings
-	proceed, err := checkScheduleWarnings(cmd, homeDir, proj, start, minutes, pk.Confirm)
+	proceed, err := checkScheduleWarnings(cmd, homeDir, proj, start, minutes, "", pk.Confirm)
 	if err != nil {
 		return err
 	}
@@ -213,6 +213,7 @@ func checkScheduleWarnings(
 	proj *project.ProjectEntry,
 	entryStart time.Time,
 	minutes int,
+	excludeID string,
 	confirm ConfirmFunc,
 ) (bool, error) {
 	if confirm == nil {
@@ -246,7 +247,7 @@ func checkScheduleWarnings(
 	}
 
 	// 3. Check budget overrun
-	return checkBudgetWarning(cmd, confirm, homeDir, proj, entryStart, minutes, scheduledMinutes)
+	return checkBudgetWarning(cmd, confirm, homeDir, proj, entryStart, minutes, scheduledMinutes, excludeID)
 }
 
 // getDayScheduleWindows returns the schedule windows and total scheduled minutes
@@ -341,6 +342,7 @@ func checkBudgetWarning(
 	proj *project.ProjectEntry,
 	entryStart time.Time,
 	minutes, scheduledMinutes int,
+	excludeID string,
 ) (bool, error) {
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	if err != nil {
@@ -350,6 +352,9 @@ func checkBudgetWarning(
 	y, m, d := entryStart.Date()
 	loggedMinutes := 0
 	for _, e := range entries {
+		if excludeID != "" && e.ID == excludeID {
+			continue
+		}
 		ey, em, ed := e.Start.Date()
 		if ey == y && em == m && ed == d {
 			loggedMinutes += e.Minutes

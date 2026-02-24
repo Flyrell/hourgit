@@ -44,6 +44,14 @@ func setupEditTest(t *testing.T) (homeDir string, repoDir string, proj *project.
 func execEdit(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
 	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,
 ) (string, error) {
+	return execEditWithConfirm(homeDir, repoDir, projectFlag, hash, flags,
+		durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag, nil)
+}
+
+func execEditWithConfirm(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
+	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,
+	confirm ConfirmFunc,
+) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := editCmd
 	cmd.SetOut(stdout)
@@ -54,7 +62,7 @@ func execEdit(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
 
 	err := runEdit(cmd, homeDir, repoDir, projectFlag, hash,
 		durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag,
-		flags, PromptKit{}, fixedNow)
+		flags, PromptKit{}, confirm, fixedNow)
 	return stdout.String(), err
 }
 
@@ -333,7 +341,7 @@ func TestEditInteractiveMode(t *testing.T) {
 	flags := map[string]bool{} // no flags = interactive mode
 	err := runEdit(cmd, homeDir, repoDir, "", "edt1234",
 		"", "", "", "", "", "",
-		flags, pk, fixedNow)
+		flags, pk, nil, fixedNow)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "updated entry")
@@ -370,6 +378,105 @@ func TestEditDateAndFrom(t *testing.T) {
 	assert.Equal(t, 10, e.Start.Hour())
 	// Original end was 12:00, new from is 10:00 → 2h
 	assert.Equal(t, 120, e.Minutes)
+}
+
+func TestEditScheduleWarningOutsideHours(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	// Original entry: 2025-06-16 (Monday) 9:00–12:00, within default 9–17 schedule.
+	// Move it to 22:00–01:00 — completely outside schedule.
+	confirmed := false
+	confirm := func(prompt string) (bool, error) {
+		confirmed = true
+		return true, nil
+	}
+
+	flags := map[string]bool{"from": true, "to": true}
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+		"", "22:00", "23:00", "", "", "", confirm)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have prompted for confirmation")
+	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "updated entry")
+}
+
+func TestEditScheduleWarningDeclined(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	// Move to outside schedule, but decline the warning
+	confirm := func(prompt string) (bool, error) {
+		return false, nil
+	}
+
+	flags := map[string]bool{"from": true, "to": true}
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+		"", "22:00", "23:00", "", "", "", confirm)
+
+	require.NoError(t, err)
+	assert.NotContains(t, stdout, "updated entry")
+}
+
+func TestEditMessageOnlyNoWarning(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	// Only change message — no schedule warning should trigger
+	confirmed := false
+	confirm := func(prompt string) (bool, error) {
+		confirmed = true
+		return true, nil
+	}
+
+	flags := map[string]bool{"message": true}
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+		"", "", "", "", "", "new message", confirm)
+
+	require.NoError(t, err)
+	assert.False(t, confirmed, "should NOT prompt when only message changes")
+	assert.Contains(t, stdout, "updated entry")
+}
+
+func TestEditYesFlagSkipsWarning(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	// Move to outside schedule with --yes (AlwaysYes)
+	flags := map[string]bool{"from": true, "to": true}
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+		"", "22:00", "23:00", "", "", "", AlwaysYes())
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "updated entry")
+}
+
+func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupEditTest(t)
+
+	// Original entry: edt1234, 9:00–12:00 (180 min) on Monday.
+	// Add another 5h entry to fill up most of the 8h budget.
+	e2 := entry.Entry{
+		ID:        "edt5678",
+		Start:     time.Date(2025, 6, 16, 12, 0, 0, 0, time.UTC),
+		Minutes:   300,
+		Message:   "other work",
+		CreatedAt: time.Date(2025, 6, 16, 17, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e2))
+
+	// Edit edt1234 from 3h to 2h — total would be 5h+2h=7h < 8h budget.
+	// Without excludeID, it would count 3h+5h+2h=10h > 8h and warn.
+	confirmed := false
+	confirm := func(prompt string) (bool, error) {
+		confirmed = true
+		return true, nil
+	}
+
+	flags := map[string]bool{"duration": true}
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+		"2h", "", "", "", "", "", confirm)
+
+	require.NoError(t, err)
+	assert.False(t, confirmed, "should NOT warn — budget is within limit when excluding self")
+	assert.Contains(t, stdout, "updated entry")
 }
 
 func TestEditCheckoutEntryRejected(t *testing.T) {
