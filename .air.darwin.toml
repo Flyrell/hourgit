@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
   bin = "/bin/true"
-  cmd = "CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o ./tmp/hourgit ./cmd/hour-git"
+  cmd = "CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o ./tmp/hourgit ./cmd/hourgit"
   delay = 1000
   exclude_dir = ["tmp", "vendor", ".git", "dist"]
   exclude_file = ["_test.go"]

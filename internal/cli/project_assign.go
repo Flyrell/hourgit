@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Flyrell/hour-git/internal/project"
+	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +48,7 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 	hookPath := filepath.Join(repoDir, ".git", "hooks", "post-checkout")
 	hookData, err := os.ReadFile(hookPath)
 	if err != nil || !strings.Contains(string(hookData), project.HookMarker) {
-		return fmt.Errorf("hourgit is not initialized (run 'hour-git init' first)")
+		return fmt.Errorf("hourgit is not initialized (run 'hourgit init' first)")
 	}
 
 	// Check existing repo config

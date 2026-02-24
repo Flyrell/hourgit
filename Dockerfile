@@ -13,11 +13,11 @@ COPY . .
 
 RUN CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
-    -o /build/hour-git \
-    ./cmd/hour-git
+    -o /build/hourgit \
+    ./cmd/hourgit
 
 FROM scratch
 
-COPY --from=builder /build/hour-git /hour-git
+COPY --from=builder /build/hourgit /hourgit
 
-ENTRYPOINT ["/hour-git"]
+ENTRYPOINT ["/hourgit"]

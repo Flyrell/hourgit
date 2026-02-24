@@ -37,7 +37,7 @@ tasks:
           golang:1.26-alpine
           go build -ldflags="{{.LDFLAGS}}"
           -o dist/hourgit-{{.ITEM.SUFFIX}}
-          ./cmd/hour-git
+          ./cmd/hourgit
 
   test:
     desc: Run all tests

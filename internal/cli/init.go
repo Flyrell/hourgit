@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Flyrell/hour-git/internal/project"
+	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/spf13/cobra"
 )
 

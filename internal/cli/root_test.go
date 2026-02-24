@@ -20,5 +20,5 @@ func TestRootHasSubcommands(t *testing.T) {
 }
 
 func TestRootUseName(t *testing.T) {
-	assert.Equal(t, "hour-git", rootCmd.Use)
+	assert.Equal(t, "hourgit", rootCmd.Use)
 }

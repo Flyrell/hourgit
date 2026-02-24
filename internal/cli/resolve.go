@@ -3,7 +3,7 @@ package cli
 import (
 	"fmt"
 
-	"github.com/Flyrell/hour-git/internal/project"
+	"github.com/Flyrell/hourgit/internal/project"
 )
 
 // ResolveProjectContext finds the active project using the --project flag or

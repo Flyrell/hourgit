@@ -26,8 +26,8 @@ func TestColorizeLineFlagLine(t *testing.T) {
 }
 
 func TestColorizeLineFooter(t *testing.T) {
-	result := colorizeLine(`Use "hour-git [command] --help" for more information about a command.`)
-	assert.Contains(t, result, "hour-git")
+	result := colorizeLine(`Use "hourgit [command] --help" for more information about a command.`)
+	assert.Contains(t, result, "hourgit")
 }
 
 func TestColorizeLinePlainText(t *testing.T) {
