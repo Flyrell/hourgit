@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
@@ -142,8 +143,8 @@ func runLog(
 		return fmt.Errorf("cannot log more than 24h in a single entry")
 	}
 
-	// 5. Check schedule overrun
-	proceed, err := checkScheduleOverrun(cmd, homeDir, proj, start, minutes, pk.Confirm)
+	// 5. Check schedule warnings
+	proceed, err := checkScheduleWarnings(cmd, homeDir, proj, start, minutes, pk.Confirm)
 	if err != nil {
 		return err
 	}
@@ -201,9 +202,12 @@ func parseFromTo(fromStr, toStr string, baseDate time.Time) (time.Time, int, err
 	return start, minutes, nil
 }
 
-// checkScheduleOverrun warns the user if the entry would exceed the day's scheduled hours.
+// checkScheduleWarnings warns the user about schedule-related issues:
+// 1. No scheduled hours for the day
+// 2. Entry falls outside (or partially outside) schedule windows
+// 3. Entry exceeds remaining scheduled budget
 // Returns (true, nil) to proceed, (false, nil) to cancel.
-func checkScheduleOverrun(
+func checkScheduleWarnings(
 	cmd *cobra.Command,
 	homeDir string,
 	proj *project.ProjectEntry,
@@ -231,20 +235,79 @@ func checkScheduleOverrun(
 		return false, err
 	}
 
-	// Compute scheduled minutes for this day
-	scheduledMinutes := 0
+	// Find windows for this day
+	var dayWindows []schedule.TimeWindow
 	dateKey := dayStart.Format("2006-01-02")
 	for _, ds := range daySchedules {
 		if ds.Date.Format("2006-01-02") == dateKey {
-			for _, w := range ds.Windows {
-				fromMins := w.From.Hour*60 + w.From.Minute
-				toMins := w.To.Hour*60 + w.To.Minute
-				scheduledMinutes += toMins - fromMins
-			}
+			dayWindows = ds.Windows
+			break
 		}
 	}
 
-	// Sum already-logged minutes for this day
+	// Compute scheduled minutes from windows
+	scheduledMinutes := 0
+	for _, w := range dayWindows {
+		fromMins := w.From.Hour*60 + w.From.Minute
+		toMins := w.To.Hour*60 + w.To.Minute
+		scheduledMinutes += toMins - fromMins
+	}
+
+	// 1. No scheduled hours for this day
+	if scheduledMinutes == 0 {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s this day has no scheduled working hours.\n",
+			Warning("Warning:"),
+		)
+		ok, err := confirm("Continue anyway?")
+		if err != nil {
+			return false, err
+		}
+		return ok, nil
+	}
+
+	// 2. Check if entry falls outside schedule windows
+	entryFromMins := entryStart.Hour()*60 + entryStart.Minute()
+	entryToMins := entryFromMins + minutes
+
+	overlapMinutes := 0
+	for _, w := range dayWindows {
+		wFrom := w.From.Hour*60 + w.From.Minute
+		wTo := w.To.Hour*60 + w.To.Minute
+		overlap := min(entryToMins, wTo) - max(entryFromMins, wFrom)
+		if overlap > 0 {
+			overlapMinutes += overlap
+		}
+	}
+
+	windowsSummary := formatWindowsSummary(dayWindows)
+
+	if overlapMinutes == 0 {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s this entry falls outside your scheduled hours (%s).\n",
+			Warning("Warning:"),
+			Primary(windowsSummary),
+		)
+		ok, err := confirm("Continue anyway?")
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+	} else if overlapMinutes < minutes {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s this entry partially falls outside your scheduled hours (%s).\n",
+			Warning("Warning:"),
+			Primary(windowsSummary),
+		)
+		ok, err := confirm("Continue anyway?")
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
+	}
+
+	// 3. Check budget overrun
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	if err != nil {
 		return false, err
@@ -284,6 +347,15 @@ func checkScheduleOverrun(
 	}
 
 	return true, nil
+}
+
+// formatWindowsSummary formats schedule windows as a comma-separated summary.
+func formatWindowsSummary(windows []schedule.TimeWindow) string {
+	parts := make([]string, len(windows))
+	for i, w := range windows {
+		parts[i] = schedule.FormatTimeRange(w.From.String(), w.To.String())
+	}
+	return strings.Join(parts, ", ")
 }
 
 func writeAndPrintEntry(
