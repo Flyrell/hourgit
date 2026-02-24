@@ -16,6 +16,8 @@ func EntryPath(homeDir, slug, id string) string {
 
 // WriteEntry writes a single entry file to the project's log directory.
 func WriteEntry(homeDir, slug string, e Entry) error {
+	e.Type = "log"
+
 	dir := project.LogDir(homeDir, slug)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -40,10 +42,13 @@ func ReadEntry(homeDir, slug, id string) (Entry, error) {
 	if err := json.Unmarshal(data, &e); err != nil {
 		return Entry{}, err
 	}
+	if e.Type != "" && e.Type != "log" {
+		return Entry{}, fmt.Errorf("entry '%s' not found", id)
+	}
 	return e, nil
 }
 
-// ReadAllEntries reads all entry files from a project's log directory.
+// ReadAllEntries reads all log entry files from a project's log directory.
 func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
 	dir := project.LogDir(homeDir, slug)
 	files, err := os.ReadDir(dir)
@@ -63,9 +68,21 @@ func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			continue
+		}
+		if t, ok := raw["type"]; ok {
+			var typ string
+			if err := json.Unmarshal(t, &typ); err == nil && typ != "" && typ != "log" {
+				continue
+			}
+		}
+
 		var e Entry
 		if err := json.Unmarshal(data, &e); err != nil {
-			continue // skip corrupt files
+			continue
 		}
 		entries = append(entries, e)
 	}
@@ -79,4 +96,81 @@ func DeleteEntry(homeDir, slug, id string) error {
 		return fmt.Errorf("entry '%s' not found", id)
 	}
 	return err
+}
+
+// WriteCheckoutEntry writes a single checkout entry file to the project's log directory.
+func WriteCheckoutEntry(homeDir, slug string, e CheckoutEntry) error {
+	e.Type = "checkout"
+
+	dir := project.LogDir(homeDir, slug)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(e, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(EntryPath(homeDir, slug, e.ID), data, 0644)
+}
+
+// ReadCheckoutEntry reads a single checkout entry by ID.
+func ReadCheckoutEntry(homeDir, slug, id string) (CheckoutEntry, error) {
+	data, err := os.ReadFile(EntryPath(homeDir, slug, id))
+	if err != nil {
+		return CheckoutEntry{}, fmt.Errorf("checkout entry '%s' not found", id)
+	}
+
+	var e CheckoutEntry
+	if err := json.Unmarshal(data, &e); err != nil {
+		return CheckoutEntry{}, err
+	}
+	if e.Type != "checkout" {
+		return CheckoutEntry{}, fmt.Errorf("checkout entry '%s' not found", id)
+	}
+	return e, nil
+}
+
+// ReadAllCheckoutEntries reads all checkout entries from a project's log directory.
+func ReadAllCheckoutEntries(homeDir, slug string) ([]CheckoutEntry, error) {
+	dir := project.LogDir(homeDir, slug)
+	files, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []CheckoutEntry
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			continue
+		}
+		t, ok := raw["type"]
+		if !ok {
+			continue
+		}
+		var typ string
+		if err := json.Unmarshal(t, &typ); err != nil || typ != "checkout" {
+			continue
+		}
+
+		var e CheckoutEntry
+		if err := json.Unmarshal(data, &e); err != nil {
+			continue
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
 }

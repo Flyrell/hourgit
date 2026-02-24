@@ -35,23 +35,23 @@ func fixedNow() time.Time {
 	return time.Date(2025, 6, 15, 14, 0, 0, 0, time.UTC)
 }
 
-func execLog(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message string) (string, error) {
-	return execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message, PromptKit{})
+func execLog(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message string) (string, error) {
+	return execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, PromptKit{})
 }
 
-func execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message string, pk PromptKit) (string, error) {
+func execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message string, pk PromptKit) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := logCmd
 	cmd.SetOut(stdout)
 
-	err := runLog(cmd, homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message, pk, fixedNow)
+	err := runLog(cmd, homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, pk, fixedNow)
 	return stdout.String(), err
 }
 
 func TestLogDurationMode(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
-	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "", "did some work")
+	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "", "", "did some work")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
@@ -68,7 +68,7 @@ func TestLogDurationMode(t *testing.T) {
 func TestLogFromToMode(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
-	stdout, err := execLog(homeDir, repoDir, "", "", "9am", "12pm", "", "morning work")
+	stdout, err := execLog(homeDir, repoDir, "", "", "9am", "12pm", "", "", "morning work")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
@@ -85,7 +85,7 @@ func TestLogFromToMode(t *testing.T) {
 func TestLogByProjectFlag(t *testing.T) {
 	homeDir, _, proj := setupLogTest(t)
 
-	stdout, err := execLog(homeDir, "", proj.Name, "1h", "", "", "", "flagged project")
+	stdout, err := execLog(homeDir, "", proj.Name, "1h", "", "", "", "", "flagged project")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Log Test")
@@ -98,7 +98,7 @@ func TestLogByProjectFlag(t *testing.T) {
 func TestLogDurationAndFromToMutuallyExclusive(t *testing.T) {
 	homeDir, repoDir, _ := setupLogTest(t)
 
-	_, err := execLog(homeDir, repoDir, "", "3h", "9am", "12pm", "", "conflict")
+	_, err := execLog(homeDir, repoDir, "", "3h", "9am", "12pm", "", "", "conflict")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "mutually exclusive")
@@ -119,7 +119,7 @@ func TestLogFromWithoutTo(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "", "", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "", "", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "3h 0m")
@@ -146,7 +146,7 @@ func TestLogToWithoutFrom(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "12pm", "", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "12pm", "", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "3h 0m")
@@ -161,7 +161,7 @@ func TestLogToWithoutFrom(t *testing.T) {
 func TestLogFromAfterTo(t *testing.T) {
 	homeDir, repoDir, _ := setupLogTest(t)
 
-	_, err := execLog(homeDir, repoDir, "", "", "5pm", "9am", "", "backwards")
+	_, err := execLog(homeDir, repoDir, "", "", "5pm", "9am", "", "", "backwards")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "must be before")
@@ -170,7 +170,7 @@ func TestLogFromAfterTo(t *testing.T) {
 func TestLogInvalidDuration(t *testing.T) {
 	homeDir, repoDir, _ := setupLogTest(t)
 
-	_, err := execLog(homeDir, repoDir, "", "abc", "", "", "", "bad duration")
+	_, err := execLog(homeDir, repoDir, "", "abc", "", "", "", "", "bad duration")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid duration")
@@ -188,7 +188,7 @@ func TestLogDurationNoMessage(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "3h 0m")
@@ -211,7 +211,7 @@ func TestLogFromToNoMessage(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "5pm", "", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "5pm", "", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "8h 0m")
@@ -238,7 +238,7 @@ func TestLogMessageOnly(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "", "pre-filled msg", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "", "", "pre-filled msg", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "2h 0m")
@@ -265,7 +265,7 @@ func TestLogDateOnly(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "2025-01-10", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "2025-01-10", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "1h 0m")
@@ -291,7 +291,7 @@ func TestLogDurationWithDateNoMessage(t *testing.T) {
 		},
 	}
 
-	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "2025-01-10", "", pk)
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "2025-01-10", "", "", pk)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "3h 0m")
@@ -313,7 +313,7 @@ func TestLogEmptyMessagePromptedStillRequired(t *testing.T) {
 		},
 	}
 
-	_, err := execLogWithPrompts(homeDir, repoDir, "", "1h", "", "", "", "", pk)
+	_, err := execLogWithPrompts(homeDir, repoDir, "", "1h", "", "", "", "", "", pk)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message is required")
@@ -322,7 +322,7 @@ func TestLogEmptyMessagePromptedStillRequired(t *testing.T) {
 func TestLogNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 
-	_, err := execLog(homeDir, "", "", "1h", "", "", "", "no project")
+	_, err := execLog(homeDir, "", "", "1h", "", "", "", "", "no project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
@@ -348,7 +348,7 @@ func TestLogInteractiveModeDuration(t *testing.T) {
 		},
 	}
 
-	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", pk, fixedNow)
+	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", "", pk, fixedNow)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "logged")
@@ -382,7 +382,7 @@ func TestLogInteractiveModeFromTo(t *testing.T) {
 		},
 	}
 
-	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", pk, fixedNow)
+	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", "", pk, fixedNow)
 
 	require.NoError(t, err)
 
@@ -412,7 +412,7 @@ func TestLogInteractiveEmptyMessage(t *testing.T) {
 		},
 	}
 
-	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", pk, fixedNow)
+	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", "", pk, fixedNow)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message is required")
@@ -421,7 +421,7 @@ func TestLogInteractiveEmptyMessage(t *testing.T) {
 func TestLogDurationModeWithDate(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
-	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "2025-01-10", "past work")
+	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "2025-01-10", "", "past work")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
@@ -441,7 +441,7 @@ func TestLogDurationModeWithDate(t *testing.T) {
 func TestLogFromToModeWithDate(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
-	stdout, err := execLog(homeDir, repoDir, "", "", "9am", "12pm", "2025-01-10", "past morning")
+	stdout, err := execLog(homeDir, repoDir, "", "", "9am", "12pm", "2025-01-10", "", "past morning")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
@@ -459,7 +459,7 @@ func TestLogFromToModeWithDate(t *testing.T) {
 func TestLogInvalidDate(t *testing.T) {
 	homeDir, repoDir, _ := setupLogTest(t)
 
-	_, err := execLog(homeDir, repoDir, "", "1h", "", "", "not-a-date", "work")
+	_, err := execLog(homeDir, repoDir, "", "1h", "", "", "not-a-date", "", "work")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid --date format")
@@ -487,7 +487,7 @@ func TestLogInteractiveModeWithDate(t *testing.T) {
 		},
 	}
 
-	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", pk, fixedNow)
+	err := runLog(cmd, homeDir, repoDir, "", "", "", "", "", "", "", pk, fixedNow)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "logged")
@@ -507,4 +507,20 @@ func TestLogRegisteredAsSubcommand(t *testing.T) {
 		names[i] = cmd.Name()
 	}
 	assert.Contains(t, names, "log")
+}
+
+func TestLogWithTask(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	stdout, err := execLog(homeDir, repoDir, "", "2h", "", "", "", "research", "read documentation")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "logged")
+	assert.Contains(t, stdout, "2h 0m")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "research", entries[0].Task)
+	assert.Equal(t, "read documentation", entries[0].Message)
 }

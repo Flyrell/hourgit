@@ -22,6 +22,7 @@ var logCmd = LeafCommand{
 		{Name: "from", Usage: "start time (e.g. 9am, 14:00)"},
 		{Name: "to", Usage: "end time (e.g. 5pm, 17:00)"},
 		{Name: "date", Usage: "date to log for (YYYY-MM-DD, default: today)"},
+		{Name: "task", Usage: "task label for this entry"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
@@ -35,6 +36,7 @@ var logCmd = LeafCommand{
 		fromFlag, _ := cmd.Flags().GetString("from")
 		toFlag, _ := cmd.Flags().GetString("to")
 		dateFlag, _ := cmd.Flags().GetString("date")
+		taskFlag, _ := cmd.Flags().GetString("task")
 
 		var message string
 		if len(args) > 0 {
@@ -42,13 +44,13 @@ var logCmd = LeafCommand{
 		}
 
 		pk := NewPromptKit()
-		return runLog(cmd, homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message, pk, time.Now)
+		return runLog(cmd, homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, pk, time.Now)
 	},
 }.Build()
 
 func runLog(
 	cmd *cobra.Command,
-	homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, message string,
+	homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message string,
 	pk PromptKit,
 	nowFn func() time.Time,
 ) error {
@@ -139,7 +141,7 @@ func runLog(
 		return fmt.Errorf("message is required")
 	}
 
-	return writeAndPrintEntry(cmd, homeDir, proj, start, minutes, message, now)
+	return writeAndPrintEntry(cmd, homeDir, proj, start, minutes, message, taskFlag, now)
 }
 
 // resolveBaseDate parses the --date flag value into a date.
@@ -184,7 +186,7 @@ func writeAndPrintEntry(
 	proj *project.ProjectEntry,
 	start time.Time,
 	minutes int,
-	message string,
+	message, task string,
 	now time.Time,
 ) error {
 	e := entry.Entry{
@@ -192,6 +194,7 @@ func writeAndPrintEntry(
 		Start:     start.UTC(),
 		Minutes:   minutes,
 		Message:   message,
+		Task:      task,
 		CreatedAt: now.UTC(),
 	}
 
