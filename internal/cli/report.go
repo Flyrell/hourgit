@@ -116,5 +116,15 @@ func buildReportData(homeDir string, proj *project.ProjectEntry, year int, month
 		return timetrack.ReportData{}, err
 	}
 
-	return timetrack.BuildReport(checkouts, logs, daySchedules, year, month, now), nil
+	generatedDayEntries, err := entry.ReadAllGeneratedDayEntries(homeDir, proj.Slug)
+	if err != nil {
+		return timetrack.ReportData{}, err
+	}
+
+	var generatedDays []string
+	for _, g := range generatedDayEntries {
+		generatedDays = append(generatedDays, g.Date)
+	}
+
+	return timetrack.BuildReport(checkouts, logs, daySchedules, year, month, now, generatedDays), nil
 }

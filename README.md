@@ -178,6 +178,43 @@ hourgit checkout --prev <branch> --next <branch> [--project <project_name>]
 | `--next` | Next branch name (required) |
 | `--project` | Project name or ID (auto-detected from repo if omitted) |
 
+### `hourgit generate`
+
+Generate editable time entries from checkout history. Materializes checkout-derived time into log entries that you can review and edit before they appear in reports.
+
+**With flags:**
+
+```bash
+hourgit generate --today
+hourgit generate --week
+hourgit generate --month [--year <YYYY>]
+hourgit generate --date 2025-06-10
+```
+
+**Interactive** — prompted for timeframe:
+
+```bash
+hourgit generate
+```
+
+| Flag | Description |
+|------|-------------|
+| `-p`, `--project` | Project name or slug (auto-detected from repo if omitted) |
+| `--today` | Generate for today |
+| `--week` | Generate for the current week (Monday–Sunday) |
+| `--month` | Generate for the current month |
+| `--date` | Generate for a specific date (`YYYY-MM-DD`) |
+| `--year` | Year (used with `--month`) |
+| `--yes` | Skip confirmation prompts |
+
+Notes:
+- Only one timeframe flag can be used at a time
+- Shows a preview of entries to be created before confirming
+- If the range has already been generated, prompts to overwrite (deletes old generated entries first)
+- Generated entries have `source: "generate"` and use the branch name as the task label
+- Days with generated entries are marked as "generated" — `report` skips checkout attribution for those days
+- Generated entries are editable via `hourgit edit` like any other log entry
+
 ### `hourgit report`
 
 Generate a monthly time report as an interactive table showing tasks (rows) × days (columns). Time is attributed to branches based on checkout events clipped to your configured schedule, with manual log entries shown alongside.
@@ -378,14 +415,12 @@ Every project starts with a copy of the defaults. You can then customize a proje
 |------|---------|
 | `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
 | `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
-| `~/.hourgit/<slug>/<hash>` | Per-project log entries (one JSON file per entry) |
-| `~/.hourgit/<slug>/checkouts/<hash>` | Per-project checkout entries (one JSON file per checkout event) |
+| `~/.hourgit/<slug>/<hash>` | Per-project entries (one JSON file per entry — log, checkout, or generated-day marker) |
 
 ## Roadmap
 
 The following features are planned but not yet implemented:
 
-- **Automatic time logging** — automatic time calculation from checkout entries
 - **Deleting entries** — remove entries by hash
 - **Status** — show currently active branch/project and time logged today
 
