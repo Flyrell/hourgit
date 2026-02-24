@@ -50,11 +50,18 @@ var initCmd = LeafCommand{
 			confirm = NewConfirmFunc()
 		}
 
-		return runInit(cmd, dir, homeDir, projectName, force, merge, confirm)
+		var selectFn SelectFunc
+		if yes {
+			selectFn = func(title string, options []string) (int, error) { return 0, nil }
+		} else {
+			selectFn = NewSelectFunc()
+		}
+
+		return runInit(cmd, dir, homeDir, projectName, force, merge, confirm, selectFn)
 	},
 }.Build()
 
-func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc, selectFn SelectFunc) error {
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository")
@@ -128,5 +135,24 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 	}
 
 	_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("hourgit initialized successfully"))
+
+	// Offer to install shell completions
+	shell := detectShell()
+	if shell != "" && !isCompletionInstalled(shell, homeDir) {
+		choice, err := selectFn("Shell completions", []string{
+			fmt.Sprintf("Install automatically (for %s)", shell),
+			"Skip (run 'hourgit completion install' later)",
+		})
+		if err != nil {
+			return err
+		}
+		if choice == 0 {
+			if err := installCompletion(shell, homeDir); err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("shell completions installed for %s", Primary(shell))))
+		}
+	}
+
 	return nil
 }

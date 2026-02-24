@@ -39,11 +39,11 @@ func execInit(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func execInitDirect(dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc) (string, error) {
+func execInitDirect(dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := initCmd
 	cmd.SetOut(stdout)
-	err := runInit(cmd, dir, homeDir, projectName, force, merge, confirm)
+	err := runInit(cmd, dir, homeDir, projectName, force, merge, confirm, selectFn)
 	return stdout.String(), err
 }
 
@@ -233,7 +233,8 @@ func TestInitWithProjectFlagDeclined(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	stdout, err := execInitDirect(dir, home, "My Project", false, false, decline)
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	stdout, err := execInitDirect(dir, home, "My Project", false, false, decline, skipSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project assignment skipped")
@@ -243,6 +244,110 @@ func TestInitWithProjectFlagDeclined(t *testing.T) {
 	appCfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
 	assert.Empty(t, appCfg.Projects)
+}
+
+func TestInitPromptsForCompletion(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/zsh")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	selectCalls := 0
+	installSelect := func(_ string, _ []string) (int, error) {
+		selectCalls++
+		return 0, nil
+	}
+	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, installSelect)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+	assert.Contains(t, stdout, "shell completions installed for")
+	assert.Equal(t, 1, selectCalls)
+
+	// Verify the eval line was appended
+	assert.True(t, isCompletionInstalled("zsh", home))
+}
+
+func TestInitCompletionSkipped(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/zsh")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, skipSelect)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+	assert.NotContains(t, stdout, "shell completions installed")
+	assert.False(t, isCompletionInstalled("zsh", home))
+}
+
+func TestInitCompletionAlreadyInstalled(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/zsh")
+
+	// Pre-install completion
+	require.NoError(t, os.WriteFile(filepath.Join(home, ".zshrc"), []byte(`eval "$(hourgit completion generate zsh)"`), 0644))
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	selectCalls := 0
+	trackSelect := func(_ string, _ []string) (int, error) {
+		selectCalls++
+		return 0, nil
+	}
+	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, trackSelect)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+	assert.NotContains(t, stdout, "shell completions installed")
+	// Should not have prompted since completion is already installed
+	assert.Equal(t, 0, selectCalls)
+}
+
+func TestInitCompletionUnknownShell(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/csh")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	selectCalls := 0
+	trackSelect := func(_ string, _ []string) (int, error) {
+		selectCalls++
+		return 0, nil
+	}
+	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, trackSelect)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+	assert.NotContains(t, stdout, "shell completions installed")
+	// Should not have prompted since shell is unknown
+	assert.Equal(t, 0, selectCalls)
+}
+
+func TestInitYesAutoInstallsCompletion(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/zsh")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	autoInstall := func(_ string, _ []string) (int, error) { return 0, nil }
+	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, autoInstall)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "hourgit initialized successfully")
+	assert.Contains(t, stdout, "shell completions installed for")
+	assert.True(t, isCompletionInstalled("zsh", home))
 }
 
 func TestInitCreateHooksDir(t *testing.T) {
