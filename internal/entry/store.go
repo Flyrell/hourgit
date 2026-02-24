@@ -89,6 +89,22 @@ func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
 	return entries, nil
 }
 
+// IsCheckoutEntry checks if the file at the given path exists and is a checkout entry.
+func IsCheckoutEntry(homeDir, slug, id string) bool {
+	data, err := os.ReadFile(EntryPath(homeDir, slug, id))
+	if err != nil {
+		return false
+	}
+
+	var raw struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false
+	}
+	return raw.Type == "checkout"
+}
+
 // DeleteEntry removes an entry file by hash.
 func DeleteEntry(homeDir, slug, id string) error {
 	err := os.Remove(EntryPath(homeDir, slug, id))

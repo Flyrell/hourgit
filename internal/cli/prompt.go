@@ -81,20 +81,37 @@ func NewMultiSelectFunc() MultiSelectFunc {
 	}
 }
 
+// PromptWithDefaultFunc prompts the user for input with a pre-filled default value.
+type PromptWithDefaultFunc func(prompt, defaultValue string) (string, error)
+
+// NewPromptWithDefaultFunc creates a PromptWithDefaultFunc using huh's interactive input.
+func NewPromptWithDefaultFunc() PromptWithDefaultFunc {
+	return func(prompt, defaultValue string) (string, error) {
+		result := defaultValue
+		err := huh.NewInput().
+			Title(prompt).
+			Value(&result).
+			Run()
+		return result, err
+	}
+}
+
 // PromptKit bundles all prompt function types for dependency injection.
 type PromptKit struct {
-	Prompt      PromptFunc
-	Confirm     ConfirmFunc
-	Select      SelectFunc
-	MultiSelect MultiSelectFunc
+	Prompt            PromptFunc
+	PromptWithDefault PromptWithDefaultFunc
+	Confirm           ConfirmFunc
+	Select            SelectFunc
+	MultiSelect       MultiSelectFunc
 }
 
 // NewPromptKit creates a PromptKit with huh-based interactive implementations.
 func NewPromptKit() PromptKit {
 	return PromptKit{
-		Prompt:      NewPromptFunc(),
-		Confirm:     NewConfirmFunc(),
-		Select:      NewSelectFunc(),
-		MultiSelect: NewMultiSelectFunc(),
+		Prompt:            NewPromptFunc(),
+		PromptWithDefault: NewPromptWithDefaultFunc(),
+		Confirm:           NewConfirmFunc(),
+		Select:            NewSelectFunc(),
+		MultiSelect:       NewMultiSelectFunc(),
 	}
 }
