@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execConfigRead(homeDir, repoDir, projectFlag string, now time.Time) (string, error) {
+func execConfigReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string, now time.Time) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := configReadCmd
+	cmd := configReportCmd
 	cmd.SetOut(stdout)
-	err := runConfigRead(cmd, homeDir, repoDir, projectFlag, now)
+	err := runConfigReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, now)
 	return stdout.String(), err
 }
 
-func TestConfigReadDefaultSchedule(t *testing.T) {
+func TestConfigReportDefaultSchedule(t *testing.T) {
 	homeDir, repoDir, _ := setupConfigTest(t)
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) // mid-February
 
-	stdout, err := execConfigRead(homeDir, repoDir, "", now)
+	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Working hours for")
@@ -32,24 +32,24 @@ func TestConfigReadDefaultSchedule(t *testing.T) {
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 	// Feb 2026 has 20 weekdays
 	assert.Contains(t, stdout, "Mon Feb  2")
-	assert.Contains(t, stdout, "Fri Feb 27"  /* space-padded by Go's time format */)
+	assert.Contains(t, stdout, "Fri Feb 27" /* space-padded by Go's time format */)
 	// Weekends should not appear
 	assert.NotContains(t, stdout, "Sat ")
 	assert.NotContains(t, stdout, "Sun ")
 }
 
-func TestConfigReadByProjectFlag(t *testing.T) {
+func TestConfigReportByProjectFlag(t *testing.T) {
 	homeDir, _, entry := setupConfigTest(t)
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execConfigRead(homeDir, "", entry.Name, now)
+	stdout, err := execConfigReport(homeDir, "", entry.Name, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Test Project")
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 }
 
-func TestConfigReadMultipleWindows(t *testing.T) {
+func TestConfigReportMultipleWindows(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	custom := []schedule.ScheduleEntry{
@@ -59,24 +59,24 @@ func TestConfigReadMultipleWindows(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
-	stdout, err := execConfigRead(homeDir, repoDir, "", now)
+	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	// Default is accumulate: both windows appear comma-separated
 	assert.Contains(t, stdout, "9:00 AM - 12:00 PM, 1:00 PM - 5:00 PM")
 }
 
-func TestConfigReadNoProject(t *testing.T) {
+func TestConfigReportNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	_, err := execConfigRead(homeDir, "", "", now)
+	_, err := execConfigReport(homeDir, "", "", "", "", now)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
 }
 
-func TestConfigReadNoWorkingHours(t *testing.T) {
+func TestConfigReportNoWorkingHours(t *testing.T) {
 	homeDir, repoDir, entry := setupConfigTest(t)
 
 	// Set schedule to a specific date outside the test month
@@ -86,17 +86,28 @@ func TestConfigReadNoWorkingHours(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
-	stdout, err := execConfigRead(homeDir, repoDir, "", now)
+	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "No working hours scheduled this month")
 }
 
-func TestConfigReadRegisteredAsSubcommand(t *testing.T) {
+func TestConfigReportWithMonthAndYearFlags(t *testing.T) {
+	homeDir, repoDir, _ := setupConfigTest(t)
+	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	stdout, err := execConfigReport(homeDir, repoDir, "", "1", "2025", now)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "January 2025")
+	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
+}
+
+func TestConfigReportRegisteredAsSubcommand(t *testing.T) {
 	commands := configCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
 	}
-	assert.Contains(t, names, "read")
+	assert.Contains(t, names, "report")
 }

@@ -141,6 +141,29 @@ hourgit checkout --prev <branch> --next <branch> [--project <project_name>]
 | `--next` | Next branch name (required) |
 | `--project` | Project name or ID (auto-detected from repo if omitted) |
 
+### `hourgit report`
+
+Generate a monthly time report as an interactive table showing tasks (rows) × days (columns). Time is attributed to branches based on checkout events clipped to your configured schedule, with manual log entries shown alongside.
+
+```bash
+hourgit report [--month <1-12>] [--year <YYYY>] [--project <project_name>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--month` | Month number 1-12 (default: current month) |
+| `--year` | Year (default: current year) |
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
+
+The table shows:
+- Each row is a task (branch name or manual log task/message)
+- Each column is a day of the month
+- Totals are shown in brackets next to task names
+- Use `←`/`→` arrow keys to scroll horizontally
+- Press `q`, `Esc`, or `Ctrl+C` to quit
+
+In non-interactive environments (piped output), a static table is printed instead.
+
 ### `hourgit version`
 
 Print version information.
@@ -222,13 +245,19 @@ Reset a project's schedule to the defaults.
 hourgit config reset [--project <project_name> or <project_id>] [--yes]
 ```
 
-#### `hourgit config read`
+#### `hourgit config report`
 
-Show expanded working hours for the current month (resolves schedule rules into concrete days and time ranges).
+Show expanded working hours for a given month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit config read [--project <project_name> or <project_id>]
+hourgit config report [--project <project_name> or <project_id>] [--month <1-12>] [--year <YYYY>]
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
+| `--month` | Month number 1-12 (default: current month) |
+| `--year` | Year (default: current year) |
 
 ### `hourgit defaults`
 
@@ -258,13 +287,18 @@ Reset the default schedule to factory settings (Mon–Fri, 9 AM – 5 PM).
 hourgit defaults reset [--yes]
 ```
 
-#### `hourgit defaults read`
+#### `hourgit defaults report`
 
-Show expanded default working hours for the current month.
+Show expanded default working hours for a given month.
 
 ```bash
-hourgit defaults read
+hourgit defaults report [--month <1-12>] [--year <YYYY>]
 ```
+
+| Flag | Description |
+|------|-------------|
+| `--month` | Month number 1-12 (default: current month) |
+| `--year` | Year (default: current year) |
 
 ## Configuration
 
@@ -300,7 +334,6 @@ The following features are planned but not yet implemented:
 - **Automatic time logging** — automatic time calculation from checkout entries
 - **Log history** — view logged entries with hashes
 - **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
-- **Reports** — group time by branch, project, day, or task
 - **Status** — show currently active branch/project and time logged today
 
 ## License

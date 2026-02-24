@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execDefaultsRead(homeDir string, now time.Time) (string, error) {
+func execDefaultsReport(homeDir, monthFlag, yearFlag string, now time.Time) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := defaultsReadCmd
+	cmd := defaultsReportCmd
 	cmd.SetOut(stdout)
-	err := runDefaultsRead(cmd, homeDir, now)
+	err := runDefaultsReport(cmd, homeDir, monthFlag, yearFlag, now)
 	return stdout.String(), err
 }
 
-func TestDefaultsReadFactoryDefaults(t *testing.T) {
+func TestDefaultsReportFactoryDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execDefaultsRead(homeDir, now)
+	stdout, err := execDefaultsReport(homeDir, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Default working hours")
@@ -36,7 +36,7 @@ func TestDefaultsReadFactoryDefaults(t *testing.T) {
 	assert.NotContains(t, stdout, "Sun ")
 }
 
-func TestDefaultsReadCustomDefaults(t *testing.T) {
+func TestDefaultsReportCustomDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
@@ -45,7 +45,7 @@ func TestDefaultsReadCustomDefaults(t *testing.T) {
 	}
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
-	stdout, err := execDefaultsRead(homeDir, now)
+	stdout, err := execDefaultsReport(homeDir, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "10:00 AM - 2:00 PM")
@@ -54,11 +54,22 @@ func TestDefaultsReadCustomDefaults(t *testing.T) {
 	assert.Contains(t, stdout, "Sun ")
 }
 
-func TestDefaultsReadRegisteredAsSubcommand(t *testing.T) {
+func TestDefaultsReportWithMonthAndYearFlags(t *testing.T) {
+	homeDir := t.TempDir()
+	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	stdout, err := execDefaultsReport(homeDir, "3", "2025", now)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "March 2025")
+	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
+}
+
+func TestDefaultsReportRegisteredAsSubcommand(t *testing.T) {
 	commands := defaultsCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
 	}
-	assert.Contains(t, names, "read")
+	assert.Contains(t, names, "report")
 }

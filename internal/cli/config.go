@@ -9,6 +9,6 @@ var configCmd = GroupCommand{
 		configGetCmd,
 		configSetCmd,
 		configResetCmd,
-		configReadCmd,
+		configReportCmd,
 	},
 }.Build()

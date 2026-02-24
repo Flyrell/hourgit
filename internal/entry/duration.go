@@ -48,7 +48,9 @@ func FormatMinutes(m int) string {
 	if hours > 0 {
 		parts = append(parts, fmt.Sprintf("%dh", hours))
 	}
-	parts = append(parts, fmt.Sprintf("%dm", mins))
+	if mins > 0 || hours == 0 {
+		parts = append(parts, fmt.Sprintf("%dm", mins))
+	}
 
 	return strings.Join(parts, " ")
 }
