@@ -16,9 +16,12 @@ var logCmd = LeafCommand{
 	Use:   "log [message]",
 	Short: "Log time manually for a project",
 	Args:  cobra.MaximumNArgs(1),
+	BoolFlags: []BoolFlag{
+		{Name: "yes", Usage: "skip confirmation prompts"},
+	},
 	StrFlags: []StringFlag{
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "duration", Usage: "duration to log (e.g. 30m, 3h, 1d3h30m)"},
+		{Name: "duration", Usage: "duration to log (e.g. 30m, 3h, 3h30m)"},
 		{Name: "from", Usage: "start time (e.g. 9am, 14:00)"},
 		{Name: "to", Usage: "end time (e.g. 5pm, 17:00)"},
 		{Name: "date", Usage: "date to log for (YYYY-MM-DD, default: today)"},
@@ -37,6 +40,7 @@ var logCmd = LeafCommand{
 		toFlag, _ := cmd.Flags().GetString("to")
 		dateFlag, _ := cmd.Flags().GetString("date")
 		taskFlag, _ := cmd.Flags().GetString("task")
+		yesFlag, _ := cmd.Flags().GetBool("yes")
 
 		var message string
 		if len(args) > 0 {
@@ -44,6 +48,9 @@ var logCmd = LeafCommand{
 		}
 
 		pk := NewPromptKit()
+		if yesFlag {
+			pk.Confirm = AlwaysYes()
+		}
 		return runLog(cmd, homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, pk, time.Now)
 	},
 }.Build()
@@ -99,7 +106,7 @@ func runLog(
 
 	if hasDuration {
 		if durationFlag == "" {
-			durationFlag, err = pk.Prompt("Duration (e.g. 30m, 3h, 1d3h30m)")
+			durationFlag, err = pk.Prompt("Duration (e.g. 30m, 3h, 3h30m)")
 			if err != nil {
 				return err
 			}
@@ -130,7 +137,21 @@ func runLog(
 		}
 	}
 
-	// 4. Resolve message
+	// 4. Validate 24h cap
+	if minutes > 24*60 {
+		return fmt.Errorf("cannot log more than 24h in a single entry")
+	}
+
+	// 5. Check schedule overrun
+	proceed, err := checkScheduleOverrun(cmd, homeDir, proj, start, minutes, pk.Confirm)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		return nil
+	}
+
+	// 6. Resolve message
 	if message == "" {
 		message, err = pk.Prompt("Message")
 		if err != nil {
@@ -178,6 +199,91 @@ func parseFromTo(fromStr, toStr string, baseDate time.Time) (time.Time, int, err
 	minutes := int(end.Sub(start).Minutes())
 
 	return start, minutes, nil
+}
+
+// checkScheduleOverrun warns the user if the entry would exceed the day's scheduled hours.
+// Returns (true, nil) to proceed, (false, nil) to cancel.
+func checkScheduleOverrun(
+	cmd *cobra.Command,
+	homeDir string,
+	proj *project.ProjectEntry,
+	entryStart time.Time,
+	minutes int,
+	confirm ConfirmFunc,
+) (bool, error) {
+	if confirm == nil {
+		return true, nil
+	}
+
+	cfg, err := project.ReadConfig(homeDir)
+	if err != nil {
+		return false, err
+	}
+
+	schedules := project.GetSchedules(cfg, proj.ID)
+
+	y, m, d := entryStart.Date()
+	dayStart := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	dayEnd := time.Date(y, m, d, 23, 59, 59, 0, time.UTC)
+
+	daySchedules, err := schedule.ExpandSchedules(schedules, dayStart, dayEnd)
+	if err != nil {
+		return false, err
+	}
+
+	// Compute scheduled minutes for this day
+	scheduledMinutes := 0
+	dateKey := dayStart.Format("2006-01-02")
+	for _, ds := range daySchedules {
+		if ds.Date.Format("2006-01-02") == dateKey {
+			for _, w := range ds.Windows {
+				fromMins := w.From.Hour*60 + w.From.Minute
+				toMins := w.To.Hour*60 + w.To.Minute
+				scheduledMinutes += toMins - fromMins
+			}
+		}
+	}
+
+	// Sum already-logged minutes for this day
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	if err != nil {
+		return false, err
+	}
+
+	loggedMinutes := 0
+	for _, e := range entries {
+		ey, em, ed := e.Start.Date()
+		if ey == y && em == m && ed == d {
+			loggedMinutes += e.Minutes
+		}
+	}
+
+	remaining := scheduledMinutes - loggedMinutes
+	if minutes > remaining {
+		if remaining <= 0 {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you have already logged your full schedule for this day (%s scheduled, %s logged).\n",
+				Warning("Warning:"),
+				Primary(entry.FormatMinutes(scheduledMinutes)),
+				Primary(entry.FormatMinutes(loggedMinutes)),
+			)
+		} else {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you are about to log %s, but only %s remains in today's schedule (%s scheduled, %s already logged).\n",
+				Warning("Warning:"),
+				Primary(entry.FormatMinutes(minutes)),
+				Primary(entry.FormatMinutes(remaining)),
+				Primary(entry.FormatMinutes(scheduledMinutes)),
+				Primary(entry.FormatMinutes(loggedMinutes)),
+			)
+		}
+
+		ok, err := confirm("Continue anyway?")
+		if err != nil {
+			return false, err
+		}
+		return ok, nil
+	}
+
+	return true, nil
 }
 
 func writeAndPrintEntry(
