@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/Flyrell/hourgit/internal/project"
-	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
 )
 
@@ -43,10 +42,7 @@ func runConfigGet(cmd *cobra.Command, homeDir, repoDir, projectFlag string) erro
 	schedules := project.GetSchedules(cfg, entry.ID)
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("Schedule for '%s':", Primary(entry.Name))))
-
-	for i, s := range schedules {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", Text(fmt.Sprintf("%d. %s", i+1, schedule.FormatScheduleEntry(s))))
-	}
+	printScheduleList(cmd, schedules)
 
 	return nil
 }

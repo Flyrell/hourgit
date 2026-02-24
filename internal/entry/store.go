@@ -16,7 +16,7 @@ func EntryPath(homeDir, slug, id string) string {
 
 // WriteEntry writes a single entry file to the project's log directory.
 func WriteEntry(homeDir, slug string, e Entry) error {
-	e.Type = "log"
+	e.Type = TypeLog
 
 	dir := project.LogDir(homeDir, slug)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -42,7 +42,7 @@ func ReadEntry(homeDir, slug, id string) (Entry, error) {
 	if err := json.Unmarshal(data, &e); err != nil {
 		return Entry{}, err
 	}
-	if e.Type != "" && e.Type != "log" {
+	if e.Type != "" && e.Type != TypeLog {
 		return Entry{}, fmt.Errorf("entry '%s' not found", id)
 	}
 	return e, nil
@@ -69,13 +69,15 @@ func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
 			return nil, err
 		}
 
+		// Skip files that aren't valid JSON or aren't log entries.
+		// Corrupted or partial files shouldn't block reading valid entries.
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(data, &raw); err != nil {
 			continue
 		}
 		if t, ok := raw["type"]; ok {
 			var typ string
-			if err := json.Unmarshal(t, &typ); err == nil && typ != "" && typ != "log" {
+			if err := json.Unmarshal(t, &typ); err == nil && typ != "" && typ != TypeLog {
 				continue
 			}
 		}
@@ -102,7 +104,7 @@ func IsCheckoutEntry(homeDir, slug, id string) bool {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return false
 	}
-	return raw.Type == "checkout"
+	return raw.Type == TypeCheckout
 }
 
 // DeleteEntry removes an entry file by hash.
@@ -116,7 +118,7 @@ func DeleteEntry(homeDir, slug, id string) error {
 
 // WriteCheckoutEntry writes a single checkout entry file to the project's log directory.
 func WriteCheckoutEntry(homeDir, slug string, e CheckoutEntry) error {
-	e.Type = "checkout"
+	e.Type = TypeCheckout
 
 	dir := project.LogDir(homeDir, slug)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -142,7 +144,7 @@ func ReadCheckoutEntry(homeDir, slug, id string) (CheckoutEntry, error) {
 	if err := json.Unmarshal(data, &e); err != nil {
 		return CheckoutEntry{}, err
 	}
-	if e.Type != "checkout" {
+	if e.Type != TypeCheckout {
 		return CheckoutEntry{}, fmt.Errorf("checkout entry '%s' not found", id)
 	}
 	return e, nil
@@ -169,6 +171,8 @@ func ReadAllCheckoutEntries(homeDir, slug string) ([]CheckoutEntry, error) {
 			return nil, err
 		}
 
+		// Skip files that aren't valid JSON or aren't checkout entries.
+		// Corrupted or partial files shouldn't block reading valid entries.
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(data, &raw); err != nil {
 			continue
@@ -178,7 +182,7 @@ func ReadAllCheckoutEntries(homeDir, slug string) ([]CheckoutEntry, error) {
 			continue
 		}
 		var typ string
-		if err := json.Unmarshal(t, &typ); err != nil || typ != "checkout" {
+		if err := json.Unmarshal(t, &typ); err != nil || typ != TypeCheckout {
 			continue
 		}
 

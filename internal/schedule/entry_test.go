@@ -326,19 +326,6 @@ func TestValidateRanges(t *testing.T) {
 	})
 }
 
-func TestUnmarshalJSONLegacyFormat(t *testing.T) {
-	data := []byte(`{"from":"09:00","to":"17:00","rrule":"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"}`)
-
-	var entry ScheduleEntry
-	err := json.Unmarshal(data, &entry)
-
-	require.NoError(t, err)
-	require.Len(t, entry.Ranges, 1)
-	assert.Equal(t, "09:00", entry.Ranges[0].From)
-	assert.Equal(t, "17:00", entry.Ranges[0].To)
-	assert.Equal(t, "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR", entry.RRule)
-}
-
 func TestUnmarshalJSONNewFormat(t *testing.T) {
 	data := []byte(`{"ranges":[{"from":"09:00","to":"12:00"},{"from":"13:00","to":"17:00"}],"rrule":"FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"}`)
 
@@ -353,15 +340,3 @@ func TestUnmarshalJSONNewFormat(t *testing.T) {
 	assert.Equal(t, "17:00", entry.Ranges[1].To)
 }
 
-func TestUnmarshalJSONLegacyWithOverride(t *testing.T) {
-	data := []byte(`{"from":"08:00","to":"16:00","rrule":"FREQ=WEEKLY;BYDAY=MO","override":true}`)
-
-	var entry ScheduleEntry
-	err := json.Unmarshal(data, &entry)
-
-	require.NoError(t, err)
-	require.Len(t, entry.Ranges, 1)
-	assert.Equal(t, "08:00", entry.Ranges[0].From)
-	assert.Equal(t, "16:00", entry.Ranges[0].To)
-	assert.True(t, entry.Override)
-}

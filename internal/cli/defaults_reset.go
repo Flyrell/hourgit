@@ -21,12 +21,7 @@ var defaultsResetCmd = LeafCommand{
 		}
 
 		yes, _ := cmd.Flags().GetBool("yes")
-		var confirm ConfirmFunc
-		if yes {
-			confirm = AlwaysYes()
-		} else {
-			confirm = NewConfirmFunc()
-		}
+		confirm := ResolveConfirmFunc(yes)
 
 		return runDefaultsReset(cmd, homeDir, confirm)
 	},

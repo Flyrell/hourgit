@@ -32,10 +32,7 @@ var completionInstallCmd = LeafCommand{
 		}
 
 		yes, _ := cmd.Flags().GetBool("yes")
-		confirm := NewConfirmFunc()
-		if yes {
-			confirm = AlwaysYes()
-		}
+		confirm := ResolveConfirmFunc(yes)
 
 		return runCompletionInstall(cmd, shell, homeDir, confirm)
 	},

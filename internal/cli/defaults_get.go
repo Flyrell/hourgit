@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/Flyrell/hourgit/internal/project"
-	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
 )
 
@@ -30,10 +29,7 @@ func runDefaultsGet(cmd *cobra.Command, homeDir string) error {
 	defaults := project.GetDefaults(cfg)
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text("Default schedule for new projects:"))
-
-	for i, s := range defaults {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", Text(fmt.Sprintf("%d. %s", i+1, schedule.FormatScheduleEntry(s))))
-	}
+	printScheduleList(cmd, defaults)
 
 	return nil
 }

@@ -63,12 +63,7 @@ var initCmd = LeafCommand{
 			return fmt.Errorf("could not resolve binary path: %w", err)
 		}
 
-		var confirm ConfirmFunc
-		if yes {
-			confirm = AlwaysYes()
-		} else {
-			confirm = NewConfirmFunc()
-		}
+		confirm := ResolveConfirmFunc(yes)
 
 		var selectFn SelectFunc
 		if yes {

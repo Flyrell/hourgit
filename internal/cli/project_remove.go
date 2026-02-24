@@ -23,12 +23,7 @@ var projectRemoveCmd = LeafCommand{
 		}
 
 		yes, _ := cmd.Flags().GetBool("yes")
-		var confirm ConfirmFunc
-		if yes {
-			confirm = AlwaysYes()
-		} else {
-			confirm = NewConfirmFunc()
-		}
+		confirm := ResolveConfirmFunc(yes)
 
 		return runProjectRemove(cmd, homeDir, args[0], confirm)
 	},
@@ -61,7 +56,9 @@ func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm Co
 		}
 	}
 
-	// Clean up repo configs and hooks
+	// Best-effort cleanup: remove repo configs and hooks. Errors are intentionally
+	// ignored because the repos may have been moved/deleted since assignment, and
+	// failing to clean up a single repo should not block project removal.
 	for _, repoDir := range entry.Repos {
 		_ = project.RemoveRepoConfig(repoDir)
 		_ = project.RemoveHookFromRepo(repoDir)

@@ -2,6 +2,11 @@ package entry
 
 import "time"
 
+const (
+	TypeLog      = "log"
+	TypeCheckout = "checkout"
+)
+
 // Entry represents a single time log entry (a "time commit").
 type Entry struct {
 	ID        string    `json:"id"`

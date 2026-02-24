@@ -1,6 +1,7 @@
 package entry
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +19,12 @@ func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
 	hourgitDir := filepath.Join(homeDir, ".hourgit")
 	dirs, err := os.ReadDir(hourgitDir)
 	if err != nil {
-		return nil, fmt.Errorf("entry '%s' not found", id)
+		// Directory not existing means no projects exist yet — treat as not found.
+		// Other errors (permissions, IO) are propagated.
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("entry '%s' not found", id)
+		}
+		return nil, fmt.Errorf("reading hourgit directory: %w", err)
 	}
 
 	for _, d := range dirs {
@@ -28,6 +34,7 @@ func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
 		slug := d.Name()
 		e, err := ReadEntry(homeDir, slug, id)
 		if err != nil {
+			// ReadEntry returns "not found" or type-mismatch errors — skip to next project.
 			continue
 		}
 		return &FoundEntry{Entry: e, Slug: slug}, nil
