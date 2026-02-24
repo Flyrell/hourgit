@@ -121,10 +121,25 @@ hourgit log
 | `--from` | Start time (e.g. `9am`, `14:00`) |
 | `--to` | End time (e.g. `5pm`, `17:00`) |
 | `--date` | Date to log for (`YYYY-MM-DD`, default: today) |
+| `--task` | Task label for this entry |
 
 Notes:
 - `--duration` and `--from`/`--to` are mutually exclusive
 - A message is always required (prompted if not provided)
+
+### `hourgit checkout`
+
+Record a branch checkout event. This command is called internally by the post-checkout git hook to track branch transitions.
+
+```bash
+hourgit checkout --prev <branch> --next <branch> [--project <project_name>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--prev` | Previous branch name (required) |
+| `--next` | Next branch name (required) |
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
 
 ### `hourgit version`
 
@@ -276,12 +291,13 @@ Every project starts with a copy of the defaults. You can then customize a proje
 | `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
 | `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
 | `~/.hourgit/<slug>/<hash>` | Per-project log entries (one JSON file per entry) |
+| `~/.hourgit/<slug>/checkouts/<hash>` | Per-project checkout entries (one JSON file per checkout event) |
 
 ## Roadmap
 
 The following features are planned but not yet implemented:
 
-- **Automatic time logging** — automatic logging via the post-checkout hook
+- **Automatic time logging** — automatic time calculation from checkout entries
 - **Log history** — view logged entries with hashes
 - **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
 - **Reports** — group time by branch, project, day, or task
