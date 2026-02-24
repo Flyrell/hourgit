@@ -127,6 +127,43 @@ Notes:
 - `--duration` and `--from`/`--to` are mutually exclusive
 - A message is always required (prompted if not provided)
 
+### `hourgit edit`
+
+Edit an existing log entry by its hash. Supports two modes:
+
+**Flag mode** — when any edit flag is provided, apply only those changes directly:
+
+```bash
+hourgit edit <hash> --duration 3h
+hourgit edit <hash> --from 9am --to 12pm
+hourgit edit <hash> --task "reviews"
+hourgit edit <hash> --date 2025-02-20
+hourgit edit <hash> -m "updated message"
+```
+
+**Interactive mode** — when no edit flags provided, prompts for each field with current values pre-filled:
+
+```bash
+hourgit edit <hash>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
+| `--duration` | New duration (e.g. `30m`, `3h`, `3h30m`) |
+| `--from` | New start time (e.g. `9am`, `14:00`) |
+| `--to` | New end time (e.g. `5pm`, `17:00`) |
+| `--date` | New date (`YYYY-MM-DD`) |
+| `--task` | New task label (empty string clears it) |
+| `-m`, `--message` | New message |
+
+Notes:
+- `--duration` and `--from`/`--to` are mutually exclusive
+- `--from` only: keeps existing end time, recalculates duration
+- `--to` only: keeps existing start time, recalculates duration
+- Entry ID and creation timestamp are preserved
+- If the entry is not found in the current repo's project, all projects are searched
+
 ### `hourgit checkout`
 
 Record a branch checkout event. This command is called internally by the post-checkout git hook to track branch transitions.
@@ -349,7 +386,7 @@ Every project starts with a copy of the defaults. You can then customize a proje
 The following features are planned but not yet implemented:
 
 - **Automatic time logging** — automatic time calculation from checkout entries
-- **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
+- **Deleting entries** — remove entries by hash
 - **Status** — show currently active branch/project and time logged today
 
 ## License

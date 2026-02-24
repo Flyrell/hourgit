@@ -11,9 +11,10 @@ type BoolFlag struct {
 
 // StringFlag defines a string flag for a command.
 type StringFlag struct {
-	Name    string
-	Usage   string
-	Default string
+	Name      string
+	Shorthand string
+	Usage     string
+	Default   string
 }
 
 // LeafCommand defines a command that executes logic.
@@ -39,7 +40,11 @@ func (lc LeafCommand) Build() *cobra.Command {
 		cmd.Flags().Bool(f.Name, f.Default, f.Usage)
 	}
 	for _, f := range lc.StrFlags {
-		cmd.Flags().String(f.Name, f.Default, f.Usage)
+		if f.Shorthand != "" {
+			cmd.Flags().StringP(f.Name, f.Shorthand, f.Default, f.Usage)
+		} else {
+			cmd.Flags().String(f.Name, f.Default, f.Usage)
+		}
 	}
 	return cmd
 }
