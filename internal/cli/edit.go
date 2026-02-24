@@ -14,6 +14,9 @@ var editCmd = LeafCommand{
 	Use:   "edit <hash>",
 	Short: "Edit an existing log entry",
 	Args:  cobra.ExactArgs(1),
+	BoolFlags: []BoolFlag{
+		{Name: "yes", Usage: "skip confirmation prompts"},
+	},
 	StrFlags: []StringFlag{
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
 		{Name: "duration", Usage: "new duration (e.g. 30m, 3h, 3h30m)"},
@@ -37,6 +40,7 @@ var editCmd = LeafCommand{
 		dateFlag, _ := cmd.Flags().GetString("date")
 		taskFlag, _ := cmd.Flags().GetString("task")
 		messageFlag, _ := cmd.Flags().GetString("message")
+		yesFlag, _ := cmd.Flags().GetBool("yes")
 
 		flagsChanged := map[string]bool{
 			"duration": cmd.Flags().Changed("duration"),
@@ -48,9 +52,15 @@ var editCmd = LeafCommand{
 		}
 
 		pk := NewPromptKit()
+		var confirm ConfirmFunc
+		if yesFlag {
+			confirm = AlwaysYes()
+		} else {
+			confirm = pk.Confirm
+		}
 		return runEdit(cmd, homeDir, repoDir, projectFlag, args[0],
 			durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag,
-			flagsChanged, pk, time.Now)
+			flagsChanged, pk, confirm, time.Now)
 	},
 }.Build()
 
@@ -60,10 +70,11 @@ func runEdit(
 	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,
 	flagsChanged map[string]bool,
 	pk PromptKit,
+	confirm ConfirmFunc,
 	nowFn func() time.Time,
 ) error {
 	// 1. Locate entry
-	slug, e, err := locateEntry(homeDir, repoDir, projectFlag, hash)
+	slug, proj, e, err := locateEntry(homeDir, repoDir, projectFlag, hash)
 	if err != nil {
 		return err
 	}
@@ -99,6 +110,18 @@ func runEdit(
 		return fmt.Errorf("message is required")
 	}
 
+	// Check schedule warnings if time or date changed
+	timeChanged := !e.Start.Equal(original.Start) || e.Minutes != original.Minutes
+	if timeChanged && proj != nil {
+		proceed, err := checkScheduleWarnings(cmd, homeDir, proj, e.Start, e.Minutes, e.ID, confirm)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			return nil
+		}
+	}
+
 	// Check if anything actually changed
 	if e.Start.Equal(original.Start) && e.Minutes == original.Minutes &&
 		e.Message == original.Message && e.Task == original.Task {
@@ -118,25 +141,26 @@ func runEdit(
 }
 
 // locateEntry finds the entry by hash, trying project flag, repo context, then scanning all projects.
-func locateEntry(homeDir, repoDir, projectFlag, hash string) (string, entry.Entry, error) {
+// Returns the slug, project entry (may be nil for cross-project scan), entry, and error.
+func locateEntry(homeDir, repoDir, projectFlag, hash string) (string, *project.ProjectEntry, entry.Entry, error) {
 	// Try project flag first
 	if projectFlag != "" {
 		cfg, err := project.ReadConfig(homeDir)
 		if err != nil {
-			return "", entry.Entry{}, err
+			return "", nil, entry.Entry{}, err
 		}
 		proj := project.ResolveProject(cfg, projectFlag)
 		if proj == nil {
-			return "", entry.Entry{}, fmt.Errorf("project '%s' not found", projectFlag)
+			return "", nil, entry.Entry{}, fmt.Errorf("project '%s' not found", projectFlag)
 		}
 		e, err := entry.ReadEntry(homeDir, proj.Slug, hash)
 		if err != nil {
 			if entry.IsCheckoutEntry(homeDir, proj.Slug, hash) {
-				return "", entry.Entry{}, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", hash)
+				return "", nil, entry.Entry{}, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", hash)
 			}
-			return "", entry.Entry{}, err
+			return "", nil, entry.Entry{}, err
 		}
-		return proj.Slug, e, nil
+		return proj.Slug, proj, e, nil
 	}
 
 	// Try repo context
@@ -145,10 +169,10 @@ func locateEntry(homeDir, repoDir, projectFlag, hash string) (string, entry.Entr
 		if err == nil {
 			e, err := entry.ReadEntry(homeDir, proj.Slug, hash)
 			if err == nil {
-				return proj.Slug, e, nil
+				return proj.Slug, proj, e, nil
 			}
 			if entry.IsCheckoutEntry(homeDir, proj.Slug, hash) {
-				return "", entry.Entry{}, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", hash)
+				return "", nil, entry.Entry{}, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", hash)
 			}
 		}
 	}
@@ -156,9 +180,26 @@ func locateEntry(homeDir, repoDir, projectFlag, hash string) (string, entry.Entr
 	// Scan all projects
 	found, err := entry.FindEntryAcrossProjects(homeDir, hash)
 	if err != nil {
-		return "", entry.Entry{}, err
+		return "", nil, entry.Entry{}, err
 	}
-	return found.Slug, found.Entry, nil
+
+	// Try to resolve the project entry for schedule warnings
+	cfg, err := project.ReadConfig(homeDir)
+	if err != nil {
+		return found.Slug, nil, found.Entry, nil
+	}
+	proj := findProjectBySlug(cfg, found.Slug)
+	return found.Slug, proj, found.Entry, nil
+}
+
+// findProjectBySlug looks up a project by its slug.
+func findProjectBySlug(cfg *project.Config, slug string) *project.ProjectEntry {
+	for i := range cfg.Projects {
+		if cfg.Projects[i].Slug == slug {
+			return &cfg.Projects[i]
+		}
+	}
+	return nil
 }
 
 func applyFlagEdits(
