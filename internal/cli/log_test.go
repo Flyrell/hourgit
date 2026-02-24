@@ -612,6 +612,7 @@ func TestLogScheduleOverrunNoSchedule(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, confirmed, "should have prompted for confirmation on unscheduled day")
 	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "no scheduled working hours")
 	assert.Contains(t, stdout, "logged")
 }
 
@@ -631,6 +632,97 @@ func TestLogScheduleOverrunWithinBudget(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.False(t, confirmed, "should not have prompted for confirmation within budget")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+}
+
+func TestLogOutsideScheduleWindows(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Monday 7pm-9pm, schedule is 9am-5pm → fully outside
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "7pm", "9pm", "2025-06-16", "", "evening work", pk)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have prompted for confirmation")
+	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "outside your scheduled hours")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+}
+
+func TestLogOutsideScheduleWindowsDeclined(t *testing.T) {
+	homeDir, repoDir, _ := setupLogTest(t)
+
+	// Monday 7pm-9pm, schedule is 9am-5pm → fully outside, declined
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			return false, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "7pm", "9pm", "2025-06-16", "", "evening work", pk)
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Warning:")
+	assert.NotContains(t, stdout, "logged")
+}
+
+func TestLogPartiallyOutsideScheduleWindows(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Monday 4pm-7pm, schedule is 9am-5pm → partially outside
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "4pm", "7pm", "2025-06-16", "", "late work", pk)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have prompted for confirmation")
+	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "partially falls outside")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+}
+
+func TestLogWithinScheduleWindows(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Monday 10am-12pm, schedule is 9am-5pm → fully within
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "10am", "12pm", "2025-06-16", "", "morning work", pk)
+
+	require.NoError(t, err)
+	assert.False(t, confirmed, "should not have prompted for confirmation within schedule")
+	assert.NotContains(t, stdout, "Warning:")
 	assert.Contains(t, stdout, "logged")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
