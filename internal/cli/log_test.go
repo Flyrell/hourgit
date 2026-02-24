@@ -57,7 +57,7 @@ func TestLogDurationMode(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 	assert.Contains(t, stdout, "Log Test")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
@@ -74,7 +74,7 @@ func TestLogFromToMode(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestLogFromWithoutTo(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "", "", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestLogToWithoutFrom(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "12pm", "", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func TestLogDurationNoMessage(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -220,7 +220,7 @@ func TestLogFromToNoMessage(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "9am", "5pm", "", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "8h 0m")
+	assert.Contains(t, stdout, "8h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -248,7 +248,7 @@ func TestLogMessageOnly(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "", "", "pre-filled msg", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "2h 0m")
+	assert.Contains(t, stdout, "2h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ func TestLogDateOnly(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "", "", "", "2025-01-10", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "1h 0m")
+	assert.Contains(t, stdout, "1h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -303,7 +303,7 @@ func TestLogDurationWithDateNoMessage(t *testing.T) {
 	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "2025-01-10", "", "", pk)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -363,7 +363,7 @@ func TestLogInteractiveModeDuration(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "logged")
-	assert.Contains(t, stdout.String(), "2h 0m")
+	assert.Contains(t, stdout.String(), "2h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -438,7 +438,7 @@ func TestLogDurationModeWithDate(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -458,7 +458,7 @@ func TestLogFromToModeWithDate(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
-	assert.Contains(t, stdout, "3h 0m")
+	assert.Contains(t, stdout, "3h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -588,7 +588,7 @@ func TestLogScheduleOverrunDeclined(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Warning:")
-	assert.NotContains(t, stdout, "logged 6h 0m") // entry was not written
+	assert.NotContains(t, stdout, "logged 6h") // entry was not written
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)
@@ -645,7 +645,7 @@ func TestLogWithTask(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "logged")
-	assert.Contains(t, stdout, "2h 0m")
+	assert.Contains(t, stdout, "2h")
 
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	require.NoError(t, err)

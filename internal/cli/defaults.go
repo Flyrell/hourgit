@@ -9,6 +9,6 @@ var defaultsCmd = GroupCommand{
 		defaultsGetCmd,
 		defaultsSetCmd,
 		defaultsResetCmd,
-		defaultsReadCmd,
+		defaultsReportCmd,
 	},
 }.Build()
