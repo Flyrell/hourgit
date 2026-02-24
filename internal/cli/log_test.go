@@ -36,7 +36,9 @@ func fixedNow() time.Time {
 }
 
 func execLog(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message string) (string, error) {
-	return execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, PromptKit{})
+	return execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message, PromptKit{
+		Confirm: AlwaysYes(),
+	})
 }
 
 func execLogWithPrompts(homeDir, repoDir, projectFlag, durationFlag, fromFlag, toFlag, dateFlag, taskFlag, message string, pk PromptKit) (string, error) {
@@ -108,6 +110,7 @@ func TestLogFromWithoutTo(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
 			case "To (e.g. 5pm, 17:00)":
@@ -135,6 +138,7 @@ func TestLogToWithoutFrom(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
 			case "From (e.g. 9am, 14:00)":
@@ -180,6 +184,7 @@ func TestLogDurationNoMessage(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			if prompt == "Message" {
 				return "prompted msg", nil
@@ -203,6 +208,7 @@ func TestLogFromToNoMessage(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			if prompt == "Message" {
 				return "prompted msg", nil
@@ -226,12 +232,13 @@ func TestLogMessageOnly(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 0, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 0, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
 			case "Date (YYYY-MM-DD, default: today)":
 				return "", nil
-			case "Duration (e.g. 30m, 3h, 1d3h30m)":
+			case "Duration (e.g. 30m, 3h, 3h30m)":
 				return "2h", nil
 			}
 			return "", nil
@@ -253,10 +260,11 @@ func TestLogDateOnly(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 0, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 0, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
-			case "Duration (e.g. 30m, 3h, 1d3h30m)":
+			case "Duration (e.g. 30m, 3h, 3h30m)":
 				return "1h", nil
 			case "Message":
 				return "date only work", nil
@@ -283,6 +291,7 @@ func TestLogDurationWithDateNoMessage(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			if prompt == "Message" {
 				return "date+dur msg", nil
@@ -308,6 +317,7 @@ func TestLogEmptyMessagePromptedStillRequired(t *testing.T) {
 	homeDir, repoDir, _ := setupLogTest(t)
 
 	pk := PromptKit{
+		Confirm: AlwaysYes(),
 		Prompt: func(prompt string) (string, error) {
 			return "", nil
 		},
@@ -336,10 +346,11 @@ func TestLogInteractiveModeDuration(t *testing.T) {
 	cmd.SetOut(stdout)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 0, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 0, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
-			case "Duration (e.g. 30m, 3h, 1d3h30m)":
+			case "Duration (e.g. 30m, 3h, 3h30m)":
 				return "2h", nil
 			case "Message":
 				return "interactive work", nil
@@ -368,7 +379,8 @@ func TestLogInteractiveModeFromTo(t *testing.T) {
 	cmd.SetOut(stdout)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 1, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 1, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
 			case "From (e.g. 9am, 14:00)":
@@ -400,10 +412,11 @@ func TestLogInteractiveEmptyMessage(t *testing.T) {
 	cmd.SetOut(stdout)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 0, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 0, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
-			case "Duration (e.g. 30m, 3h, 1d3h30m)":
+			case "Duration (e.g. 30m, 3h, 3h30m)":
 				return "1h", nil
 			case "Message":
 				return "", nil
@@ -473,12 +486,13 @@ func TestLogInteractiveModeWithDate(t *testing.T) {
 	cmd.SetOut(stdout)
 
 	pk := PromptKit{
-		Select: func(_ string, _ []string) (int, error) { return 0, nil },
+		Confirm: AlwaysYes(),
+		Select:  func(_ string, _ []string) (int, error) { return 0, nil },
 		Prompt: func(prompt string) (string, error) {
 			switch prompt {
 			case "Date (YYYY-MM-DD, default: today)":
 				return "2025-03-01", nil
-			case "Duration (e.g. 30m, 3h, 1d3h30m)":
+			case "Duration (e.g. 30m, 3h, 3h30m)":
 				return "2h", nil
 			case "Message":
 				return "interactive past work", nil
@@ -507,6 +521,121 @@ func TestLogRegisteredAsSubcommand(t *testing.T) {
 		names[i] = cmd.Name()
 	}
 	assert.Contains(t, names, "log")
+}
+
+func TestLogExceeds24Hours(t *testing.T) {
+	homeDir, repoDir, _ := setupLogTest(t)
+
+	_, err := execLog(homeDir, repoDir, "", "25h", "", "", "", "", "too much")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot log more than 24h in a single entry")
+}
+
+func TestLogScheduleOverrunWarning(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// fixedNow is 2025-06-15 (Sunday), use 2025-06-16 (Monday) for schedule to apply
+	// Default schedule: Mon-Fri 9am-5pm = 8h
+	// Pre-log 4h so that logging 6h triggers the overrun warning
+	e := entry.Entry{
+		ID:      "pre0001",
+		Start:   time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
+		Minutes: 240,
+		Message: "earlier work",
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
+
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "6h", "", "", "2025-06-16", "", "overrun work", pk)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have prompted for confirmation")
+	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+}
+
+func TestLogScheduleOverrunDeclined(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Pre-log 4h on Monday
+	e := entry.Entry{
+		ID:      "pre0001",
+		Start:   time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
+		Minutes: 240,
+		Message: "earlier work",
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
+
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			return false, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "6h", "", "", "2025-06-16", "", "overrun work", pk)
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Warning:")
+	assert.NotContains(t, stdout, "logged 6h 0m") // entry was not written
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1) // only the pre-logged entry
+}
+
+func TestLogScheduleOverrunNoSchedule(t *testing.T) {
+	homeDir, repoDir, _ := setupLogTest(t)
+
+	// 2025-06-15 is a Sunday — no schedule → 0h scheduled
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "1h", "", "", "2025-06-15", "", "weekend work", pk)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have prompted for confirmation on unscheduled day")
+	assert.Contains(t, stdout, "Warning:")
+	assert.Contains(t, stdout, "logged")
+}
+
+func TestLogScheduleOverrunWithinBudget(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Monday with 8h schedule, log only 2h — no warning
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "2h", "", "", "2025-06-16", "", "normal work", pk)
+
+	require.NoError(t, err)
+	assert.False(t, confirmed, "should not have prompted for confirmation within budget")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
 }
 
 func TestLogWithTask(t *testing.T) {
