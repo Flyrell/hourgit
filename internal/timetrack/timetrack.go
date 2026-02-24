@@ -35,7 +35,22 @@ func BuildReport(
 ) ReportData {
 	daysInMonth := daysIn(year, month)
 
-	// 1. Build schedule lookup: day -> windows and day -> total scheduled minutes
+	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
+	logBucket, logMinsByDay := buildLogBucket(logs, year, month)
+	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth)
+	rows := mergeAndSortRows(checkoutBucket, logBucket)
+
+	return ReportData{
+		Year:        year,
+		Month:       month,
+		DaysInMonth: daysInMonth,
+		Rows:        rows,
+	}
+}
+
+// buildScheduleLookup builds day -> windows and day -> total scheduled minutes maps.
+func buildScheduleLookup(daySchedules []schedule.DaySchedule, year int, month time.Month) (map[int][]schedule.TimeWindow, map[int]int) {
 	scheduleWindows := make(map[int][]schedule.TimeWindow)
 	scheduledMins := make(map[int]int)
 	for _, ds := range daySchedules {
@@ -49,10 +64,13 @@ func BuildReport(
 			scheduledMins[d] = total
 		}
 	}
+	return scheduleWindows, scheduledMins
+}
 
-	// 2. Bucket manual logs by (taskKey, day) and track logMinutesByDay
-	logBucket := make(map[string]map[int]int)    // taskKey -> day -> minutes
-	logMinutesByDay := make(map[int]int)          // day -> total log minutes
+// buildLogBucket buckets manual log entries by (taskKey, day) and totals log minutes per day.
+func buildLogBucket(logs []entry.Entry, year int, month time.Month) (map[string]map[int]int, map[int]int) {
+	logBucket := make(map[string]map[int]int)
+	logMinsByDay := make(map[int]int)
 	for _, l := range logs {
 		if l.Start.Year() != year || l.Start.Month() != month {
 			continue
@@ -63,10 +81,19 @@ func BuildReport(
 			logBucket[key] = make(map[int]int)
 		}
 		logBucket[key][day] += l.Minutes
-		logMinutesByDay[day] += l.Minutes
+		logMinsByDay[day] += l.Minutes
 	}
+	return logBucket, logMinsByDay
+}
 
-	// 3. Sort checkouts by timestamp; find relevant ones for this month
+// buildCheckoutBucket computes per-branch, per-day minutes from checkout entries
+// clipped to schedule windows.
+func buildCheckoutBucket(
+	checkouts []entry.CheckoutEntry,
+	year int, month time.Month, daysInMonth int,
+	scheduleWindows map[int][]schedule.TimeWindow,
+	now time.Time,
+) map[string]map[int]int {
 	sorted := make([]entry.CheckoutEntry, len(checkouts))
 	copy(sorted, checkouts)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -76,10 +103,6 @@ func BuildReport(
 	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	monthEnd := time.Date(year, month, daysInMonth, 23, 59, 59, 0, time.UTC)
 
-	// 4. Build checkout time buckets: branch -> day -> minutes
-	checkoutBucket := make(map[string]map[int]int)
-
-	// Find the last checkout before or at month start to know active branch
 	var pairs []checkoutRange
 	lastBeforeIdx := -1
 	for i, c := range sorted {
@@ -88,9 +111,7 @@ func BuildReport(
 		}
 	}
 
-	// Build ranges from consecutive checkouts
 	if lastBeforeIdx >= 0 {
-		// Branch active from month start
 		pairs = append(pairs, checkoutRange{
 			branch: sorted[lastBeforeIdx].Next,
 			from:   monthStart,
@@ -106,8 +127,7 @@ func BuildReport(
 		}
 	}
 
-	// Close each range with the next one's start, last one extends to month end or now
-	lastEnd := monthEnd.Add(time.Second) // inclusive end
+	lastEnd := monthEnd.Add(time.Second)
 	if now.Before(lastEnd) {
 		lastEnd = now
 	}
@@ -119,7 +139,7 @@ func BuildReport(
 		}
 	}
 
-	// 5. For each range, compute overlap with schedule windows per day
+	checkoutBucket := make(map[string]map[int]int)
 	for _, p := range pairs {
 		if p.branch == "" {
 			continue
@@ -139,20 +159,23 @@ func BuildReport(
 		}
 	}
 
-	// 6. Deduct: if checkoutMins + logMins > scheduledMins on a day,
-	//    reduce checkout time proportionally
+	return checkoutBucket
+}
+
+// deductScheduleOverrun reduces checkout minutes proportionally when
+// checkoutMins + logMins exceed the scheduled minutes for a day.
+func deductScheduleOverrun(checkoutBucket map[string]map[int]int, logMinsByDay, scheduledMins map[int]int, daysInMonth int) {
 	for day := 1; day <= daysInMonth; day++ {
 		maxMins := scheduledMins[day]
 		if maxMins <= 0 {
 			continue
 		}
-		logMins := logMinutesByDay[day]
+		logMins := logMinsByDay[day]
 		availableForCheckouts := maxMins - logMins
 		if availableForCheckouts < 0 {
 			availableForCheckouts = 0
 		}
 
-		// Sum all checkout minutes for this day
 		totalCheckoutMins := 0
 		for _, dayMap := range checkoutBucket {
 			totalCheckoutMins += dayMap[day]
@@ -166,8 +189,10 @@ func BuildReport(
 			}
 		}
 	}
+}
 
-	// 7. Merge checkout + log buckets into TaskRows
+// mergeAndSortRows merges checkout and log buckets into sorted TaskRows.
+func mergeAndSortRows(checkoutBucket map[string]map[int]int, logBucket map[string]map[int]int) []TaskRow {
 	rowMap := make(map[string]*TaskRow)
 	for branch, dayMap := range checkoutBucket {
 		row := &TaskRow{Name: branch, Days: make(map[int]int)}
@@ -193,7 +218,6 @@ func BuildReport(
 		}
 	}
 
-	// Sort by total descending
 	rows := make([]TaskRow, 0, len(rowMap))
 	for _, row := range rowMap {
 		rows = append(rows, *row)
@@ -205,12 +229,7 @@ func BuildReport(
 		return rows[i].Name < rows[j].Name
 	})
 
-	return ReportData{
-		Year:        year,
-		Month:       month,
-		DaysInMonth: daysInMonth,
-		Rows:        rows,
-	}
+	return rows
 }
 
 type checkoutRange struct {

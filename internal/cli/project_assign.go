@@ -32,12 +32,7 @@ var projectAssignCmd = LeafCommand{
 		force, _ := cmd.Flags().GetBool("force")
 		yes, _ := cmd.Flags().GetBool("yes")
 
-		var confirm ConfirmFunc
-		if yes {
-			confirm = AlwaysYes()
-		} else {
-			confirm = NewConfirmFunc()
-		}
+		confirm := ResolveConfirmFunc(yes)
 
 		return runProjectAssign(cmd, dir, homeDir, args[0], force, confirm)
 	},

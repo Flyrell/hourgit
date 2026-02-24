@@ -219,38 +219,9 @@ func checkScheduleWarnings(
 		return true, nil
 	}
 
-	cfg, err := project.ReadConfig(homeDir)
+	windows, scheduledMinutes, err := getDayScheduleWindows(homeDir, proj, entryStart)
 	if err != nil {
 		return false, err
-	}
-
-	schedules := project.GetSchedules(cfg, proj.ID)
-
-	y, m, d := entryStart.Date()
-	dayStart := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-	dayEnd := time.Date(y, m, d, 23, 59, 59, 0, time.UTC)
-
-	daySchedules, err := schedule.ExpandSchedules(schedules, dayStart, dayEnd)
-	if err != nil {
-		return false, err
-	}
-
-	// Find windows for this day
-	var dayWindows []schedule.TimeWindow
-	dateKey := dayStart.Format("2006-01-02")
-	for _, ds := range daySchedules {
-		if ds.Date.Format("2006-01-02") == dateKey {
-			dayWindows = ds.Windows
-			break
-		}
-	}
-
-	// Compute scheduled minutes from windows
-	scheduledMinutes := 0
-	for _, w := range dayWindows {
-		fromMins := w.From.Hour*60 + w.From.Minute
-		toMins := w.To.Hour*60 + w.To.Minute
-		scheduledMinutes += toMins - fromMins
 	}
 
 	// 1. No scheduled hours for this day
@@ -266,53 +237,117 @@ func checkScheduleWarnings(
 	}
 
 	// 2. Check if entry falls outside schedule windows
+	proceed, err := checkBoundsWarning(cmd, confirm, windows, entryStart, minutes)
+	if err != nil {
+		return false, err
+	}
+	if !proceed {
+		return false, nil
+	}
+
+	// 3. Check budget overrun
+	return checkBudgetWarning(cmd, confirm, homeDir, proj, entryStart, minutes, scheduledMinutes)
+}
+
+// getDayScheduleWindows returns the schedule windows and total scheduled minutes
+// for the day containing entryStart.
+func getDayScheduleWindows(homeDir string, proj *project.ProjectEntry, entryStart time.Time) ([]schedule.TimeWindow, int, error) {
+	cfg, err := project.ReadConfig(homeDir)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	schedules := project.GetSchedules(cfg, proj.ID)
+
+	y, m, d := entryStart.Date()
+	dayStart := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	dayEnd := time.Date(y, m, d, 23, 59, 59, 0, time.UTC)
+
+	daySchedules, err := schedule.ExpandSchedules(schedules, dayStart, dayEnd)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var dayWindows []schedule.TimeWindow
+	dateKey := dayStart.Format("2006-01-02")
+	for _, ds := range daySchedules {
+		if ds.Date.Format("2006-01-02") == dateKey {
+			dayWindows = ds.Windows
+			break
+		}
+	}
+
+	scheduledMinutes := 0
+	for _, w := range dayWindows {
+		fromMins := w.From.Hour*60 + w.From.Minute
+		toMins := w.To.Hour*60 + w.To.Minute
+		scheduledMinutes += toMins - fromMins
+	}
+
+	return dayWindows, scheduledMinutes, nil
+}
+
+// checkBoundsWarning warns if the entry falls fully or partially outside
+// schedule windows. Returns (true, nil) to proceed, (false, nil) to cancel.
+func checkBoundsWarning(
+	cmd *cobra.Command,
+	confirm ConfirmFunc,
+	windows []schedule.TimeWindow,
+	entryStart time.Time,
+	minutes int,
+) (bool, error) {
 	entryFromMins := entryStart.Hour()*60 + entryStart.Minute()
 	entryToMins := entryFromMins + minutes
 
-	overlapMinutes := 0
-	for _, w := range dayWindows {
+	overlapMins := 0
+	for _, w := range windows {
 		wFrom := w.From.Hour*60 + w.From.Minute
 		wTo := w.To.Hour*60 + w.To.Minute
 		overlap := min(entryToMins, wTo) - max(entryFromMins, wFrom)
 		if overlap > 0 {
-			overlapMinutes += overlap
+			overlapMins += overlap
 		}
 	}
 
-	windowsSummary := formatWindowsSummary(dayWindows)
+	windowsSummary := formatWindowsSummary(windows)
 
-	if overlapMinutes == 0 {
+	if overlapMins == 0 {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s this entry falls outside your scheduled hours (%s).\n",
 			Warning("Warning:"),
 			Primary(windowsSummary),
 		)
-		ok, err := confirm("Continue anyway?")
-		if err != nil {
-			return false, err
-		}
-		if !ok {
-			return false, nil
-		}
-	} else if overlapMinutes < minutes {
+	} else if overlapMins < minutes {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s this entry partially falls outside your scheduled hours (%s).\n",
 			Warning("Warning:"),
 			Primary(windowsSummary),
 		)
-		ok, err := confirm("Continue anyway?")
-		if err != nil {
-			return false, err
-		}
-		if !ok {
-			return false, nil
-		}
+	} else {
+		return true, nil
 	}
 
-	// 3. Check budget overrun
+	ok, err := confirm("Continue anyway?")
+	if err != nil {
+		return false, err
+	}
+	return ok, nil
+}
+
+// checkBudgetWarning warns if the entry exceeds the remaining scheduled budget
+// for the day. Returns (true, nil) to proceed, (false, nil) to cancel.
+func checkBudgetWarning(
+	cmd *cobra.Command,
+	confirm ConfirmFunc,
+	homeDir string,
+	proj *project.ProjectEntry,
+	entryStart time.Time,
+	minutes, scheduledMinutes int,
+) (bool, error) {
 	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	if err != nil {
 		return false, err
 	}
 
+	y, m, d := entryStart.Date()
 	loggedMinutes := 0
 	for _, e := range entries {
 		ey, em, ed := e.Start.Date()

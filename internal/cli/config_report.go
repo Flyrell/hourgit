@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/project"
-	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
 )
 
@@ -40,37 +39,13 @@ func runConfigReport(cmd *cobra.Command, homeDir, repoDir, projectFlag, monthFla
 		return err
 	}
 
-	year, month, err := parseMonthYearFlags(monthFlag, yearFlag, now)
-	if err != nil {
-		return err
-	}
-
 	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err
 	}
 
 	entries := project.GetSchedules(cfg, entry.ID)
+	label := fmt.Sprintf("Working hours for '%s'", Primary(entry.Name))
 
-	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	monthEnd := monthStart.AddDate(0, 1, -1)
-
-	days, err := schedule.ExpandSchedules(entries, monthStart, monthEnd)
-	if err != nil {
-		return err
-	}
-
-	monthLabel := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC).Format("January 2006")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("Working hours for '%s' (%s):", Primary(entry.Name), monthLabel)))
-
-	if len(days) == 0 {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", Text("No working hours scheduled this month."))
-		return nil
-	}
-
-	for _, ds := range days {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", Text(schedule.FormatDaySchedule(ds)))
-	}
-
-	return nil
+	return printScheduleReport(cmd, entries, label, monthFlag, yearFlag, now)
 }

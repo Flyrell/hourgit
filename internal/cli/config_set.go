@@ -77,65 +77,92 @@ func runScheduleEditor(cmd *cobra.Command, kit PromptKit, schedules []schedule.S
 			return nil
 
 		case 0: // Add
-			newEntry, err := buildScheduleEntry(kit, w)
+			updated, err := addScheduleAction(kit, w, schedules)
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
-			if entriesOverlap(schedules, newEntry) {
-				override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
-				if err != nil {
-					return err
-				}
-				if override {
-					newEntry.Override = true
-				}
-			}
-			schedules = append(schedules, newEntry)
+			schedules = updated
 
 		case 1: // Edit
-			if len(schedules) == 0 {
-				_, _ = fmt.Fprintf(w, "%s\n", Error("no schedules to edit"))
-				continue
-			}
-			idx, err := selectScheduleIndex(kit, schedules, "Edit which schedule?")
+			updated, err := editScheduleAction(kit, w, schedules)
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
-			newEntry, err := buildScheduleEntry(kit, w)
-			if err != nil {
-				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
-				continue
-			}
-			// Check overlap against all entries except the one being replaced
-			others := make([]schedule.ScheduleEntry, 0, len(schedules)-1)
-			others = append(others, schedules[:idx]...)
-			others = append(others, schedules[idx+1:]...)
-			if entriesOverlap(others, newEntry) {
-				override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
-				if err != nil {
-					return err
-				}
-				if override {
-					newEntry.Override = true
-				}
-			}
-			schedules[idx] = newEntry
+			schedules = updated
 
 		case 2: // Delete
-			if len(schedules) == 0 {
-				_, _ = fmt.Fprintf(w, "%s\n", Error("no schedules to delete"))
-				continue
-			}
-			idx, err := selectScheduleIndex(kit, schedules, "Delete which schedule?")
+			updated, err := deleteScheduleAction(kit, schedules)
 			if err != nil {
 				_, _ = fmt.Fprintf(w, "%s\n", Error("error: "+err.Error()))
 				continue
 			}
-			schedules = append(schedules[:idx], schedules[idx+1:]...)
+			schedules = updated
 		}
 	}
+}
+
+// addScheduleAction builds a new schedule entry and appends it to the list,
+// prompting for override if it overlaps with existing entries.
+func addScheduleAction(kit PromptKit, w io.Writer, schedules []schedule.ScheduleEntry) ([]schedule.ScheduleEntry, error) {
+	newEntry, err := buildScheduleEntry(kit, w)
+	if err != nil {
+		return nil, err
+	}
+	if entriesOverlap(schedules, newEntry) {
+		override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
+		if err != nil {
+			return nil, err
+		}
+		if override {
+			newEntry.Override = true
+		}
+	}
+	return append(schedules, newEntry), nil
+}
+
+// editScheduleAction prompts the user to pick a schedule, builds a replacement,
+// and checks for overlap against the remaining entries.
+func editScheduleAction(kit PromptKit, w io.Writer, schedules []schedule.ScheduleEntry) ([]schedule.ScheduleEntry, error) {
+	if len(schedules) == 0 {
+		return nil, fmt.Errorf("no schedules to edit")
+	}
+	idx, err := selectScheduleIndex(kit, schedules, "Edit which schedule?")
+	if err != nil {
+		return nil, err
+	}
+	newEntry, err := buildScheduleEntry(kit, w)
+	if err != nil {
+		return nil, err
+	}
+	// Check overlap against all entries except the one being replaced
+	others := make([]schedule.ScheduleEntry, 0, len(schedules)-1)
+	others = append(others, schedules[:idx]...)
+	others = append(others, schedules[idx+1:]...)
+	if entriesOverlap(others, newEntry) {
+		override, err := kit.Confirm(Text("This schedule overlaps with existing entries. Override them for matching days?"))
+		if err != nil {
+			return nil, err
+		}
+		if override {
+			newEntry.Override = true
+		}
+	}
+	schedules[idx] = newEntry
+	return schedules, nil
+}
+
+// deleteScheduleAction prompts the user to pick a schedule and removes it.
+func deleteScheduleAction(kit PromptKit, schedules []schedule.ScheduleEntry) ([]schedule.ScheduleEntry, error) {
+	if len(schedules) == 0 {
+		return nil, fmt.Errorf("no schedules to delete")
+	}
+	idx, err := selectScheduleIndex(kit, schedules, "Delete which schedule?")
+	if err != nil {
+		return nil, err
+	}
+	return append(schedules[:idx], schedules[idx+1:]...), nil
 }
 
 // selectScheduleIndex prompts the user to pick a schedule from the list.
@@ -145,17 +172,6 @@ func selectScheduleIndex(kit PromptKit, schedules []schedule.ScheduleEntry, titl
 		options[i] = fmt.Sprintf("%d. %s", i+1, schedule.FormatScheduleEntry(s))
 	}
 	return kit.Select(title, options)
-}
-
-func printScheduleList(cmd *cobra.Command, schedules []schedule.ScheduleEntry) {
-	w := cmd.OutOrStdout()
-	if len(schedules) == 0 {
-		_, _ = fmt.Fprintf(w, "  %s\n", Silent("(no schedules)"))
-		return
-	}
-	for i, s := range schedules {
-		_, _ = fmt.Fprintf(w, "  %s\n", Text(fmt.Sprintf("%d. %s", i+1, schedule.FormatScheduleEntry(s))))
-	}
 }
 
 // buildScheduleEntry guides the user through a step-by-step schedule builder.

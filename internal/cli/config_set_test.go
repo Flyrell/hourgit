@@ -486,3 +486,105 @@ func TestPromptDays(t *testing.T) {
 	})
 }
 
+func TestEntriesOverlap(t *testing.T) {
+	weekday := schedule.ScheduleEntry{
+		Ranges: []schedule.TimeRange{{From: "09:00", To: "17:00"}},
+		RRule:  "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+	}
+	weekend := schedule.ScheduleEntry{
+		Ranges: []schedule.TimeRange{{From: "10:00", To: "14:00"}},
+		RRule:  "FREQ=WEEKLY;BYDAY=SA,SU",
+	}
+
+	t.Run("overlapping days", func(t *testing.T) {
+		existing := []schedule.ScheduleEntry{weekday}
+		candidate := schedule.ScheduleEntry{
+			Ranges: []schedule.TimeRange{{From: "08:00", To: "12:00"}},
+			RRule:  "FREQ=WEEKLY;BYDAY=MO,WE,FR",
+		}
+		assert.True(t, entriesOverlap(existing, candidate))
+	})
+
+	t.Run("non-overlapping days", func(t *testing.T) {
+		existing := []schedule.ScheduleEntry{weekday}
+		assert.False(t, entriesOverlap(existing, weekend))
+	})
+
+	t.Run("empty existing", func(t *testing.T) {
+		assert.False(t, entriesOverlap(nil, weekday))
+	})
+}
+
+func TestAddScheduleAction(t *testing.T) {
+	w := new(bytes.Buffer)
+	existing := schedule.DefaultSchedules()
+
+	// Add a weekend schedule (no overlap with weekday default)
+	kit := testKit(
+		mockSelectSequence(0, 1), // recurring, every weekend
+		mockPrompt("10am", "2pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
+	)
+
+	updated, err := addScheduleAction(kit, w, existing)
+
+	require.NoError(t, err)
+	assert.Len(t, updated, 2)
+	assert.Equal(t, "10:00", updated[1].Ranges[0].From)
+	assert.Equal(t, "14:00", updated[1].Ranges[0].To)
+}
+
+func TestEditScheduleAction(t *testing.T) {
+	w := new(bytes.Buffer)
+	existing := schedule.DefaultSchedules()
+
+	// Edit the first schedule: select index 0, then build a new one
+	kit := testKit(
+		mockSelectSequence(0, 0, 0), // select schedule 0, recurring, every weekday
+		mockPrompt("8am", "4pm"),
+		mockConfirm(false), // no more ranges
+		mockMultiSelect(nil),
+	)
+
+	updated, err := editScheduleAction(kit, w, existing)
+
+	require.NoError(t, err)
+	assert.Len(t, updated, 1)
+	assert.Equal(t, "08:00", updated[0].Ranges[0].From)
+	assert.Equal(t, "16:00", updated[0].Ranges[0].To)
+}
+
+func TestEditScheduleActionEmpty(t *testing.T) {
+	w := new(bytes.Buffer)
+	kit := testKit(nil, nil, nil, nil)
+
+	_, err := editScheduleAction(kit, w, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no schedules to edit")
+}
+
+func TestDeleteScheduleAction(t *testing.T) {
+	existing := schedule.DefaultSchedules()
+
+	kit := testKit(
+		mockSelect(0), // select schedule 0
+		nil, nil, nil,
+	)
+
+	updated, err := deleteScheduleAction(kit, existing)
+
+	require.NoError(t, err)
+	assert.Len(t, updated, 0)
+}
+
+func TestDeleteScheduleActionEmpty(t *testing.T) {
+	kit := testKit(nil, nil, nil, nil)
+
+	_, err := deleteScheduleAction(kit, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no schedules to delete")
+}
+

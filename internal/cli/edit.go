@@ -185,7 +185,6 @@ func applyFlagEdits(
 		}
 		// Preserve time-of-day, change date
 		y, m, d := newDate.Date()
-		_, _, _ = e.Start.Clock()
 		e.Start = time.Date(y, m, d, e.Start.Hour(), e.Start.Minute(), 0, 0, e.Start.Location())
 	}
 

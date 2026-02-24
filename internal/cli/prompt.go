@@ -81,6 +81,14 @@ func NewMultiSelectFunc() MultiSelectFunc {
 	}
 }
 
+// ResolveConfirmFunc returns AlwaysYes() if yes is true, otherwise NewConfirmFunc().
+func ResolveConfirmFunc(yes bool) ConfirmFunc {
+	if yes {
+		return AlwaysYes()
+	}
+	return NewConfirmFunc()
+}
+
 // PromptWithDefaultFunc prompts the user for input with a pre-filled default value.
 type PromptWithDefaultFunc func(prompt, defaultValue string) (string, error)
 

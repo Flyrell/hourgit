@@ -1,7 +1,6 @@
 package schedule
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 
@@ -27,46 +26,6 @@ type ScheduleEntry struct {
 	Ranges   []TimeRange `json:"ranges"`
 	RRule    string      `json:"rrule"`              // RFC 5545 RRULE string (always present)
 	Override bool        `json:"override,omitempty"` // when true, replaces all previous windows for matching days
-}
-
-// UnmarshalJSON supports both the new format (ranges) and the legacy format
-// (from/to as top-level fields) for backward compatibility.
-func (e *ScheduleEntry) UnmarshalJSON(data []byte) error {
-	// Try the new format first.
-	type entryAlias ScheduleEntry
-	var alias entryAlias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-
-	// If ranges are populated, use them directly.
-	if len(alias.Ranges) > 0 {
-		*e = ScheduleEntry(alias)
-		return nil
-	}
-
-	// Fall back to legacy format with top-level from/to.
-	var legacy struct {
-		From     string `json:"from"`
-		To       string `json:"to"`
-		RRule    string `json:"rrule"`
-		Override bool   `json:"override,omitempty"`
-	}
-	if err := json.Unmarshal(data, &legacy); err != nil {
-		return err
-	}
-
-	if legacy.From != "" && legacy.To != "" {
-		*e = ScheduleEntry{
-			Ranges:   []TimeRange{{From: legacy.From, To: legacy.To}},
-			RRule:    legacy.RRule,
-			Override: legacy.Override,
-		}
-		return nil
-	}
-
-	*e = ScheduleEntry(alias)
-	return nil
 }
 
 // DefaultSchedules returns the default working schedule: Mon-Fri 9am-5pm.
