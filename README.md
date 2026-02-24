@@ -220,7 +220,7 @@ Notes:
 Generate a monthly time report as an interactive table showing tasks (rows) × days (columns). Time is attributed to branches based on checkout events clipped to your configured schedule, with manual log entries shown alongside.
 
 ```bash
-hourgit report [--month <1-12>] [--year <YYYY>] [--project <project_name>]
+hourgit report [--month <1-12>] [--year <YYYY>] [--project <project_name>] [--output <path>]
 ```
 
 | Flag | Description |
@@ -228,6 +228,7 @@ hourgit report [--month <1-12>] [--year <YYYY>] [--project <project_name>]
 | `--month` | Month number 1-12 (default: current month) |
 | `--year` | Year (default: current year) |
 | `--project` | Project name or ID (auto-detected from repo if omitted) |
+| `--output` | Export report as a PDF timesheet to the given path (auto-named if empty) |
 
 The table shows:
 - Each row is a task (branch name or manual log task/message)
@@ -237,6 +238,16 @@ The table shows:
 - Press `q`, `Esc`, or `Ctrl+C` to quit
 
 In non-interactive environments (piped output), a static table is printed instead.
+
+**PDF export:**
+
+```bash
+hourgit report --output timesheet.pdf
+hourgit report --output                       # auto-names as <project>-<YYYY>-<MM>.pdf
+hourgit report --output report.pdf --month 1 --year 2025
+```
+
+The PDF shows a day-by-day breakdown with individual time entries grouped by task, suitable for A4 printing and sharing.
 
 ### `hourgit history`
 

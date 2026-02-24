@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/Flyrell/hourgit/internal/timetrack"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +40,7 @@ func execReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string) (stri
 	cmd := reportCmd
 	cmd.SetOut(stdout)
 
-	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, fixedNow)
+	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, "", fixedNow)
 	return stdout.String(), err
 }
 
@@ -116,7 +118,7 @@ func TestReportEmptyMonth(t *testing.T) {
 }
 
 func TestReportWithLogEntries(t *testing.T) {
-	homeDir, _, proj := setupReportTest(t)
+	homeDir, repoDir, proj := setupReportTest(t)
 
 	// Write a log entry for June 2025 (fixedNow month)
 	e := entry.Entry{
@@ -130,9 +132,12 @@ func TestReportWithLogEntries(t *testing.T) {
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
 
 	// runReport outputs via bubbletea (interactive), which won't work in test.
-	// Test buildReportData directly.
-	data, err := buildReportData(homeDir, proj, 2025, time.June, time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC))
+	// Test loadReportInputs + BuildReport directly.
+	now := time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
+	inputs, err := loadReportInputs(homeDir, repoDir, "", "6", "2025", now)
 	require.NoError(t, err)
+
+	data := timetrack.BuildReport(inputs.checkouts, inputs.logs, inputs.schedules, inputs.year, inputs.month, now, inputs.genDays)
 	assert.Equal(t, 1, len(data.Rows))
 	assert.Equal(t, "research", data.Rows[0].Name)
 	assert.Equal(t, 120, data.Rows[0].TotalMinutes)
@@ -194,6 +199,117 @@ func TestRenderTable_WithFooter(t *testing.T) {
 	assert.Contains(t, output, "January 2025")
 	assert.Contains(t, output, "←/→ scroll")
 	assert.Contains(t, output, "q quit")
+}
+
+func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, outputFlag string) (string, error) {
+	t.Helper()
+	stdout := new(bytes.Buffer)
+
+	// Build a fresh report command to avoid sharing state across tests
+	cmd := LeafCommand{
+		Use:   "report",
+		Short: "Generate a monthly time report",
+		StrFlags: []StringFlag{
+			{Name: "month", Usage: "month number 1-12 (default: current)"},
+			{Name: "year", Usage: "year (default: current)"},
+			{Name: "project", Usage: "project name or ID"},
+			{Name: "output", Usage: "export report as PDF"},
+		},
+		RunE: func(c *cobra.Command, args []string) error {
+			of, _ := c.Flags().GetString("output")
+			mf, _ := c.Flags().GetString("month")
+			yf, _ := c.Flags().GetString("year")
+			return runReport(c, homeDir, repoDir, "", mf, yf, of, fixedNow)
+		},
+	}.Build()
+
+	cmd.SetOut(stdout)
+
+	cmdArgs := []string{}
+	if monthFlag != "" {
+		cmdArgs = append(cmdArgs, "--month", monthFlag)
+	}
+	if yearFlag != "" {
+		cmdArgs = append(cmdArgs, "--year", yearFlag)
+	}
+	if outputFlag != "" {
+		cmdArgs = append(cmdArgs, "--output", outputFlag)
+	} else {
+		cmdArgs = append(cmdArgs, "--output=")
+	}
+	cmd.SetArgs(cmdArgs)
+
+	err := cmd.Execute()
+	return stdout.String(), err
+}
+
+func TestReportOutputFlag_GeneratesPDF(t *testing.T) {
+	homeDir, repoDir, proj := setupReportTest(t)
+
+	e := entry.Entry{
+		ID:        "pdf01",
+		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
+		Minutes:   120,
+		Message:   "research",
+		Task:      "research",
+		CreatedAt: time.Date(2025, 6, 2, 12, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
+
+	outDir := t.TempDir()
+	outPath := filepath.Join(outDir, "test-output.pdf")
+
+	stdout, err := execReportWithOutput(t, homeDir, repoDir, "6", "2025", outPath)
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "Exported report to")
+
+	info, sErr := os.Stat(outPath)
+	require.NoError(t, sErr)
+	assert.True(t, info.Size() > 0)
+}
+
+func TestReportOutputFlag_EmptyMonth(t *testing.T) {
+	homeDir, repoDir, _ := setupReportTest(t)
+
+	outDir := t.TempDir()
+	outPath := filepath.Join(outDir, "empty.pdf")
+
+	stdout, err := execReportWithOutput(t, homeDir, repoDir, "1", "2025", outPath)
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "No time entries")
+
+	_, sErr := os.Stat(outPath)
+	assert.True(t, os.IsNotExist(sErr))
+}
+
+func TestReportOutputFlag_AutoName(t *testing.T) {
+	homeDir, repoDir, proj := setupReportTest(t)
+
+	e := entry.Entry{
+		ID:        "auto01",
+		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
+		Minutes:   60,
+		Message:   "work",
+		Task:      "task",
+		CreatedAt: time.Date(2025, 6, 2, 11, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
+
+	// Change to temp dir so auto-named file lands there
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	stdout, err := execReportWithOutput(t, homeDir, repoDir, "6", "2025", "")
+	require.NoError(t, err)
+
+	expectedName := fmt.Sprintf("%s-2025-06.pdf", proj.Slug)
+	assert.Contains(t, stdout, expectedName)
+
+	info, sErr := os.Stat(filepath.Join(tmpDir, expectedName))
+	require.NoError(t, sErr)
+	assert.True(t, info.Size() > 0)
 }
 
 func TestReportRegisteredAsSubcommand(t *testing.T) {
