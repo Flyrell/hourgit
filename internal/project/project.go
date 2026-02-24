@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Flyrell/hour-git/internal/hashutil"
-	"github.com/Flyrell/hour-git/internal/schedule"
-	"github.com/Flyrell/hour-git/internal/stringutil"
+	"github.com/Flyrell/hourgit/internal/hashutil"
+	"github.com/Flyrell/hourgit/internal/schedule"
+	"github.com/Flyrell/hourgit/internal/stringutil"
 )
 
 // HookMarker is the comment marker written into the post-checkout hook.

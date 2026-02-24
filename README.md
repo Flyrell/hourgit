@@ -8,215 +8,206 @@ Hourgit tracks your working time automatically by hooking into git's checkout ev
 
 Each unit of logged time is called a **log entry**, identified by a short hash (similar to git commits). The data model is intentionally flat: a log entry is a time range + optional description + optional metadata (branch, project, task label). There is no hierarchy beyond project — grouping is derived at report time, not stored structurally.
 
----
+Manual logging is supported for non-code work (research, analysis, meetings) via explicit commands.
 
-## Implementation Status
+## Installation
 
-This project is currently in the **design and planning phase**. No code has been written yet. The commands and data model described in this document represent the intended design, not an existing implementation. The goal is to build towards this step by step.
+Installation instructions will be available once the first release is published.
 
-> **Note:** If anything encountered during development contradicts, omits, or doesn't fit the intended design, the design should be flagged and updated before proceeding. This document should always reflect current intentions accurately.
+## Getting Started
 
----
-
-## How It Works
-
-1. You run `hourgit init` inside a git repository — this installs a post-checkout hook.
-2. Every time you run `git checkout`, the hook fires and logs the branch switch.
-3. Hourgit calculates time spent on each branch using the timestamps of checkout events, trimmed to your configured working hours.
-4. If you work on a branch for 3 days without switching, Hourgit attributes 3 × (working hours) to that branch automatically.
-5. Manual log entries let you track non-code work (research, analysis, meetings) outside of any branch context.
-
----
-
-## Configuration
-
-### View current defaults
-
-```bash
-hourgit defaults get
-```
-
-### Set default working hours
-
-```bash
-hourgit defaults set from 9AM to 5PM
-```
-
-### Override working hours for a specific day
-
-```bash
-hourgit defaults set from 9AM to 6PM on Monday
-```
-
----
-
-## Projects
-
-### Create a project
-
-```bash
-hourgit add project project_name
-```
-
-### Initialize a repo and attach it to a project
-
-```bash
-hourgit init --project project_name
-```
-
-### Initialize a repo without a project
+Initialize Hourgit in a git repository:
 
 ```bash
 hourgit init
 ```
 
-### Attach an already-initialized repo to a project
+This installs a post-checkout hook that automatically tracks branch switches. You can optionally assign the repo to a project during initialization:
 
 ```bash
-hourgit set project project_name
+hourgit init --project my-project
 ```
 
----
+If the project doesn't exist yet, it will be created for you.
 
-## Logging
+## Commands
 
-Automatic logging happens via the post-checkout hook using an internal command:
+### `hourgit init`
+
+Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit log --type checkout branch_name
+hourgit init [--project NAME] [--force] [--merge] [--yes]
 ```
 
-> This command is internal and called by the hook — you don't need to run it manually.
+| Flag | Description |
+|------|-------------|
+| `--project` | Assign repository to a project by name or ID (creates if needed) |
+| `--force` | Overwrite existing post-checkout hook |
+| `--merge` | Append to existing post-checkout hook |
+| `--yes` | Skip confirmation prompt |
 
-### Manually log time ending now
+### `hourgit version`
+
+Print version information.
 
 ```bash
-hourgit log --duration 4h "analyzed competitor pricing"
+hourgit version
 ```
 
-If it's 4PM and you log `--duration 4h`, the entry is attributed to 12PM–4PM (i.e. ending now).
+### `hourgit project`
 
-### Manually log a specific time range
+Manage projects. Projects group repositories together and hold schedule configuration.
+
+#### `hourgit project add`
+
+Create a new project.
 
 ```bash
-hourgit log --from 9AM --to 1PM "analyzed competitor pricing"
+hourgit project add PROJECT
 ```
 
-### Manual log attached to a project
+#### `hourgit project assign`
+
+Assign the current repository to a project.
 
 ```bash
-hourgit log --duration 4h --project project_name "analyzed competitor pricing"
+hourgit project assign PROJECT [--force] [--yes]
 ```
 
-### Manual log for a past date
+| Flag | Description |
+|------|-------------|
+| `--force` | Reassign repository to a different project |
+| `--yes` | Skip confirmation prompt |
+
+#### `hourgit project list`
+
+List all projects and their repositories.
 
 ```bash
-hourgit log --duration 4h --date yesterday "analyzed competitor pricing"
+hourgit project list
 ```
 
----
+#### `hourgit project remove`
 
-## Editing Log Entries
-
-### View log history with hashes
+Remove a project and clean up its repository assignments.
 
 ```bash
-hourgit log --history
+hourgit project remove PROJECT [--yes]
 ```
 
-Example output:
+| Flag | Description |
+|------|-------------|
+| `--yes` | Skip confirmation prompt |
 
-```
-a3f9c21  2h  branch: feature/auth     "implemented login flow"
-b12e884  4h  task: analysis           "analyzed competitor pricing"
-c9d3a11  8h  branch: fix/login-bug    "fixed session expiry"
-```
+### `hourgit config`
 
-### Edit time range of a log entry
+Manage per-project schedule configuration. If `--project` is omitted, the project is auto-detected from the current repository.
+
+#### `hourgit config get`
+
+Show the schedule configuration for a project.
 
 ```bash
-hourgit update <hash> --from 8AM --to 10AM
+hourgit config get [--project NAME]
 ```
 
-### Add or edit description of a log entry
+#### `hourgit config set`
+
+Interactively edit a project's schedule using a guided schedule builder.
 
 ```bash
-hourgit update <hash> --describe "refactored auth middleware"
+hourgit config set [--project NAME]
 ```
 
-### Reassign a log entry to a project
+#### `hourgit config reset`
+
+Reset a project's schedule to the defaults.
 
 ```bash
-hourgit update <hash> --project project_name
+hourgit config reset [--project NAME] [--yes]
 ```
 
-### Delete a log entry
+#### `hourgit config read`
+
+Show expanded working hours for the current month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit delete <hash>
+hourgit config read [--project NAME]
 ```
 
----
+### `hourgit defaults`
 
-## Reports
+Manage the default schedule applied to new projects.
 
-### Default report (grouped by branch)
+#### `hourgit defaults get`
+
+Show the default schedule for new projects.
 
 ```bash
-hourgit report
+hourgit defaults get
 ```
 
-### Group by project
+#### `hourgit defaults set`
+
+Interactively edit the default schedule for new projects.
 
 ```bash
-hourgit report --by project
+hourgit defaults set
 ```
 
-### Group by day
+#### `hourgit defaults reset`
+
+Reset the default schedule to factory settings (Mon–Fri, 9 AM – 5 PM).
 
 ```bash
-hourgit report --by day
+hourgit defaults reset [--yes]
 ```
 
-Example report output:
+#### `hourgit defaults read`
 
-```
-my_project
-├── feature/auth          12h
-├── fix/login-bug          3h
-└── [manual] analysis      4h
-```
-
----
-
-## Status
-
-Check the currently active branch/project and time logged today:
+Show expanded default working hours for the current month.
 
 ```bash
-hourgit status
+hourgit defaults read
 ```
 
----
+## Configuration
 
-## Data Model
+Hourgit uses a schedule system to define working hours. The factory default is **Monday–Friday, 9 AM – 5 PM**.
 
-A log entry contains:
+### Schedule types
 
-| Field       | Description                                      |
-|-------------|--------------------------------------------------|
-| `hash`      | Short unique identifier (git-style)              |
-| `from`      | Start time                                       |
-| `to`        | End time                                         |
-| `type`      | `branch` (automatic) or `manual`                 |
-| `branch`    | Branch name (if applicable)                      |
-| `project`   | Project name (optional)                          |
-| `description` | Free-text description of work done (optional) |
+The interactive schedule editor (`config set` / `defaults set`) supports three schedule types:
 
-Automatic branch logs are split by day, giving each day its own hash and making individual edits straightforward.
+- **Recurring** — repeats on a regular pattern (e.g., every weekday, every Monday/Wednesday/Friday)
+- **One-off** — applies to a single specific date (e.g., a holiday or overtime day)
+- **Date range** — applies to a contiguous range of dates (e.g., a week with different hours)
 
----
+Each schedule entry defines one or more time ranges for the days it covers. Multiple entries can be combined to build complex schedules.
 
-## Why Hourgit?
+### Per-project overrides
 
-Most time tracking tools ask you to change your behavior — start a timer, stop a timer, fill in a form. Hourgit works the other way: it observes what you're already doing (switching branches) and infers your time from that, bounded by the working hours you've defined. The result is time tracking that requires almost no effort, with enough manual override capability to stay accurate.
+Every project starts with a copy of the defaults. You can then customize a project's schedule independently using `hourgit config set --project NAME`. To revert a project back to the current defaults, use `hourgit config reset --project NAME`.
+
+## Data Storage
+
+| Path | Purpose |
+|------|---------|
+| `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
+| `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
+| `~/.hourgit/<slug>/` | Per-project log directory (for future log entries) |
+
+## Roadmap
+
+The following features are planned but not yet implemented:
+
+- **Time logging** — automatic logging via the post-checkout hook, manual log entries with duration or time range
+- **Log history** — view logged entries with hashes
+- **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
+- **Reports** — group time by branch, project, day, or task
+- **Status** — show currently active branch/project and time logged today
+
+## License
+
+This project is licensed under the [Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT)](LICENSE).

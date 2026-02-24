@@ -16,7 +16,7 @@ func TestVersionDefault(t *testing.T) {
 	err := rootCmd.Execute()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "hour-git dev (commit: none, built: unknown)\n", buf.String())
+	assert.Equal(t, "hourgit dev (commit: none, built: unknown)\n", buf.String())
 }
 
 func TestVersionRelease(t *testing.T) {
@@ -28,5 +28,5 @@ func TestVersionRelease(t *testing.T) {
 	err := rootCmd.Execute()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "hour-git 1.0.0 (commit: abc1234, built: 2025-01-01)\n", buf.String())
+	assert.Equal(t, "hourgit 1.0.0 (commit: abc1234, built: 2025-01-01)\n", buf.String())
 }

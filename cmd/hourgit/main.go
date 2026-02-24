@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Flyrell/hour-git/internal/cli"
+	"github.com/Flyrell/hourgit/internal/cli"
 )
 
 var (

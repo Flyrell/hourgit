@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/Flyrell/hour-git/internal/project"
-	"github.com/Flyrell/hour-git/internal/schedule"
+	"github.com/Flyrell/hourgit/internal/project"
+	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
 )
 

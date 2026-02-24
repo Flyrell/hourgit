@@ -10,7 +10,7 @@ var rootCmd = newRootCmd()
 
 func newRootCmd() *cobra.Command {
 	cmd := GroupCommand{
-		Use:   "hour-git",
+		Use:   "hourgit",
 		Short: "A Git time-tracking CLI tool",
 		Subcommands: []*cobra.Command{
 			initCmd,

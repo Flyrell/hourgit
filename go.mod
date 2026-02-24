@@ -1,4 +1,4 @@
-module github.com/Flyrell/hour-git
+module github.com/Flyrell/hourgit
 
 go 1.26
 

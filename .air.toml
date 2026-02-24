@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
   bin = "./tmp/hourgit"
-  cmd = "go build -o ./tmp/hourgit ./cmd/hour-git"
+  cmd = "go build -o ./tmp/hourgit ./cmd/hourgit"
   delay = 1000
   exclude_dir = ["tmp", "vendor", ".git", "dist"]
   exclude_file = ["_test.go"]
