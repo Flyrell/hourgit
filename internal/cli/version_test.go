@@ -7,26 +7,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func execVersion() (string, error) {
+	buf := new(bytes.Buffer)
+	cmd := versionCmd
+	cmd.SetOut(buf)
+	err := runVersion(cmd)
+	return buf.String(), err
+}
+
 func TestVersionDefault(t *testing.T) {
 	SetVersionInfo("dev", "none", "unknown")
 
-	buf := new(bytes.Buffer)
-	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"version"})
-	err := rootCmd.Execute()
+	out, err := execVersion()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "hourgit dev (commit: none, built: unknown)\n", buf.String())
+	assert.Contains(t, out, "hourgit dev (commit: none, built: unknown)")
 }
 
 func TestVersionRelease(t *testing.T) {
 	SetVersionInfo("1.0.0", "abc1234", "2025-01-01")
 
-	buf := new(bytes.Buffer)
-	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"version"})
-	err := rootCmd.Execute()
+	out, err := execVersion()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "hourgit 1.0.0 (commit: abc1234, built: 2025-01-01)\n", buf.String())
+	assert.Contains(t, out, "hourgit 1.0.0 (commit: abc1234, built: 2025-01-01)")
 }

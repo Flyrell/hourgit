@@ -29,10 +29,11 @@ func setupInitTest(t *testing.T) (string, func()) {
 func execInit(args ...string) (string, string, error) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	rootCmd.SetOut(stdout)
-	rootCmd.SetErr(stderr)
-	rootCmd.SetArgs(append([]string{"init"}, args...))
-	err := rootCmd.Execute()
+	cmd := newRootCmd()
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+	cmd.SetArgs(append([]string{"init"}, args...))
+	err := cmd.Execute()
 	if err != nil {
 		fmt.Fprint(stderr, "error: "+err.Error()+"\n")
 	}
