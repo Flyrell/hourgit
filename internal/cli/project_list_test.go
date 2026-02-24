@@ -36,12 +36,12 @@ func TestProjectListWithProjects(t *testing.T) {
 	dir1 := t.TempDir()
 	hooksDir1 := filepath.Join(dir1, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir1, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir1, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir1, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	dir2 := t.TempDir()
 	hooksDir2 := filepath.Join(dir2, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir2, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir2, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir2, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	// Create two projects with repos
 	_, _, err := execProjectAssign(dir1, AlwaysYes(), "Project A")
@@ -65,12 +65,12 @@ func TestProjectListMultipleRepos(t *testing.T) {
 	dir1 := t.TempDir()
 	hooksDir1 := filepath.Join(dir1, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir1, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir1, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir1, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	dir2 := t.TempDir()
 	hooksDir2 := filepath.Join(dir2, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir2, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir2, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir2, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	// Assign both repos to the same project
 	_, _, err := execProjectAssign(dir1, AlwaysYes(), "Project A")

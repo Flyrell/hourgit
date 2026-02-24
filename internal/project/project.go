@@ -17,6 +17,13 @@ import (
 // Use this constant for detection — never redefine it elsewhere.
 const HookMarker = "# Installed by hourgit"
 
+var appVersion = "dev"
+
+// SetVersion sets the app version stamped into config.json on write.
+func SetVersion(v string) {
+	appVersion = v
+}
+
 // RepoConfig is the per-repo marker stored in .git/.hourgit.
 type RepoConfig struct {
 	Project   string `json:"project"`
@@ -34,6 +41,7 @@ type ProjectEntry struct {
 
 // Config holds the global hourgit configuration including projects and defaults.
 type Config struct {
+	Version  string                   `json:"version"`
 	Defaults []schedule.ScheduleEntry `json:"defaults"`
 	Projects []ProjectEntry           `json:"projects"`
 }
@@ -79,6 +87,8 @@ func WriteConfig(homeDir string, cfg *Config) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
+
+	cfg.Version = appVersion
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

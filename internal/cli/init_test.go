@@ -40,11 +40,11 @@ func execInit(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func execInitDirect(dir, homeDir, projectName string, force, merge bool, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
+func execInitDirect(dir, homeDir, projectName string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := initCmd
 	cmd.SetOut(stdout)
-	err := runInit(cmd, dir, homeDir, projectName, force, merge, confirm, selectFn)
+	err := runInit(cmd, dir, homeDir, projectName, force, merge, binPath, confirm, selectFn)
 	return stdout.String(), err
 }
 
@@ -64,6 +64,8 @@ func TestInitInGitRepo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), project.HookMarker)
 	assert.Contains(t, string(content), "#!/bin/sh")
+	assert.Contains(t, string(content), `checkout --prev "$PREV" --next "$NEXT"`)
+	assert.Contains(t, string(content), `[ "$3" = "0" ] && exit 0`)
 
 	info, err := os.Stat(hookPath)
 	require.NoError(t, err)
@@ -86,7 +88,7 @@ func TestInitAlreadyInitialized(t *testing.T) {
 
 	hooksDir := filepath.Join(dir, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte(hookContent), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte("#!/bin/sh\n"+project.HookMarker+"\n"), 0755))
 
 	_, stderr, err := execInit()
 
@@ -235,7 +237,7 @@ func TestInitWithProjectFlagDeclined(t *testing.T) {
 
 	decline := func(_ string) (bool, error) { return false, nil }
 	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
-	stdout, err := execInitDirect(dir, home, "My Project", false, false, decline, skipSelect)
+	stdout, err := execInitDirect(dir, home, "My Project", false, false, "/usr/local/bin/hourgit", decline, skipSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project assignment skipped")
@@ -260,7 +262,7 @@ func TestInitPromptsForCompletion(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, installSelect)
+	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, installSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -280,7 +282,7 @@ func TestInitCompletionSkipped(t *testing.T) {
 
 	noConfirm := func(_ string) (bool, error) { return true, nil }
 	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
-	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, skipSelect)
+	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -303,7 +305,7 @@ func TestInitCompletionAlreadyInstalled(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, trackSelect)
+	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -325,7 +327,7 @@ func TestInitCompletionUnknownShell(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, trackSelect)
+	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -343,7 +345,7 @@ func TestInitYesAutoInstallsCompletion(t *testing.T) {
 
 	noConfirm := func(_ string) (bool, error) { return true, nil }
 	autoInstall := func(_ string, _ []string) (int, error) { return 0, nil }
-	stdout, err := execInitDirect(dir, home, "", false, false, noConfirm, autoInstall)
+	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, autoInstall)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -364,6 +366,17 @@ func TestInitCreateHooksDir(t *testing.T) {
 	hookPath := filepath.Join(dir, ".git", "hooks", "post-checkout")
 	_, err = os.Stat(hookPath)
 	assert.NoError(t, err)
+}
+
+func TestHookScript(t *testing.T) {
+	script := hookScript("/usr/local/bin/hourgit", "1.2.3")
+
+	assert.Contains(t, script, "#!/bin/sh")
+	assert.Contains(t, script, project.HookMarker)
+	assert.Contains(t, script, "(version: 1.2.3)")
+	assert.Contains(t, script, `/usr/local/bin/hourgit checkout --prev "$PREV" --next "$NEXT"`)
+	assert.Contains(t, script, `[ "$3" = "0" ] && exit 0`)
+	assert.Contains(t, script, "git name-rev --name-only")
 }
 
 func TestInitRegistered(t *testing.T) {
