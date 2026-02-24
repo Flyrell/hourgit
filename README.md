@@ -164,6 +164,23 @@ The table shows:
 
 In non-interactive environments (piped output), a static table is printed instead.
 
+### `hourgit history`
+
+Show a chronological feed of all recorded activity (log entries and checkout events) across projects, newest first.
+
+```bash
+hourgit history [--project <project_name>] [--limit <N>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Filter by project name or ID |
+| `--limit` | Maximum number of entries to show (default: 50, use 0 for all) |
+
+Each line shows the entry hash, timestamp, type (log or checkout), project name, and details:
+- **Log entries:** duration + task label (if set) + message
+- **Checkout entries:** previous branch → next branch
+
 ### `hourgit version`
 
 Print version information.
@@ -332,7 +349,6 @@ Every project starts with a copy of the defaults. You can then customize a proje
 The following features are planned but not yet implemented:
 
 - **Automatic time logging** — automatic time calculation from checkout entries
-- **Log history** — view logged entries with hashes
 - **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
 - **Status** — show currently active branch/project and time logged today
 
