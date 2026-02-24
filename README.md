@@ -25,7 +25,7 @@ hourgit init
 This installs a post-checkout hook that automatically tracks branch switches. You can optionally assign the repo to a project during initialization:
 
 ```bash
-hourgit init --project my-project
+hourgit init --project <project_name>
 ```
 
 If the project doesn't exist yet, it will be created for you.
@@ -37,7 +37,7 @@ If the project doesn't exist yet, it will be created for you.
 Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit init [--project NAME] [--force] [--merge] [--yes]
+hourgit init [--project <project_name>] [--force] [--merge] [--yes]
 ```
 
 | Flag | Description |
@@ -46,6 +46,85 @@ hourgit init [--project NAME] [--force] [--merge] [--yes]
 | `--force` | Overwrite existing post-checkout hook |
 | `--merge` | Append to existing post-checkout hook |
 | `--yes` | Skip confirmation prompt |
+
+### `hourgit completion`
+
+Manage shell completions. Supported shells: `bash`, `zsh`, `fish`, `powershell`.
+
+#### `hourgit completion install`
+
+Install shell completions into your shell config file. Auto-detects your shell if not specified.
+
+```bash
+hourgit completion install [SHELL] [--yes]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--yes` | Skip confirmation prompt |
+
+
+#### `hourgit completion generate`
+
+Generate a shell completion script. If no shell is specified, Hourgit auto-detects it from the `$SHELL` environment variable.
+
+```bash
+hourgit completion generate [SHELL]
+```
+
+Shell completions are also offered automatically during `hourgit init`.
+
+For manual setup, add the appropriate line to your shell config:
+
+```bash
+# zsh (~/.zshrc)
+eval "$(hourgit completion generate zsh)"
+
+# bash (~/.bashrc)
+eval "$(hourgit completion generate bash)"
+
+# fish (~/.config/fish/config.fish)
+hourgit completion generate fish | source
+```
+
+### `hourgit log`
+
+Manually log time for a project. Uses a hybrid mode: provide any combination of flags and you'll be prompted only for the missing pieces.
+
+**Fully specified** — no prompts:
+
+```bash
+hourgit log --duration 3h "did some work"
+hourgit log --from 9am --to 12pm "morning work"
+hourgit log --duration 3h --date 2025-01-10 "forgot to log"
+```
+
+**Partial flags** — prompted for the rest:
+
+```bash
+hourgit log --duration 3h          # prompted for message
+hourgit log --from 9am             # prompted for --to and message
+hourgit log "meeting notes"        # prompted for time mode and inputs
+hourgit log --date 2025-01-10      # prompted for time mode, inputs, and message
+```
+
+**Fully interactive** — guided prompts for everything:
+
+```bash
+hourgit log
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
+| `--duration` | Duration to log (e.g. `30m`, `3h`, `1d3h30m`) |
+| `--from` | Start time (e.g. `9am`, `14:00`) |
+| `--to` | End time (e.g. `5pm`, `17:00`) |
+| `--date` | Date to log for (`YYYY-MM-DD`, default: today) |
+
+Notes:
+- `--duration` and `--from`/`--to` are mutually exclusive
+- A message is always required (prompted if not provided)
 
 ### `hourgit version`
 
@@ -64,7 +143,7 @@ Manage projects. Projects group repositories together and hold schedule configur
 Create a new project.
 
 ```bash
-hourgit project add PROJECT
+hourgit project add <project_name>
 ```
 
 #### `hourgit project assign`
@@ -72,7 +151,7 @@ hourgit project add PROJECT
 Assign the current repository to a project.
 
 ```bash
-hourgit project assign PROJECT [--force] [--yes]
+hourgit project assign <project_name> [--force] [--yes]
 ```
 
 | Flag | Description |
@@ -93,7 +172,7 @@ hourgit project list
 Remove a project and clean up its repository assignments.
 
 ```bash
-hourgit project remove PROJECT [--yes]
+hourgit project remove <project_name> [--yes]
 ```
 
 | Flag | Description |
@@ -109,7 +188,7 @@ Manage per-project schedule configuration. If `--project` is omitted, the projec
 Show the schedule configuration for a project.
 
 ```bash
-hourgit config get [--project NAME]
+hourgit config get [--project <project_name> or <project_id>]
 ```
 
 #### `hourgit config set`
@@ -117,7 +196,7 @@ hourgit config get [--project NAME]
 Interactively edit a project's schedule using a guided schedule builder.
 
 ```bash
-hourgit config set [--project NAME]
+hourgit config set [--project <project_name> or <project_id>]
 ```
 
 #### `hourgit config reset`
@@ -125,7 +204,7 @@ hourgit config set [--project NAME]
 Reset a project's schedule to the defaults.
 
 ```bash
-hourgit config reset [--project NAME] [--yes]
+hourgit config reset [--project <project_name> or <project_id>] [--yes]
 ```
 
 #### `hourgit config read`
@@ -133,7 +212,7 @@ hourgit config reset [--project NAME] [--yes]
 Show expanded working hours for the current month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit config read [--project NAME]
+hourgit config read [--project <project_name> or <project_id>]
 ```
 
 ### `hourgit defaults`
@@ -196,13 +275,13 @@ Every project starts with a copy of the defaults. You can then customize a proje
 |------|---------|
 | `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
 | `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
-| `~/.hourgit/<slug>/` | Per-project log directory (for future log entries) |
+| `~/.hourgit/<slug>/<hash>` | Per-project log entries (one JSON file per entry) |
 
 ## Roadmap
 
 The following features are planned but not yet implemented:
 
-- **Time logging** — automatic logging via the post-checkout hook, manual log entries with duration or time range
+- **Automatic time logging** — automatic logging via the post-checkout hook
 - **Log history** — view logged entries with hashes
 - **Editing and deleting entries** — update time ranges, descriptions, or project assignments by hash
 - **Reports** — group time by branch, project, day, or task

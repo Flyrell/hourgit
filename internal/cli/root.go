@@ -14,10 +14,12 @@ func newRootCmd() *cobra.Command {
 		Short: "A Git time-tracking CLI tool",
 		Subcommands: []*cobra.Command{
 			initCmd,
+			logCmd,
 			versionCmd,
 			projectCmd,
 			configCmd,
 			defaultsCmd,
+			completionCmd,
 		},
 	}.Build()
 	cmd.SilenceUsage = true
