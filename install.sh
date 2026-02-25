@@ -124,7 +124,12 @@ info "Downloading ${BINARY_NAME}..."
 curl -fsSL -o "${DOWNLOAD_DIR}/${BINARY_NAME}" "${BASE_URL}/${BINARY_NAME}"
 
 info "Downloading checksums..."
+CHECKSUMS_OK=false
 if curl -fsSL -o "${DOWNLOAD_DIR}/SHA256SUMS" "${BASE_URL}/SHA256SUMS" 2>/dev/null; then
+  CHECKSUMS_OK=true
+fi
+
+if [ "$CHECKSUMS_OK" = true ]; then
   # ── Verify checksum ───────────────────────────────────────────────────────
 
   if [ -z "$SHASUM_CMD" ]; then
