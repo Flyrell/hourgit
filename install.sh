@@ -33,15 +33,12 @@ require_cmd() {
 require_cmd curl
 require_cmd tar  # not strictly needed but validates the shell env
 
-# Check for a checksum utility
+# Detect checksum utility (used later if checksums are available)
 SHASUM_CMD=""
 if command -v shasum &>/dev/null; then
   SHASUM_CMD="shasum -a 256"
 elif command -v sha256sum &>/dev/null; then
   SHASUM_CMD="sha256sum"
-else
-  error "Neither shasum nor sha256sum found. Cannot verify download."
-  exit 1
 fi
 
 # ── Detect platform ────────────────────────────────────────────────────────
@@ -127,28 +124,35 @@ info "Downloading ${BINARY_NAME}..."
 curl -fsSL -o "${DOWNLOAD_DIR}/${BINARY_NAME}" "${BASE_URL}/${BINARY_NAME}"
 
 info "Downloading checksums..."
-curl -fsSL -o "${DOWNLOAD_DIR}/SHA256SUMS" "${BASE_URL}/SHA256SUMS"
+if curl -fsSL -o "${DOWNLOAD_DIR}/SHA256SUMS" "${BASE_URL}/SHA256SUMS" 2>/dev/null; then
+  # ── Verify checksum ───────────────────────────────────────────────────────
 
-# ── Verify checksum ─────────────────────────────────────────────────────────
+  if [ -z "$SHASUM_CMD" ]; then
+    error "Neither shasum nor sha256sum found. Cannot verify download."
+    exit 1
+  fi
 
-info "Verifying checksum..."
-EXPECTED="$(grep "${BINARY_NAME}" "${DOWNLOAD_DIR}/SHA256SUMS" | awk '{print $1}')"
+  info "Verifying checksum..."
+  EXPECTED="$(grep "${BINARY_NAME}" "${DOWNLOAD_DIR}/SHA256SUMS" | awk '{print $1}')"
 
-if [ -z "$EXPECTED" ]; then
-  error "Binary ${BINARY_NAME} not found in SHA256SUMS."
-  exit 1
+  if [ -z "$EXPECTED" ]; then
+    error "Binary ${BINARY_NAME} not found in SHA256SUMS."
+    exit 1
+  fi
+
+  ACTUAL="$(cd "$DOWNLOAD_DIR" && $SHASUM_CMD "$BINARY_NAME" | awk '{print $1}')"
+
+  if [ "$EXPECTED" != "$ACTUAL" ]; then
+    error "Checksum verification failed!"
+    error "  Expected: ${EXPECTED}"
+    error "  Actual:   ${ACTUAL}"
+    exit 1
+  fi
+
+  info "Checksum verified"
+else
+  warn "Checksums not available for this release — skipping verification"
 fi
-
-ACTUAL="$(cd "$DOWNLOAD_DIR" && $SHASUM_CMD "$BINARY_NAME" | awk '{print $1}')"
-
-if [ "$EXPECTED" != "$ACTUAL" ]; then
-  error "Checksum verification failed!"
-  error "  Expected: ${EXPECTED}"
-  error "  Actual:   ${ACTUAL}"
-  exit 1
-fi
-
-info "Checksum verified"
 
 # ── Install ─────────────────────────────────────────────────────────────────
 
