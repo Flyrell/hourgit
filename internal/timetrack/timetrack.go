@@ -39,7 +39,7 @@ type CellEntry struct {
 	Task      string
 	Source    string
 	Persisted bool         // false = in-memory generated, true = saved to disk
-	Entry    *entry.Entry  // pointer to original entry (nil for in-memory generated)
+	Entry     *entry.Entry // pointer to original entry (nil for in-memory generated)
 }
 
 // CellData holds all entries for one (task, day) cell.
@@ -179,6 +179,17 @@ func buildCheckoutBucket(
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
 	})
+
+	// Deduplicate: skip consecutive checkouts to the same branch
+	if len(sorted) > 0 {
+		deduped := []entry.CheckoutEntry{sorted[0]}
+		for i := 1; i < len(sorted); i++ {
+			if cleanBranchName(sorted[i].Next) != cleanBranchName(sorted[i-1].Next) {
+				deduped = append(deduped, sorted[i])
+			}
+		}
+		sorted = deduped
+	}
 
 	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, loc)
 	monthEnd := time.Date(year, month, daysInMonth, 23, 59, 59, 0, loc)
@@ -386,7 +397,7 @@ func BuildDetailedReport(
 			Task:      l.Task,
 			Source:    l.Source,
 			Persisted: true,
-			Entry:    &logs[i],
+			Entry:     &logs[i],
 		}
 		cd.Entries = append(cd.Entries, ce)
 		cd.TotalMinutes += l.Minutes
@@ -435,7 +446,7 @@ func BuildDetailedReport(
 				Task:      cleanBranchName(branch),
 				Source:    "checkout",
 				Persisted: false,
-				Entry:    nil,
+				Entry:     nil,
 			}
 			cd.Entries = append(cd.Entries, ce)
 			cd.TotalMinutes += mins
