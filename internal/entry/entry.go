@@ -5,6 +5,7 @@ import "time"
 const (
 	TypeLog      = "log"
 	TypeCheckout = "checkout"
+	TypeSubmit   = "submit"
 )
 
 // Entry represents a single time log entry (a "time commit").

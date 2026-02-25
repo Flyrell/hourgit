@@ -181,16 +181,20 @@ func format12h(hhmm string) string {
 	return fmt.Sprintf("%d:%s %s", display, m, suffix)
 }
 
-func isWeekdays(days []string) bool {
-	if len(days) != 5 {
+// matchExactSet returns true if actual contains exactly the expected strings (in any order).
+func matchExactSet(actual []string, expected ...string) bool {
+	if len(actual) != len(expected) {
 		return false
 	}
-	set := map[string]bool{"MO": false, "TU": false, "WE": false, "TH": false, "FR": false}
-	for _, d := range days {
-		if _, ok := set[d]; !ok {
+	set := make(map[string]bool, len(expected))
+	for _, e := range expected {
+		set[e] = false
+	}
+	for _, a := range actual {
+		if _, ok := set[a]; !ok {
 			return false
 		}
-		set[d] = true
+		set[a] = true
 	}
 	for _, v := range set {
 		if !v {
@@ -200,23 +204,12 @@ func isWeekdays(days []string) bool {
 	return true
 }
 
+func isWeekdays(days []string) bool {
+	return matchExactSet(days, "MO", "TU", "WE", "TH", "FR")
+}
+
 func isWeekends(days []string) bool {
-	if len(days) != 2 {
-		return false
-	}
-	set := map[string]bool{"SA": false, "SU": false}
-	for _, d := range days {
-		if _, ok := set[d]; !ok {
-			return false
-		}
-		set[d] = true
-	}
-	for _, v := range set {
-		if !v {
-			return false
-		}
-	}
-	return true
+	return matchExactSet(days, "SA", "SU")
 }
 
 var dayNames = map[string]string{
