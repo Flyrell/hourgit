@@ -18,5 +18,9 @@ vendor/
 # Environment
 .env
 
+# Generated docs
+web/docs/*.html
+web/docs/commands/*.html
+
 # Agents
 .claude

@@ -40,3 +40,18 @@ tasks:
   lint:
     desc: Run golangci-lint (format + static analysis)
     cmd: docker run --rm -v "$PWD":/app -w /app golangci/golangci-lint:v2.10.1-alpine golangci-lint run ./...
+
+  docs:
+    desc: Generate static documentation from markdown
+    cmd: >-
+      docker run --rm
+      -v "$PWD":/app -w /app/tools/docgen
+      golang:1.26-alpine
+      go run . -docs /app/web/docs
+    sources:
+      - web/docs/**/*.md
+      - web/docs/_template.html
+      - web/docs/_docs.css
+      - tools/docgen/**/*.go
+    generates:
+      - web/docs/**/*.html

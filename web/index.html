@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hourgit — Time tracking that follows your git flow</title>
+  <meta name="description" content="Git-integrated time tracking for developers. No timers. No manual input. Just code.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>">
+</head>
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────────────── -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+          <path d="M5 2h14M5 22h14M12 12l-3-4V3h6v5l-3 4m0 0l-3 4v5h6v-5l-3-4"/>
+        </svg>
+        <span>Hourgit</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="docs/">Docs</a>
+        <a href="https://github.com/Flyrell/hourgit" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+      <button class="nav-mobile-toggle" id="nav-mobile-toggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="24" height="24">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────────────── -->
+  <section class="section hero" id="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">Hourgit</h1>
+      <p class="hero-subtitle">Time tracking that follows your git flow.</p>
+      <div class="install-box">
+        <div class="install-box-inner">
+          <span class="install-prompt">$</span>
+          <code class="install-cmd">curl -fsSL https://hourgit.com/install.sh | bash</code>
+          <button class="copy-btn" data-copy="curl -fsSL https://hourgit.com/install.sh | bash" aria-label="Copy install command">
+            <svg class="icon-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <p class="hero-platforms">macOS · Linux · Free for individuals</p>
+      <p class="hero-windows"><a href="docs/installation#windows">Windows →</a></p>
+    </div>
+  </section>
+
+  <!-- ── How It Works ────────────────────────────────────────────────── -->
+  <section class="section how-it-works" id="how-it-works">
+    <div class="container">
+      <h2 class="section-title reveal">How it works</h2>
+      <div class="timeline">
+
+        <div class="step reveal">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Install in seconds</h3>
+            <p>One command. No dependencies. No sudo.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-prompt">$</span> curl -fsSL https://hourgit.com/install.sh | bash
+<span class="t-output">info  Platform: darwin/arm64
+info  Latest version: <span class="t-accent">v0.8.0</span>
+info  Downloading hourgit-darwin-arm64-v0.8.0...
+info  Checksum verified
+info  Installed to <span class="t-accent">~/.hourgit/bin/hourgit</span>
+<span class="t-success">Hourgit v0.8.0 installed successfully!</span></span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Initialize your repo</h3>
+            <p>Installs a git hook that silently tracks branch checkouts.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-prompt">$</span> cd your-project
+<span class="t-prompt">$</span> hourgit init --project <span class="t-string">'Work'</span>
+<span class="t-output">Created project <span class="t-accent">Work</span>
+Installed post-checkout hook
+Repository assigned to <span class="t-accent">Work</span></span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Just code</h3>
+            <p>Every branch switch records a time commit. Working hours boundaries handle overnight gaps automatically.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-prompt">$</span> git checkout feature/auth
+<span class="t-comment"># ⏳ tracking time on feature/auth</span>
+
+<span class="t-comment"># ... 2 hours later ...</span>
+
+<span class="t-prompt">$</span> git checkout fix/login-bug
+<span class="t-comment"># ⏳ 2h attributed to feature/auth</span>
+<span class="t-comment"># ⏳ now tracking fix/login-bug</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Log non-code work</h3>
+            <p>Meetings, reviews, research — log anything that isn't a branch switch.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-prompt">$</span> hourgit log --duration 1h30m <span class="t-string">"code review"</span>
+<span class="t-output">Logged <span class="t-accent">1h 30m</span> — code review</span>
+
+<span class="t-prompt">$</span> hourgit log --from 9am --to 10:30am <span class="t-string">"standup"</span>
+<span class="t-output">Logged <span class="t-accent">1h 30m</span> — standup</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3>View interactive reports</h3>
+            <p>Navigate a tasks × days table with keyboard shortcuts. Edit, add, or remove time commits inline. Export to PDF.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-prompt">$</span> hourgit report
+<span class="t-output">
+┌─────────────────┬───────┬───────┬───────┬───────┬───────┬───────┐
+│ <span class="t-accent">Task</span>            │ <span class="t-accent">Mon</span>   │ <span class="t-accent">Tue</span>   │ <span class="t-accent">Wed</span>   │ <span class="t-accent">Thu</span>   │ <span class="t-accent">Fri</span>   │ <span class="t-accent">Total</span> │
+├─────────────────┼───────┼───────┼───────┼───────┼───────┼───────┤
+│ feature/auth    │ 3h*   │ 4h*   │ 2h*   │       │       │ 9h    │
+│ fix/login-bug   │       │       │ 2h*   │ 5h*   │ 1h*   │ 8h    │
+│ code review     │  30m  │       │  45m  │       │       │ 1h15m │
+├─────────────────┼───────┼───────┼───────┼───────┼───────┼───────┤
+│ <span class="t-accent">Total</span>           │ 3h30m │ 4h    │ 4h45m │ 5h    │ 1h    │ 18h15 │
+└─────────────────┴───────┴───────┴───────┴───────┴───────┴───────┘
+</span><span class="t-comment">  ↑↓←→ navigate · e edit · a add · r remove · s submit · q quit</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">6</div>
+          <div class="step-content">
+            <h3>Submit when ready</h3>
+            <p>Submitting persists all auto-generated time commits and marks the period as complete.</p>
+            <div class="terminal">
+              <div class="terminal-header">
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+                <span class="terminal-dot"></span>
+              </div>
+              <pre><code><span class="t-comment"># Press 's' in the report view</span>
+<span class="t-output">
+  Submit February 2026?
+
+  This will persist <span class="t-accent">12 generated entries</span>
+  and mark the period as submitted.
+
+  <span class="t-accent">▸ Yes, submit</span>
+    Cancel
+</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pricing ─────────────────────────────────────────────────────── -->
+  <section class="section pricing" id="pricing">
+    <div class="container">
+      <h2 class="section-title reveal">Pricing</h2>
+      <div class="pricing-grid">
+
+        <div class="pricing-card pricing-card--free reveal">
+          <div class="pricing-card-header">
+            <h3>Free</h3>
+            <p class="pricing-audience">Individuals &amp; Small Teams</p>
+          </div>
+          <p class="pricing-description">Free for individual developers and organizations with fewer than 10 employees.</p>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited projects
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited time entries
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              PDF export
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              All features included
+            </li>
+          </ul>
+          <div class="pricing-cta">
+            <div class="install-box install-box--compact">
+              <div class="install-box-inner">
+                <span class="install-prompt">$</span>
+                <code class="install-cmd">curl -fsSL https://hourgit.com/install.sh | bash</code>
+                <button class="copy-btn" data-copy="curl -fsSL https://hourgit.com/install.sh | bash" aria-label="Copy install command">
+                  <svg class="icon-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-card pricing-card--commercial reveal">
+          <div class="pricing-card-header">
+            <h3>Commercial</h3>
+            <p class="pricing-audience">Organizations 10+</p>
+          </div>
+          <p class="pricing-description">Organizations with 10 or more employees need a commercial license.</p>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              Everything in Free
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              Commercial use license
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+              Priority support
+            </li>
+          </ul>
+          <div class="pricing-cta">
+            <a href="mailto:sales@hourgit.com" class="btn btn--commercial">Contact Sales</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <p class="footer-copyright">&copy; 2026 Dawid Zbiński. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="https://github.com/Flyrell/hourgit" target="_blank" rel="noopener">GitHub</a>
+          <a href="docs/">Documentation</a>
+          <a href="mailto:dawid@zbinski.dev">Contact</a>
+        </div>
+        <p class="footer-license"><a href="https://github.com/Flyrell/hourgit/blob/main/LICENSE" target="_blank" rel="noopener">Polyform Shield License 1.0.0</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
