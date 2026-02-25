@@ -59,6 +59,12 @@ jobs:
               go build -ldflags="$LDFLAGS" -o "$output" ./cmd/hourgit
           done
 
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
       - name: Create tag
         env:
           VERSION: ${{ steps.version.outputs.version }}

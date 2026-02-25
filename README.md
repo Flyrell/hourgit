@@ -14,9 +14,19 @@ Manual logging is supported for non-code work (research, analysis, meetings) via
 
 ## Installation
 
+### Quick install (macOS and Linux)
+
+```bash
+curl -fsSL https://hourgit.com/install.sh | bash
+```
+
+This downloads the latest release, verifies the checksum, and installs to `~/.hourgit/bin/` with a symlink in `~/.local/bin/`. No `sudo` required.
+
+### Manual install
+
 Download the latest binary for your platform from the [Releases page](https://github.com/Flyrell/hour-git/releases/latest).
 
-### macOS
+#### macOS
 
 ```bash
 # Apple Silicon (M1/M2/M3/M4)
@@ -28,7 +38,7 @@ chmod +x hourgit-darwin-amd64-*
 sudo mv hourgit-darwin-amd64-* /usr/local/bin/hourgit
 ```
 
-### Linux
+#### Linux
 
 ```bash
 # x86_64
@@ -40,11 +50,11 @@ chmod +x hourgit-linux-arm64-*
 sudo mv hourgit-linux-arm64-* /usr/local/bin/hourgit
 ```
 
-### Windows
+#### Windows
 
 Move `hourgit-windows-amd64-*.exe` to a directory in your `PATH` and rename it to `hourgit.exe`.
 
-### Verify
+#### Verify
 
 ```bash
 hourgit version
