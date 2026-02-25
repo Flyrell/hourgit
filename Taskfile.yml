@@ -55,3 +55,13 @@ tasks:
       - tools/docgen/**/*.go
     generates:
       - web/docs/**/*.html
+
+  web:
+    desc: Serve website locally with Apache (port 8080)
+    deps: [docs]
+    cmd: >-
+      docker run --rm -p 8080:80
+      -v "$PWD/web":/usr/local/apache2/htdocs/
+      -v "$PWD/web/httpd-dev.conf":/usr/local/apache2/conf/extra/dev.conf
+      httpd:alpine
+      sh -c "echo 'Include conf/extra/dev.conf' >> /usr/local/apache2/conf/httpd.conf && httpd-foreground"
