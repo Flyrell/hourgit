@@ -70,13 +70,17 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
 
   if (toggle && links) {
     toggle.addEventListener('click', function () {
-      links.classList.toggle('open');
+      var isOpen = links.classList.toggle('open');
+      toggle.classList.toggle('open', isOpen);
+      document.body.style.overflow = isOpen ? 'hidden' : '';
     });
 
     // Close on link click
     links.querySelectorAll('a').forEach(function (a) {
       a.addEventListener('click', function () {
         links.classList.remove('open');
+        toggle.classList.remove('open');
+        document.body.style.overflow = '';
       });
     });
   }
