@@ -689,3 +689,111 @@ code, pre {
     margin-bottom: 40px;
   }
 }
+
+/* ── Consent Banner ──────────────────────────────────────────────── */
+
+.consent-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  padding: 16px 24px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-strong);
+  transform: translateY(100%);
+  animation: consent-slide-up 0.4s ease forwards;
+}
+
+.consent-banner.hidden {
+  animation: consent-slide-down 0.3s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes consent-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes consent-slide-down {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
+}
+
+.consent-banner-inner {
+  max-width: var(--container-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.consent-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.consent-text strong {
+  color: var(--text-primary);
+}
+
+.consent-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.consent-btn {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.consent-btn--reject {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.consent-btn--reject:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.consent-btn--accept {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #0d0d0d;
+}
+
+.consent-btn--accept:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+@media (max-width: 768px) {
+  .consent-banner-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .consent-text {
+    font-size: 0.8rem;
+  }
+
+  .consent-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
