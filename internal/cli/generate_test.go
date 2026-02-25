@@ -9,6 +9,7 @@ import (
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/project"
+	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -207,6 +208,105 @@ func TestGenerateByProjectFlag(t *testing.T) {
 	err := runGenerate(cmd, homeDir, "", proj.Name, "", "", true, false, false, pk, mondayNow)
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "Generated")
+}
+
+func TestGenerateEntryStartMatchesSchedule(t *testing.T) {
+	homeDir, repoDir, proj := setupGenerateTest(t)
+	pk := PromptKit{Confirm: AlwaysYes()}
+
+	// Set a schedule starting at midnight (0:00-8:00)
+	err := project.SetSchedules(homeDir, proj.ID, []schedule.ScheduleEntry{
+		{
+			RRule:  "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+			Ranges: []schedule.TimeRange{{From: "00:00", To: "08:00"}},
+		},
+	})
+	require.NoError(t, err)
+
+	// Monday June 16, 2025 — checkout at midnight, now at 7:55
+	mondayNow := func() time.Time {
+		return time.Date(2025, 6, 16, 7, 55, 0, 0, time.UTC)
+	}
+
+	co := entry.CheckoutEntry{
+		ID:        "co1",
+		Timestamp: time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC),
+		Previous:  "main",
+		Next:      "feature-midnight",
+	}
+	require.NoError(t, entry.WriteCheckoutEntry(homeDir, proj.Slug, co))
+
+	stdout := new(bytes.Buffer)
+	cmd := generateCmd
+	cmd.SetOut(stdout)
+	err = runGenerate(cmd, homeDir, repoDir, "", "", "", true, false, false, pk, mondayNow)
+	require.NoError(t, err)
+
+	// Verify the generated entry starts at 00:00, not 09:00
+	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(logs), 1)
+
+	var found *entry.Entry
+	for i, l := range logs {
+		if l.Task == "feature-midnight" && l.Source == "generate" {
+			found = &logs[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected a generated entry with task=feature-midnight")
+	assert.Equal(t, 0, found.Start.Hour(), "entry should start at hour 0")
+	assert.Equal(t, 0, found.Start.Minute(), "entry should start at minute 0")
+	assert.Equal(t, 475, found.Minutes, "expected 7h55m = 475 minutes")
+}
+
+func TestGenerateNonUTCTimezone(t *testing.T) {
+	homeDir, repoDir, proj := setupGenerateTest(t)
+	pk := PromptKit{Confirm: AlwaysYes()}
+
+	// Set a schedule starting at midnight (0:00-8:00)
+	err := project.SetSchedules(homeDir, proj.ID, []schedule.ScheduleEntry{
+		{
+			RRule:  "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+			Ranges: []schedule.TimeRange{{From: "00:00", To: "08:00"}},
+		},
+	})
+	require.NoError(t, err)
+
+	loc := time.FixedZone("UTC+1", 1*60*60)
+
+	// Monday June 16, 2025 — checkout at local midnight (23:00 UTC), now at 7:55 local (6:55 UTC)
+	mondayNow := func() time.Time {
+		return time.Date(2025, 6, 16, 7, 55, 0, 0, loc)
+	}
+
+	co := entry.CheckoutEntry{
+		ID:        "co1",
+		Timestamp: time.Date(2025, 6, 15, 23, 0, 0, 0, time.UTC), // = 00:00 UTC+1 on June 16
+		Previous:  "main",
+		Next:      "feature-tz",
+	}
+	require.NoError(t, entry.WriteCheckoutEntry(homeDir, proj.Slug, co))
+
+	stdout := new(bytes.Buffer)
+	cmd := generateCmd
+	cmd.SetOut(stdout)
+	err = runGenerate(cmd, homeDir, repoDir, "", "", "", true, false, false, pk, mondayNow)
+	require.NoError(t, err)
+
+	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+
+	var found *entry.Entry
+	for i, l := range logs {
+		if l.Task == "feature-tz" && l.Source == "generate" {
+			found = &logs[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "expected a generated entry with task=feature-tz")
+	// Should be 7h55m (local midnight to 7:55 local), not 6h55m
+	assert.Equal(t, 475, found.Minutes, "expected 7h55m = 475 minutes")
 }
 
 func TestGenerateRegisteredAsSubcommand(t *testing.T) {

@@ -123,21 +123,23 @@ func buildLogBucket(logs []entry.Entry, year int, month time.Month) (map[string]
 }
 
 // buildCheckoutBucket computes per-branch, per-day minutes from checkout entries
-// clipped to schedule windows.
+// clipped to schedule windows. Schedule window times are interpreted in the
+// timezone of `now` (the user's local timezone).
 func buildCheckoutBucket(
 	checkouts []entry.CheckoutEntry,
 	year int, month time.Month, daysInMonth int,
 	scheduleWindows map[int][]schedule.TimeWindow,
 	now time.Time,
 ) map[string]map[int]int {
+	loc := now.Location()
 	sorted := make([]entry.CheckoutEntry, len(checkouts))
 	copy(sorted, checkouts)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
 	})
 
-	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	monthEnd := time.Date(year, month, daysInMonth, 23, 59, 59, 0, time.UTC)
+	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, loc)
+	monthEnd := time.Date(year, month, daysInMonth, 23, 59, 59, 0, loc)
 
 	var pairs []checkoutRange
 	lastBeforeIdx := -1
@@ -188,7 +190,7 @@ func buildCheckoutBucket(
 			if !ok {
 				continue
 			}
-			mins := overlapMinutes(p.from, p.to, year, month, day, windows)
+			mins := overlapMinutes(p.from, p.to, year, month, day, windows, loc)
 			if mins > 0 {
 				checkoutBucket[p.branch][day] += mins
 			}
@@ -298,12 +300,13 @@ func windowMinutes(w schedule.TimeWindow) int {
 }
 
 // overlapMinutes computes how many minutes of the checkout range [from, to)
-// overlap with the given schedule windows on a specific day.
-func overlapMinutes(from, to time.Time, year int, month time.Month, day int, windows []schedule.TimeWindow) int {
+// overlap with the given schedule windows on a specific day. Schedule window
+// times are interpreted in the given location (the user's local timezone).
+func overlapMinutes(from, to time.Time, year int, month time.Month, day int, windows []schedule.TimeWindow, loc *time.Location) int {
 	total := 0
 	for _, w := range windows {
-		wStart := time.Date(year, month, day, w.From.Hour, w.From.Minute, 0, 0, time.UTC)
-		wEnd := time.Date(year, month, day, w.To.Hour, w.To.Minute, 0, 0, time.UTC)
+		wStart := time.Date(year, month, day, w.From.Hour, w.From.Minute, 0, 0, loc)
+		wEnd := time.Date(year, month, day, w.To.Hour, w.To.Minute, 0, 0, loc)
 
 		// Overlap: max(from, wStart) to min(to, wEnd)
 		overlapStart := from
