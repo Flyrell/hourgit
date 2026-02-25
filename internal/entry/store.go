@@ -126,25 +126,30 @@ func ReadEntry(homeDir, slug, id string) (Entry, error) {
 	return e, nil
 }
 
-// ReadAllEntries reads all log entry files from a project's log directory.
-func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
+// readAllOfType reads all entries of a given type from a project's log directory.
+func readAllOfType[T any](homeDir, slug, entryType string) ([]T, error) {
 	files, err := readAllFiles(homeDir, slug)
 	if err != nil {
 		return nil, err
 	}
 
-	var entries []Entry
+	var entries []T
 	for _, f := range files {
-		if !matchesType(f.data, TypeLog) {
+		if !matchesType(f.data, entryType) {
 			continue
 		}
-		var e Entry
+		var e T
 		if err := json.Unmarshal(f.data, &e); err != nil {
 			continue
 		}
 		entries = append(entries, e)
 	}
 	return entries, nil
+}
+
+// ReadAllEntries reads all log entry files from a project's log directory.
+func ReadAllEntries(homeDir, slug string) ([]Entry, error) {
+	return readAllOfType[Entry](homeDir, slug, TypeLog)
 }
 
 // IsCheckoutEntry checks if the file at the given path exists and is a checkout entry.
@@ -208,42 +213,10 @@ func WriteSubmitEntry(homeDir, slug string, e SubmitEntry) error {
 
 // ReadAllSubmitEntries reads all submit marker entries from a project's log directory.
 func ReadAllSubmitEntries(homeDir, slug string) ([]SubmitEntry, error) {
-	files, err := readAllFiles(homeDir, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	var entries []SubmitEntry
-	for _, f := range files {
-		if !matchesType(f.data, TypeSubmit) {
-			continue
-		}
-		var e SubmitEntry
-		if err := json.Unmarshal(f.data, &e); err != nil {
-			continue
-		}
-		entries = append(entries, e)
-	}
-	return entries, nil
+	return readAllOfType[SubmitEntry](homeDir, slug, TypeSubmit)
 }
 
 // ReadAllCheckoutEntries reads all checkout entries from a project's log directory.
 func ReadAllCheckoutEntries(homeDir, slug string) ([]CheckoutEntry, error) {
-	files, err := readAllFiles(homeDir, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	var entries []CheckoutEntry
-	for _, f := range files {
-		if !matchesType(f.data, TypeCheckout) {
-			continue
-		}
-		var e CheckoutEntry
-		if err := json.Unmarshal(f.data, &e); err != nil {
-			continue
-		}
-		entries = append(entries, e)
-	}
-	return entries, nil
+	return readAllOfType[CheckoutEntry](homeDir, slug, TypeCheckout)
 }
