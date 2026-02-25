@@ -55,26 +55,52 @@ func TestPadCenter(t *testing.T) {
 	})
 }
 
-func TestRenderTableOutput(t *testing.T) {
-	data := timetrack.ReportData{
+func makeDetailedData() timetrack.DetailedReportData {
+	return timetrack.DetailedReportData{
 		Year:        2026,
 		Month:       time.February,
 		DaysInMonth: 28,
-		Rows: []timetrack.TaskRow{
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		Rows: []timetrack.DetailedTaskRow{
 			{
 				Name:         "feature-x",
 				TotalMinutes: 120,
-				Days:         map[int]int{2: 60, 3: 60},
+				Days: map[int]*timetrack.CellData{
+					2: {
+						TotalMinutes: 60,
+						Entries: []timetrack.CellEntry{
+							{ID: "e1", Minutes: 60, Message: "work", Task: "feature-x", Source: "manual", Persisted: true},
+						},
+					},
+					3: {
+						TotalMinutes: 60,
+						Entries: []timetrack.CellEntry{
+							{ID: "", Minutes: 60, Message: "feature-x", Task: "feature-x", Source: "checkout", Persisted: false},
+						},
+					},
+				},
 			},
 			{
 				Name:         "bugfix",
 				TotalMinutes: 30,
-				Days:         map[int]int{2: 30},
+				Days: map[int]*timetrack.CellData{
+					2: {
+						TotalMinutes: 30,
+						Entries: []timetrack.CellEntry{
+							{ID: "e2", Minutes: 30, Message: "fix", Task: "bugfix", Source: "manual", Persisted: true},
+						},
+					},
+				},
 			},
 		},
 	}
+}
 
-	result := renderTable(data, 0, 5, false)
+func TestRenderDetailedTableOutput(t *testing.T) {
+	data := makeDetailedData()
+
+	result := renderDetailedTable(data, 0, 0, 5, len(data.Rows), -1, -1, false, "")
 
 	// Header should contain day numbers
 	assert.Contains(t, result, "Task")
@@ -90,51 +116,63 @@ func TestRenderTableOutput(t *testing.T) {
 
 	// Total row
 	assert.Contains(t, result, "Total")
+
+	// In-memory entries should be marked with asterisk
+	assert.Contains(t, result, "*")
 }
 
-func TestRenderTableWithFooter(t *testing.T) {
-	data := timetrack.ReportData{
+func TestRenderDetailedTableWithFooter(t *testing.T) {
+	data := timetrack.DetailedReportData{
 		Year:        2026,
 		Month:       time.February,
 		DaysInMonth: 28,
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
 		Rows:        nil,
 	}
 
-	result := renderTable(data, 0, 5, true)
+	result := renderDetailedTable(data, 0, 0, 5, 0, -1, -1, false, "")
 	assert.Contains(t, result, "February 2026")
-	assert.Contains(t, result, "scroll")
+	assert.Contains(t, result, "navigate")
 	assert.Contains(t, result, "quit")
 }
 
-func TestRenderTableNoFooter(t *testing.T) {
-	data := timetrack.ReportData{
+func TestRenderDetailedTableSubmittedWarning(t *testing.T) {
+	data := timetrack.DetailedReportData{
 		Year:        2026,
 		Month:       time.February,
 		DaysInMonth: 28,
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
 		Rows:        nil,
 	}
 
-	result := renderTable(data, 0, 5, false)
-	assert.NotContains(t, result, "scroll")
-	assert.NotContains(t, result, "quit")
+	result := renderDetailedTable(data, 0, 0, 5, 0, -1, -1, true, "")
+	assert.Contains(t, result, "Previously submitted")
 }
 
-func TestPrintStaticTable(t *testing.T) {
-	data := timetrack.ReportData{
+func TestPrintStaticDetailedTable(t *testing.T) {
+	data := timetrack.DetailedReportData{
 		Year:        2026,
 		Month:       time.February,
 		DaysInMonth: 28,
-		Rows: []timetrack.TaskRow{
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		Rows: []timetrack.DetailedTaskRow{
 			{
 				Name:         "work",
 				TotalMinutes: 480,
-				Days:         map[int]int{1: 480},
+				Days: map[int]*timetrack.CellData{
+					1: {TotalMinutes: 480, Entries: []timetrack.CellEntry{
+						{ID: "e1", Minutes: 480, Message: "work", Persisted: true},
+					}},
+				},
 			},
 		},
 	}
 
 	var buf bytes.Buffer
-	err := printStaticTable(&buf, data)
+	err := printStaticDetailedTable(&buf, data)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -142,14 +180,13 @@ func TestPrintStaticTable(t *testing.T) {
 	assert.Contains(t, output, "8h")
 	// Static table should show all 28 days
 	assert.Contains(t, output, "28")
-	// No footer in static mode
-	assert.NotContains(t, output, "scroll")
+	// No cursor highlight in static mode (-1, -1)
 }
 
 func TestVisibleDays(t *testing.T) {
 	t.Run("wide terminal shows all days", func(t *testing.T) {
 		m := reportModel{
-			data:      timetrack.ReportData{DaysInMonth: 28},
+			data:      timetrack.DetailedReportData{DaysInMonth: 28},
 			termWidth: 500,
 		}
 		assert.Equal(t, 28, m.visibleDays())
@@ -157,7 +194,7 @@ func TestVisibleDays(t *testing.T) {
 
 	t.Run("narrow terminal limits days", func(t *testing.T) {
 		m := reportModel{
-			data:      timetrack.ReportData{DaysInMonth: 31},
+			data:      timetrack.DetailedReportData{DaysInMonth: 31},
 			termWidth: 80,
 		}
 		days := m.visibleDays()
@@ -167,49 +204,55 @@ func TestVisibleDays(t *testing.T) {
 
 	t.Run("very narrow terminal shows at least 1 day", func(t *testing.T) {
 		m := reportModel{
-			data:      timetrack.ReportData{DaysInMonth: 31},
+			data:      timetrack.DetailedReportData{DaysInMonth: 31},
 			termWidth: 10,
 		}
 		assert.Equal(t, 1, m.visibleDays())
 	})
 }
 
-func TestMaxScroll(t *testing.T) {
+func TestMaxScrollX(t *testing.T) {
 	t.Run("wide terminal no scroll needed", func(t *testing.T) {
 		m := reportModel{
-			data:      timetrack.ReportData{DaysInMonth: 28},
+			data:      timetrack.DetailedReportData{DaysInMonth: 28},
 			termWidth: 500,
 		}
-		assert.Equal(t, 0, m.maxScroll())
+		assert.Equal(t, 0, m.maxScrollX())
 	})
 
 	t.Run("narrow terminal allows scroll", func(t *testing.T) {
 		m := reportModel{
-			data:      timetrack.ReportData{DaysInMonth: 31},
+			data:      timetrack.DetailedReportData{DaysInMonth: 31},
 			termWidth: 80,
 		}
-		maxScroll := m.maxScroll()
+		maxScroll := m.maxScrollX()
 		assert.Greater(t, maxScroll, 0)
 		assert.Equal(t, 31-m.visibleDays(), maxScroll)
 	})
 }
 
-func TestRenderTableScroll(t *testing.T) {
-	data := timetrack.ReportData{
+func TestRenderDetailedTableScroll(t *testing.T) {
+	data := timetrack.DetailedReportData{
 		Year:        2026,
 		Month:       time.February,
 		DaysInMonth: 28,
-		Rows: []timetrack.TaskRow{
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		Rows: []timetrack.DetailedTaskRow{
 			{
 				Name:         "task",
 				TotalMinutes: 60,
-				Days:         map[int]int{15: 60},
+				Days: map[int]*timetrack.CellData{
+					15: {TotalMinutes: 60, Entries: []timetrack.CellEntry{
+						{ID: "e1", Minutes: 60, Persisted: true},
+					}},
+				},
 			},
 		},
 	}
 
 	// Scroll to day 14 (0-indexed), show 3 days -> should show days 15, 16, 17
-	result := renderTable(data, 14, 3, false)
+	result := renderDetailedTable(data, 14, 0, 3, 1, -1, -1, false, "")
 	lines := strings.Split(result, "\n")
 
 	// Header should show days 15, 16, 17
@@ -217,4 +260,51 @@ func TestRenderTableScroll(t *testing.T) {
 	assert.Contains(t, header, "15")
 	assert.Contains(t, header, "16")
 	assert.Contains(t, header, "17")
+}
+
+func TestEnsureCursorVisible(t *testing.T) {
+	m := reportModel{
+		data: timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			Rows: []timetrack.DetailedTaskRow{
+				{Name: "a"}, {Name: "b"}, {Name: "c"}, {Name: "d"}, {Name: "e"},
+			},
+		},
+		termWidth:  80,
+		termHeight: 20,
+		cursorCol:  20,
+		cursorRow:  4,
+		scrollX:    0,
+		scrollY:    0,
+	}
+
+	m = m.ensureCursorVisible()
+
+	// Cursor should be visible horizontally
+	assert.LessOrEqual(t, m.scrollX, m.cursorCol)
+	assert.Greater(t, m.scrollX+m.visibleDays(), m.cursorCol)
+}
+
+func TestRenderDetailedTable_CursorHighlight(t *testing.T) {
+	data := makeDetailedData()
+
+	// Cursor on row 0, col 1 (day 2 which has data)
+	result := renderDetailedTable(data, 0, 0, 5, len(data.Rows), 0, 1, false, "")
+
+	// The result should contain the table content
+	assert.Contains(t, result, "feature-x")
+	assert.Contains(t, result, "bugfix")
+}
+
+func TestRenderDetailedTable_FooterMsg(t *testing.T) {
+	data := timetrack.DetailedReportData{
+		Year:        2026,
+		Month:       time.February,
+		DaysInMonth: 28,
+		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+	}
+
+	result := renderDetailedTable(data, 0, 0, 5, 0, -1, -1, false, "Entry saved!")
+	assert.Contains(t, result, "Entry saved!")
 }

@@ -150,9 +150,9 @@ func ReadCheckoutEntry(homeDir, slug, id string) (CheckoutEntry, error) {
 	return e, nil
 }
 
-// WriteGeneratedDayEntry writes a generated-day marker entry to the project's log directory.
-func WriteGeneratedDayEntry(homeDir, slug string, e GeneratedDayEntry) error {
-	e.Type = TypeGeneratedDay
+// WriteSubmitEntry writes a submit marker entry to the project's log directory.
+func WriteSubmitEntry(homeDir, slug string, e SubmitEntry) error {
+	e.Type = TypeSubmit
 
 	dir := project.LogDir(homeDir, slug)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -167,8 +167,8 @@ func WriteGeneratedDayEntry(homeDir, slug string, e GeneratedDayEntry) error {
 	return os.WriteFile(EntryPath(homeDir, slug, e.ID), data, 0644)
 }
 
-// ReadAllGeneratedDayEntries reads all generated-day marker entries from a project's log directory.
-func ReadAllGeneratedDayEntries(homeDir, slug string) ([]GeneratedDayEntry, error) {
+// ReadAllSubmitEntries reads all submit marker entries from a project's log directory.
+func ReadAllSubmitEntries(homeDir, slug string) ([]SubmitEntry, error) {
 	dir := project.LogDir(homeDir, slug)
 	files, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -178,7 +178,7 @@ func ReadAllGeneratedDayEntries(homeDir, slug string) ([]GeneratedDayEntry, erro
 		return nil, err
 	}
 
-	var entries []GeneratedDayEntry
+	var entries []SubmitEntry
 	for _, f := range files {
 		if f.IsDir() {
 			continue
@@ -197,39 +197,17 @@ func ReadAllGeneratedDayEntries(homeDir, slug string) ([]GeneratedDayEntry, erro
 			continue
 		}
 		var typ string
-		if err := json.Unmarshal(t, &typ); err != nil || typ != TypeGeneratedDay {
+		if err := json.Unmarshal(t, &typ); err != nil || typ != TypeSubmit {
 			continue
 		}
 
-		var e GeneratedDayEntry
+		var e SubmitEntry
 		if err := json.Unmarshal(data, &e); err != nil {
 			continue
 		}
 		entries = append(entries, e)
 	}
 	return entries, nil
-}
-
-// DeleteGeneratedDayEntriesByDate deletes generated-day marker entries for the given dates.
-func DeleteGeneratedDayEntriesByDate(homeDir, slug string, dates []string) error {
-	dateSet := make(map[string]bool, len(dates))
-	for _, d := range dates {
-		dateSet[d] = true
-	}
-
-	entries, err := ReadAllGeneratedDayEntries(homeDir, slug)
-	if err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		if dateSet[e.Date] {
-			if err := os.Remove(EntryPath(homeDir, slug, e.ID)); err != nil && !os.IsNotExist(err) {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // ReadAllCheckoutEntries reads all checkout entries from a project's log directory.

@@ -23,6 +23,41 @@ type ReportData struct {
 	Rows        []TaskRow
 }
 
+// CellEntry represents a single entry within a report cell.
+type CellEntry struct {
+	ID        string
+	Start     time.Time
+	Minutes   int
+	Message   string
+	Task      string
+	Source    string
+	Persisted bool         // false = in-memory generated, true = saved to disk
+	Entry    *entry.Entry  // pointer to original entry (nil for in-memory generated)
+}
+
+// CellData holds all entries for one (task, day) cell.
+type CellData struct {
+	Entries      []CellEntry
+	TotalMinutes int
+}
+
+// DetailedTaskRow holds entry-level time data for a single task.
+type DetailedTaskRow struct {
+	Name         string
+	TotalMinutes int
+	Days         map[int]*CellData
+}
+
+// DetailedReportData holds the complete entry-level report for a date range.
+type DetailedReportData struct {
+	Year        int
+	Month       time.Month
+	DaysInMonth int
+	From        time.Time
+	To          time.Time
+	Rows        []DetailedTaskRow
+}
+
 // BuildReport computes a monthly time report from checkout entries, manual log
 // entries, and expanded day schedules. Time is attributed to branches based on
 // checkout ranges clipped to schedule windows. Days listed in generatedDays
@@ -271,6 +306,158 @@ func mergeAndSortRows(checkoutBucket map[string]map[int]int, logBucket map[strin
 	})
 
 	return rows
+}
+
+// BuildDetailedReport computes an entry-level report for a date range.
+// Unlike BuildReport which aggregates into minutes-per-day, this preserves
+// individual entries so the interactive table can show and edit them.
+// Checkout time is generated in-memory (Persisted=false) unless a persisted
+// entry with source="checkout-generated" already covers that (branch, day).
+func BuildDetailedReport(
+	checkouts []entry.CheckoutEntry,
+	logs []entry.Entry,
+	daySchedules []schedule.DaySchedule,
+	from, to time.Time,
+	now time.Time,
+) DetailedReportData {
+	year := from.Year()
+	month := from.Month()
+	daysInMonth := daysIn(year, month)
+
+	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
+	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+
+	// Index persisted checkout-generated entries by (task, day) for deduplication
+	type taskDay struct {
+		task string
+		day  int
+	}
+	persistedCheckoutEntries := make(map[taskDay][]entry.Entry)
+	for _, l := range logs {
+		if l.Source != "checkout-generated" {
+			continue
+		}
+		if l.Start.Year() != year || l.Start.Month() != month {
+			continue
+		}
+		key := taskDay{task: logTaskKey(l), day: l.Start.Day()}
+		persistedCheckoutEntries[key] = append(persistedCheckoutEntries[key], l)
+	}
+
+	// Build detailed rows: task -> DetailedTaskRow
+	rowMap := make(map[string]*DetailedTaskRow)
+
+	// 1. Add log entries (both manual and checkout-generated)
+	logMinsByDay := make(map[int]int)
+	for i, l := range logs {
+		if l.Start.Year() != year || l.Start.Month() != month {
+			continue
+		}
+		day := l.Start.Day()
+		dayDate := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+		if dayDate.Before(from) || dayDate.After(to) {
+			continue
+		}
+
+		key := logTaskKey(l)
+		row := rowMap[key]
+		if row == nil {
+			row = &DetailedTaskRow{Name: key, Days: make(map[int]*CellData)}
+			rowMap[key] = row
+		}
+		cd := row.Days[day]
+		if cd == nil {
+			cd = &CellData{}
+			row.Days[day] = cd
+		}
+
+		ce := CellEntry{
+			ID:        l.ID,
+			Start:     l.Start,
+			Minutes:   l.Minutes,
+			Message:   l.Message,
+			Task:      l.Task,
+			Source:    l.Source,
+			Persisted: true,
+			Entry:    &logs[i],
+		}
+		cd.Entries = append(cd.Entries, ce)
+		cd.TotalMinutes += l.Minutes
+		row.TotalMinutes += l.Minutes
+		logMinsByDay[day] += l.Minutes
+	}
+
+	// 2. Compute deducted checkout minutes (same deduction as BuildReport, but
+	//    without generatedDays since we handle dedup via persisted entries)
+	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, nil)
+
+	// 3. Add checkout attribution as in-memory entries, skipping (branch, day)
+	//    pairs that already have persisted checkout-generated entries
+	for branch, dayMap := range checkoutBucket {
+		for day, mins := range dayMap {
+			if mins <= 0 {
+				continue
+			}
+			dayDate := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+			if dayDate.Before(from) || dayDate.After(to) {
+				continue
+			}
+
+			// Skip if persisted checkout-generated entry exists for this (branch, day)
+			tdKey := taskDay{task: branch, day: day}
+			if _, exists := persistedCheckoutEntries[tdKey]; exists {
+				continue
+			}
+
+			row := rowMap[branch]
+			if row == nil {
+				row = &DetailedTaskRow{Name: branch, Days: make(map[int]*CellData)}
+				rowMap[branch] = row
+			}
+			cd := row.Days[day]
+			if cd == nil {
+				cd = &CellData{}
+				row.Days[day] = cd
+			}
+
+			ce := CellEntry{
+				ID:        "", // no ID for in-memory entries
+				Minutes:   mins,
+				Start:     time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
+				Message:   branch,
+				Task:      branch,
+				Source:    "checkout",
+				Persisted: false,
+				Entry:    nil,
+			}
+			cd.Entries = append(cd.Entries, ce)
+			cd.TotalMinutes += mins
+			row.TotalMinutes += mins
+		}
+	}
+
+	// Sort rows by total descending, then by name
+	rows := make([]DetailedTaskRow, 0, len(rowMap))
+	for _, row := range rowMap {
+		if row.TotalMinutes > 0 {
+			rows = append(rows, *row)
+		}
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].TotalMinutes != rows[j].TotalMinutes {
+			return rows[i].TotalMinutes > rows[j].TotalMinutes
+		}
+		return rows[i].Name < rows[j].Name
+	})
+
+	return DetailedReportData{
+		Year:        year,
+		Month:       month,
+		DaysInMonth: daysInMonth,
+		From:        from,
+		To:          to,
+		Rows:        rows,
+	}
 }
 
 type checkoutRange struct {

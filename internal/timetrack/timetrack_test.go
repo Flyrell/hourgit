@@ -255,3 +255,153 @@ func findRow(report ReportData, name string) *TaskRow {
 	}
 	return nil
 }
+
+func findDetailedRow(report DetailedReportData, name string) *DetailedTaskRow {
+	for i := range report.Rows {
+		if report.Rows[i].Name == name {
+			return &report.Rows[i]
+		}
+	}
+	return nil
+}
+
+func TestBuildDetailedReport_SingleCheckout(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 3, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2), workday(year, month, 3)}
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-a"},
+	}
+
+	report := BuildDetailedReport(checkouts, nil, days, from, to, afterMonth(year, month))
+
+	assert.Equal(t, 1, len(report.Rows))
+	row := findDetailedRow(report, "feature-a")
+	assert.NotNil(t, row)
+
+	// Day 2: 9-17 = 480 min
+	cd2 := row.Days[2]
+	assert.NotNil(t, cd2)
+	assert.Equal(t, 480, cd2.TotalMinutes)
+	assert.Equal(t, 1, len(cd2.Entries))
+	assert.False(t, cd2.Entries[0].Persisted)
+	assert.Equal(t, "checkout", cd2.Entries[0].Source)
+}
+
+func TestBuildDetailedReport_LogEntries(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2)}
+
+	logs := []entry.Entry{
+		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 60, Message: "research", Task: "research"},
+		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 60, Message: "more research", Task: "research"},
+	}
+
+	report := BuildDetailedReport(nil, logs, days, from, to, afterMonth(year, month))
+
+	assert.Equal(t, 1, len(report.Rows))
+	row := findDetailedRow(report, "research")
+	assert.NotNil(t, row)
+	assert.Equal(t, 120, row.TotalMinutes)
+
+	cd := row.Days[2]
+	assert.NotNil(t, cd)
+	assert.Equal(t, 120, cd.TotalMinutes)
+	assert.Equal(t, 2, len(cd.Entries))
+	assert.True(t, cd.Entries[0].Persisted)
+	assert.True(t, cd.Entries[1].Persisted)
+}
+
+func TestBuildDetailedReport_CheckoutDeductedByLogs(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 480 min
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2024, 12, 31, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	logs := []entry.Entry{
+		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
+	}
+
+	report := BuildDetailedReport(checkouts, logs, days, from, to, afterMonth(year, month))
+
+	rowCheckout := findDetailedRow(report, "feature-x")
+	rowLog := findDetailedRow(report, "research")
+	assert.NotNil(t, rowCheckout)
+	assert.NotNil(t, rowLog)
+
+	// Log takes 120 min, checkout should get 480-120=360
+	assert.Equal(t, 360, rowCheckout.Days[2].TotalMinutes)
+	assert.Equal(t, 120, rowLog.Days[2].TotalMinutes)
+}
+
+func TestBuildDetailedReport_PersistedCheckoutGeneratedSkipsInMemory(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2)}
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2024, 12, 31, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	// A persisted checkout-generated entry for feature-x on day 2
+	logs := []entry.Entry{
+		{ID: "l1", Start: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Minutes: 400,
+			Message: "feature-x", Task: "feature-x", Source: "checkout-generated"},
+	}
+
+	report := BuildDetailedReport(checkouts, logs, days, from, to, afterMonth(year, month))
+
+	row := findDetailedRow(report, "feature-x")
+	assert.NotNil(t, row)
+
+	cd := row.Days[2]
+	assert.NotNil(t, cd)
+	// Should only have the persisted entry, not an in-memory generated one
+	assert.Equal(t, 1, len(cd.Entries))
+	assert.True(t, cd.Entries[0].Persisted)
+	assert.Equal(t, "checkout-generated", cd.Entries[0].Source)
+	assert.Equal(t, 400, cd.TotalMinutes)
+}
+
+func TestBuildDetailedReport_Empty(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	report := BuildDetailedReport(nil, nil, nil, from, to, afterMonth(year, month))
+
+	assert.Equal(t, 0, len(report.Rows))
+	assert.Equal(t, 31, report.DaysInMonth)
+}
+
+func TestBuildDetailedReport_SortedByTotalDescending(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2)}
+
+	logs := []entry.Entry{
+		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 60, Message: "small", Task: "small"},
+		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 120, Message: "big", Task: "big"},
+	}
+
+	report := BuildDetailedReport(nil, logs, days, from, to, afterMonth(year, month))
+
+	assert.Equal(t, 2, len(report.Rows))
+	assert.Equal(t, "big", report.Rows[0].Name)
+	assert.Equal(t, "small", report.Rows[1].Name)
+}

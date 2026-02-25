@@ -207,3 +207,76 @@ func TestWriteCheckoutEntrySetsTypeField(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "checkout", got.Type)
 }
+
+// --- Submit entry tests ---
+
+func testSubmitEntry(id string) SubmitEntry {
+	return SubmitEntry{
+		ID:        id,
+		From:      time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		To:        time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC),
+		CreatedAt: time.Date(2025, 2, 1, 10, 0, 0, 0, time.UTC),
+	}
+}
+
+func TestWriteAndReadSubmitEntry(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+	e := testSubmitEntry("sub1234")
+
+	require.NoError(t, WriteSubmitEntry(home, slug, e))
+
+	entries, err := ReadAllSubmitEntries(home, slug)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, e.ID, entries[0].ID)
+	assert.Equal(t, TypeSubmit, entries[0].Type)
+	assert.Equal(t, e.From, entries[0].From)
+	assert.Equal(t, e.To, entries[0].To)
+}
+
+func TestReadAllSubmitEntriesEmpty(t *testing.T) {
+	home := t.TempDir()
+	entries, err := ReadAllSubmitEntries(home, "nonexistent")
+	require.NoError(t, err)
+	assert.Nil(t, entries)
+}
+
+func TestReadAllSubmitEntriesSkipsOtherTypes(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("chk1111", "main", "feat")))
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1111")))
+
+	entries, err := ReadAllSubmitEntries(home, slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "sub1111", entries[0].ID)
+}
+
+func TestReadAllEntriesSkipsSubmitEntries(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1111")))
+
+	entries, err := ReadAllEntries(home, slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "log1111", entries[0].ID)
+}
+
+func TestWriteSubmitEntrySetsTypeField(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1234")))
+
+	entries, err := ReadAllSubmitEntries(home, slug)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, TypeSubmit, entries[0].Type)
+}
