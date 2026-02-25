@@ -48,10 +48,10 @@ func TestConfigResetDeclined(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	_, err := execConfigReset(homeDir, repoDir, "", decline)
+	stdout, err := execConfigReset(homeDir, repoDir, "", decline)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "aborted")
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "cancelled")
 
 	// Verify schedule unchanged
 	cfg, err := project.ReadConfig(homeDir)

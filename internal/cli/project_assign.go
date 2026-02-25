@@ -60,7 +60,8 @@ func runProjectAssign(cmd *cobra.Command, repoDir, homeDir, projectName string, 
 		return err
 	}
 	if result == nil {
-		return fmt.Errorf("aborted")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "cancelled")
+		return nil
 	}
 
 	// Check existing assignment

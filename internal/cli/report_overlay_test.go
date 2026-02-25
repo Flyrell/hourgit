@@ -13,8 +13,8 @@ import (
 
 func TestEntrySelectorOverlay_Navigation(t *testing.T) {
 	entries := []timetrack.CellEntry{
-		{ID: "e1", Minutes: 60, Message: "first"},
-		{ID: "e2", Minutes: 120, Message: "second"},
+		{ID: "e100001", Minutes: 60, Message: "first"},
+		{ID: "e200002", Minutes: 120, Message: "second"},
 	}
 	o := newEntrySelectorOverlay(entries, "Pick one", "edit")
 
@@ -38,8 +38,8 @@ func TestEntrySelectorOverlay_Navigation(t *testing.T) {
 
 func TestEntrySelectorOverlay_Select(t *testing.T) {
 	entries := []timetrack.CellEntry{
-		{ID: "e1", Minutes: 60, Message: "first"},
-		{ID: "e2", Minutes: 120, Message: "second"},
+		{ID: "e100001", Minutes: 60, Message: "first"},
+		{ID: "e200002", Minutes: 120, Message: "second"},
 	}
 	o := newEntrySelectorOverlay(entries, "Pick one", "edit")
 
@@ -52,11 +52,11 @@ func TestEntrySelectorOverlay_Select(t *testing.T) {
 	result, ok := msg.(overlayResult)
 	require.True(t, ok)
 	assert.Equal(t, "select", result.action)
-	assert.Equal(t, "e2", o.selectedEntry().ID)
+	assert.Equal(t, "e200002", o.selectedEntry().ID)
 }
 
 func TestEntrySelectorOverlay_Cancel(t *testing.T) {
-	entries := []timetrack.CellEntry{{ID: "e1"}}
+	entries := []timetrack.CellEntry{{ID: "e100001"}}
 	o := newEntrySelectorOverlay(entries, "Pick", "edit")
 
 	_, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -70,7 +70,7 @@ func TestEntrySelectorOverlay_Cancel(t *testing.T) {
 
 func TestEntrySelectorOverlay_View(t *testing.T) {
 	entries := []timetrack.CellEntry{
-		{ID: "e1", Minutes: 60, Message: "work", Persisted: true},
+		{ID: "e100001", Minutes: 60, Message: "work", Persisted: true},
 		{ID: "", Minutes: 120, Message: "generated", Persisted: false},
 	}
 	o := newEntrySelectorOverlay(entries, "Pick one", "edit")
@@ -223,11 +223,11 @@ func TestAddOverlay_BuildEntryMessageFallback(t *testing.T) {
 }
 
 func TestRemoveOverlay_Confirm(t *testing.T) {
-	ce := timetrack.CellEntry{ID: "e1", Minutes: 60, Message: "test"}
+	ce := timetrack.CellEntry{ID: "e100001", Minutes: 60, Message: "test"}
 	o := newRemoveOverlay(ce)
 
 	// Default cursor is on "No"
-	assert.Equal(t, 1, o.cursor)
+	assert.Equal(t, 1, o.confirm.cursor)
 
 	// Press y for quick confirm
 	_, cmd := o.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
@@ -240,7 +240,7 @@ func TestRemoveOverlay_Confirm(t *testing.T) {
 }
 
 func TestRemoveOverlay_Cancel(t *testing.T) {
-	ce := timetrack.CellEntry{ID: "e1", Minutes: 60, Message: "test"}
+	ce := timetrack.CellEntry{ID: "e100001", Minutes: 60, Message: "test"}
 	o := newRemoveOverlay(ce)
 
 	_, cmd := o.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
@@ -253,7 +253,7 @@ func TestRemoveOverlay_Cancel(t *testing.T) {
 }
 
 func TestRemoveOverlay_View(t *testing.T) {
-	ce := timetrack.CellEntry{ID: "e1", Minutes: 60, Message: "test work", Persisted: false}
+	ce := timetrack.CellEntry{ID: "e100001", Minutes: 60, Message: "test work", Persisted: false}
 	o := newRemoveOverlay(ce)
 
 	view := o.View()
@@ -272,7 +272,7 @@ func TestSubmitOverlay_Confirm(t *testing.T) {
 	// Toggle to Yes
 	updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyTab})
 	o = updated.(*submitOverlay)
-	assert.Equal(t, 0, o.cursor)
+	assert.Equal(t, 0, o.confirm.cursor)
 
 	// Confirm
 	_, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -327,7 +327,7 @@ func TestReportModel_AddCellEntry(t *testing.T) {
 					Name:         "existing",
 					TotalMinutes: 60,
 					Days: map[int]*timetrack.CellData{
-						1: {TotalMinutes: 60, Entries: []timetrack.CellEntry{{ID: "e1", Minutes: 60}}},
+						1: {TotalMinutes: 60, Entries: []timetrack.CellEntry{{ID: "e100001", Minutes: 60}}},
 					},
 				},
 			},
@@ -335,13 +335,13 @@ func TestReportModel_AddCellEntry(t *testing.T) {
 	}
 
 	// Add to existing row
-	ce := timetrack.CellEntry{ID: "e2", Minutes: 30}
+	ce := timetrack.CellEntry{ID: "e200002", Minutes: 30}
 	m.addCellEntry("existing", 2, ce)
 	assert.Equal(t, 90, m.data.Rows[0].TotalMinutes)
 	assert.NotNil(t, m.data.Rows[0].Days[2])
 
 	// Add to new task
-	ce2 := timetrack.CellEntry{ID: "e3", Minutes: 45}
+	ce2 := timetrack.CellEntry{ID: "e300003", Minutes: 45}
 	m.addCellEntry("new-task", 1, ce2)
 	assert.Equal(t, 2, len(m.data.Rows))
 }
@@ -357,8 +357,8 @@ func TestReportModel_RemoveCellEntry(t *testing.T) {
 						1: {
 							TotalMinutes: 120,
 							Entries: []timetrack.CellEntry{
-								{ID: "e1", Minutes: 60},
-								{ID: "e2", Minutes: 60},
+								{ID: "e100001", Minutes: 60},
+								{ID: "e200002", Minutes: 60},
 							},
 						},
 					},
@@ -367,12 +367,12 @@ func TestReportModel_RemoveCellEntry(t *testing.T) {
 		},
 	}
 
-	m.removeCellEntry(0, 1, timetrack.CellEntry{ID: "e1", Minutes: 60})
+	m.removeCellEntry(0, 1, timetrack.CellEntry{ID: "e100001", Minutes: 60})
 	assert.Equal(t, 60, m.data.Rows[0].TotalMinutes)
 	assert.Equal(t, 1, len(m.data.Rows[0].Days[1].Entries))
 
 	// Remove last entry — cell data should be cleaned up
-	m.removeCellEntry(0, 1, timetrack.CellEntry{ID: "e2", Minutes: 60})
+	m.removeCellEntry(0, 1, timetrack.CellEntry{ID: "e200002", Minutes: 60})
 	assert.Equal(t, 0, m.data.Rows[0].TotalMinutes)
 	assert.Nil(t, m.data.Rows[0].Days[1])
 }
@@ -382,8 +382,8 @@ func TestReportModel_HandleEdit_PersistsInMemoryEntry(t *testing.T) {
 	slug := "test-project"
 
 	// Create project log dir
-	_ = entry.WriteEntry(homeDir, slug, entry.Entry{ID: "dummy", Start: time.Now(), Minutes: 1, Message: "x", CreatedAt: time.Now()})
-	_ = entry.DeleteEntry(homeDir, slug, "dummy")
+	_ = entry.WriteEntry(homeDir, slug, entry.Entry{ID: "d000001", Start: time.Now(), Minutes: 1, Message: "x", CreatedAt: time.Now()})
+	_ = entry.DeleteEntry(homeDir, slug, "d000001")
 
 	ce := timetrack.CellEntry{
 		ID:        "",

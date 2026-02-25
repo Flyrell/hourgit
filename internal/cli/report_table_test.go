@@ -70,7 +70,7 @@ func makeDetailedData() timetrack.DetailedReportData {
 					2: {
 						TotalMinutes: 60,
 						Entries: []timetrack.CellEntry{
-							{ID: "e1", Minutes: 60, Message: "work", Task: "feature-x", Source: "manual", Persisted: true},
+							{ID: "e100001", Minutes: 60, Message: "work", Task: "feature-x", Source: "manual", Persisted: true},
 						},
 					},
 					3: {
@@ -88,7 +88,7 @@ func makeDetailedData() timetrack.DetailedReportData {
 					2: {
 						TotalMinutes: 30,
 						Entries: []timetrack.CellEntry{
-							{ID: "e2", Minutes: 30, Message: "fix", Task: "bugfix", Source: "manual", Persisted: true},
+							{ID: "e200002", Minutes: 30, Message: "fix", Task: "bugfix", Source: "manual", Persisted: true},
 						},
 					},
 				},
@@ -164,7 +164,7 @@ func TestPrintStaticDetailedTable(t *testing.T) {
 				TotalMinutes: 480,
 				Days: map[int]*timetrack.CellData{
 					1: {TotalMinutes: 480, Entries: []timetrack.CellEntry{
-						{ID: "e1", Minutes: 480, Message: "work", Persisted: true},
+						{ID: "e100001", Minutes: 480, Message: "work", Persisted: true},
 					}},
 				},
 			},
@@ -244,7 +244,7 @@ func TestRenderDetailedTableScroll(t *testing.T) {
 				TotalMinutes: 60,
 				Days: map[int]*timetrack.CellData{
 					15: {TotalMinutes: 60, Entries: []timetrack.CellEntry{
-						{ID: "e1", Minutes: 60, Persisted: true},
+						{ID: "e100001", Minutes: 60, Persisted: true},
 					}},
 				},
 			},

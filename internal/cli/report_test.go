@@ -231,7 +231,7 @@ func TestReportWithLogEntries(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
 	e := entry.Entry{
-		ID:        "test01",
+		ID:        "1e50010",
 		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
 		Minutes:   120,
 		Message:   "research",
@@ -321,7 +321,7 @@ func TestReportOutputFlag_GeneratesPDF(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
 	e := entry.Entry{
-		ID:        "pdf01",
+		ID:        "0df0010",
 		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
 		Minutes:   120,
 		Message:   "research",
@@ -360,7 +360,7 @@ func TestReportOutputFlag_AutoName(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
 	e := entry.Entry{
-		ID:        "auto01",
+		ID:        "a010010",
 		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
 		Minutes:   60,
 		Message:   "work",

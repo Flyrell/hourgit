@@ -2,9 +2,20 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Flyrell/hourgit/internal/project"
 )
+
+// getContextPaths returns the user's home directory and current working directory.
+func getContextPaths() (homeDir, repoDir string, err error) {
+	homeDir, err = os.UserHomeDir()
+	if err != nil {
+		return "", "", err
+	}
+	repoDir, _ = os.Getwd()
+	return homeDir, repoDir, nil
+}
 
 // ResolveProjectContext finds the active project using the --project flag or
 // the current repo's .git/.hourgit config.

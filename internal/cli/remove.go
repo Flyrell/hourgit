@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/project"
@@ -20,12 +19,11 @@ var removeCmd = LeafCommand{
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 		yesFlag, _ := cmd.Flags().GetBool("yes")
 

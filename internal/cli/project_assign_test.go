@@ -100,10 +100,10 @@ func TestProjectAssignNewProjectDeclined(t *testing.T) {
 	dir := setupProjectTest(t)
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	_, _, err := execProjectAssign(dir, decline, "My Project")
+	stdout, _, err := execProjectAssign(dir, decline, "My Project")
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "aborted")
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "cancelled")
 }
 
 func TestProjectAssignNotInitialized(t *testing.T) {

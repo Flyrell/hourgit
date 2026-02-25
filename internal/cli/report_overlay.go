@@ -34,6 +34,63 @@ var (
 	overlayMutedStyle  = lipgloss.NewStyle().Faint(true)
 )
 
+// --- Text field helper ---
+
+// textField provides insertChar/deleteChar on a string pointer.
+type textField struct{ value *string }
+
+func (f textField) insertChar(ch string) {
+	*f.value += ch
+}
+
+func (f textField) deleteChar() {
+	if len(*f.value) > 0 {
+		*f.value = (*f.value)[:len(*f.value)-1]
+	}
+}
+
+// --- Confirmation overlay helper ---
+
+// confirmOverlay provides shared Update/button-rendering for yes/no confirmation overlays.
+type confirmOverlay struct {
+	action string // result action name on confirm (e.g. "remove", "submit")
+	cursor int    // 0 = yes, 1 = no
+}
+
+func (o *confirmOverlay) Update(msg tea.Msg) (bool, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "q":
+			return true, overlayResultMsg("cancel", nil)
+		case "left", "h", "right", "l", "tab":
+			o.cursor = 1 - o.cursor
+		case "enter":
+			if o.cursor == 0 {
+				return true, overlayResultMsg(o.action, nil)
+			}
+			return true, overlayResultMsg("cancel", nil)
+		case "y":
+			return true, overlayResultMsg(o.action, nil)
+		case "n":
+			return true, overlayResultMsg("cancel", nil)
+		}
+	}
+	return false, nil
+}
+
+func (o *confirmOverlay) renderButtons() string {
+	yes := "  [Yes]"
+	no := "  [No]"
+	if o.cursor == 0 {
+		yes = overlayActiveStyle.Render("> [Yes]")
+	}
+	if o.cursor == 1 {
+		no = overlayActiveStyle.Render("> [No]")
+	}
+	return yes + "    " + no
+}
+
 // --- Entry Selector Overlay ---
 // Used when a cell has multiple entries and user needs to pick one.
 
@@ -135,6 +192,18 @@ func newEditOverlay(ce timetrack.CellEntry) *editOverlay {
 
 func (o *editOverlay) Init() tea.Cmd { return nil }
 
+func (o *editOverlay) activeTextField() *textField {
+	switch o.field {
+	case editFieldDuration:
+		return &textField{&o.duration}
+	case editFieldTask:
+		return &textField{&o.task}
+	case editFieldMessage:
+		return &textField{&o.message}
+	}
+	return nil
+}
+
 func (o *editOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -168,42 +237,18 @@ func (o *editOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				o.field++
 			}
 		case "backspace":
-			o.deleteChar()
+			if tf := o.activeTextField(); tf != nil {
+				tf.deleteChar()
+			}
 		default:
 			if len(msg.String()) == 1 {
-				o.insertChar(msg.String())
+				if tf := o.activeTextField(); tf != nil {
+					tf.insertChar(msg.String())
+				}
 			}
 		}
 	}
 	return o, nil
-}
-
-func (o *editOverlay) insertChar(ch string) {
-	switch o.field {
-	case editFieldDuration:
-		o.duration += ch
-	case editFieldTask:
-		o.task += ch
-	case editFieldMessage:
-		o.message += ch
-	}
-}
-
-func (o *editOverlay) deleteChar() {
-	switch o.field {
-	case editFieldDuration:
-		if len(o.duration) > 0 {
-			o.duration = o.duration[:len(o.duration)-1]
-		}
-	case editFieldTask:
-		if len(o.task) > 0 {
-			o.task = o.task[:len(o.task)-1]
-		}
-	case editFieldMessage:
-		if len(o.message) > 0 {
-			o.message = o.message[:len(o.message)-1]
-		}
-	}
 }
 
 func (o *editOverlay) View() string {
@@ -288,6 +333,18 @@ func newAddOverlay(day int, month time.Month, year int, task string) *addOverlay
 
 func (o *addOverlay) Init() tea.Cmd { return nil }
 
+func (o *addOverlay) activeTextField() *textField {
+	switch o.field {
+	case addFieldDuration:
+		return &textField{&o.duration}
+	case addFieldTask:
+		return &textField{&o.task}
+	case addFieldMessage:
+		return &textField{&o.message}
+	}
+	return nil
+}
+
 func (o *addOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -320,42 +377,18 @@ func (o *addOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				o.field++
 			}
 		case "backspace":
-			o.deleteChar()
+			if tf := o.activeTextField(); tf != nil {
+				tf.deleteChar()
+			}
 		default:
 			if len(msg.String()) == 1 {
-				o.insertChar(msg.String())
+				if tf := o.activeTextField(); tf != nil {
+					tf.insertChar(msg.String())
+				}
 			}
 		}
 	}
 	return o, nil
-}
-
-func (o *addOverlay) insertChar(ch string) {
-	switch o.field {
-	case addFieldDuration:
-		o.duration += ch
-	case addFieldTask:
-		o.task += ch
-	case addFieldMessage:
-		o.message += ch
-	}
-}
-
-func (o *addOverlay) deleteChar() {
-	switch o.field {
-	case addFieldDuration:
-		if len(o.duration) > 0 {
-			o.duration = o.duration[:len(o.duration)-1]
-		}
-	case addFieldTask:
-		if len(o.task) > 0 {
-			o.task = o.task[:len(o.task)-1]
-		}
-	case addFieldMessage:
-		if len(o.message) > 0 {
-			o.message = o.message[:len(o.message)-1]
-		}
-	}
 }
 
 func (o *addOverlay) View() string {
@@ -433,34 +466,23 @@ func (o *addOverlay) buildEntry(now time.Time) (entry.Entry, error) {
 // Confirmation to remove an entry.
 
 type removeOverlay struct {
-	entry  timetrack.CellEntry
-	cursor int // 0 = yes, 1 = no
+	entry   timetrack.CellEntry
+	confirm confirmOverlay
 }
 
 func newRemoveOverlay(ce timetrack.CellEntry) *removeOverlay {
-	return &removeOverlay{entry: ce, cursor: 1} // default to "no"
+	return &removeOverlay{
+		entry:   ce,
+		confirm: confirmOverlay{action: "remove", cursor: 1},
+	}
 }
 
 func (o *removeOverlay) Init() tea.Cmd { return nil }
 
 func (o *removeOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc", "q":
-			return o, overlayResultMsg("cancel", nil)
-		case "left", "h", "right", "l", "tab":
-			o.cursor = 1 - o.cursor
-		case "enter":
-			if o.cursor == 0 {
-				return o, overlayResultMsg("remove", nil)
-			}
-			return o, overlayResultMsg("cancel", nil)
-		case "y":
-			return o, overlayResultMsg("remove", nil)
-		case "n":
-			return o, overlayResultMsg("cancel", nil)
-		}
+	handled, cmd := o.confirm.Update(msg)
+	if handled {
+		return o, cmd
 	}
 	return o, nil
 }
@@ -478,15 +500,7 @@ func (o *removeOverlay) View() string {
 	b.WriteString("\n\n")
 	b.WriteString("  Remove this entry?\n\n")
 
-	yes := "  [Yes]"
-	no := "  [No]"
-	if o.cursor == 0 {
-		yes = overlayActiveStyle.Render("> [Yes]")
-	}
-	if o.cursor == 1 {
-		no = overlayActiveStyle.Render("> [No]")
-	}
-	b.WriteString(yes + "    " + no)
+	b.WriteString(o.confirm.renderButtons())
 	b.WriteString("\n\n")
 	b.WriteString(overlayMutedStyle.Render("←/→ select  |  enter confirm  |  esc cancel"))
 
@@ -499,7 +513,7 @@ func (o *removeOverlay) View() string {
 type submitOverlay struct {
 	inMemoryCount int
 	from, to      time.Time
-	cursor        int // 0 = yes, 1 = no
+	confirm       confirmOverlay
 }
 
 func newSubmitOverlay(inMemoryCount int, from, to time.Time) *submitOverlay {
@@ -507,30 +521,16 @@ func newSubmitOverlay(inMemoryCount int, from, to time.Time) *submitOverlay {
 		inMemoryCount: inMemoryCount,
 		from:          from,
 		to:            to,
-		cursor:        1, // default to "no"
+		confirm:       confirmOverlay{action: "submit", cursor: 1},
 	}
 }
 
 func (o *submitOverlay) Init() tea.Cmd { return nil }
 
 func (o *submitOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc", "q":
-			return o, overlayResultMsg("cancel", nil)
-		case "left", "h", "right", "l", "tab":
-			o.cursor = 1 - o.cursor
-		case "enter":
-			if o.cursor == 0 {
-				return o, overlayResultMsg("submit", nil)
-			}
-			return o, overlayResultMsg("cancel", nil)
-		case "y":
-			return o, overlayResultMsg("submit", nil)
-		case "n":
-			return o, overlayResultMsg("cancel", nil)
-		}
+	handled, cmd := o.confirm.Update(msg)
+	if handled {
+		return o, cmd
 	}
 	return o, nil
 }
@@ -555,15 +555,7 @@ func (o *submitOverlay) View() string {
 
 	b.WriteString("  Submit?\n\n")
 
-	yes := "  [Yes]"
-	no := "  [No]"
-	if o.cursor == 0 {
-		yes = overlayActiveStyle.Render("> [Yes]")
-	}
-	if o.cursor == 1 {
-		no = overlayActiveStyle.Render("> [No]")
-	}
-	b.WriteString(yes + "    " + no)
+	b.WriteString(o.confirm.renderButtons())
 	b.WriteString("\n\n")
 	b.WriteString(overlayMutedStyle.Render("←/→ select  |  enter confirm  |  esc cancel"))
 

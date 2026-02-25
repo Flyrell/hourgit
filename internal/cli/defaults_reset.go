@@ -33,7 +33,8 @@ func runDefaultsReset(cmd *cobra.Command, homeDir string, confirm ConfirmFunc) e
 		return err
 	}
 	if !confirmed {
-		return fmt.Errorf("aborted")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "cancelled")
+		return nil
 	}
 
 	if err := project.ResetDefaults(homeDir); err != nil {
