@@ -2,8 +2,6 @@ package entry
 
 import "time"
 
-const TypeSubmit = "submit"
-
 // SubmitEntry marks a date range as submitted.
 type SubmitEntry struct {
 	ID        string    `json:"id"`
