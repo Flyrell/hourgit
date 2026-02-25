@@ -52,3 +52,51 @@ func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
 
 	return nil, fmt.Errorf("entry '%s' not found", id)
 }
+
+// FoundAnyEntry pairs an entry ID, type, slug, and human-readable detail.
+type FoundAnyEntry struct {
+	ID     string
+	Type   string // "log" or "checkout"
+	Slug   string
+	Detail string // human-readable summary
+}
+
+// FindAnyEntryAcrossProjects scans all project directories under ~/.hourgit/
+// looking for a log or checkout entry with the given ID. Returns the first match.
+func FindAnyEntryAcrossProjects(homeDir, id string) (*FoundAnyEntry, error) {
+	hourgitDir := filepath.Join(homeDir, ".hourgit")
+	dirs, err := os.ReadDir(hourgitDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("entry '%s' not found", id)
+		}
+		return nil, fmt.Errorf("reading hourgit directory: %w", err)
+	}
+
+	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+		slug := d.Name()
+
+		// Try as log entry
+		e, err := ReadEntry(homeDir, slug, id)
+		if err == nil {
+			detail := fmt.Sprintf("%s — %s", FormatMinutes(e.Minutes), e.Message)
+			if e.Task != "" {
+				detail = fmt.Sprintf("[%s] %s", e.Task, detail)
+			}
+			return &FoundAnyEntry{ID: e.ID, Type: TypeLog, Slug: slug, Detail: detail}, nil
+		}
+
+		// Try as checkout entry
+		ce, err := ReadCheckoutEntry(homeDir, slug, id)
+		if err == nil {
+			detail := fmt.Sprintf("%s → %s at %s",
+				ce.Previous, ce.Next, ce.Timestamp.Format("2006-01-02 15:04"))
+			return &FoundAnyEntry{ID: ce.ID, Type: TypeCheckout, Slug: slug, Detail: detail}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("entry '%s' not found", id)
+}

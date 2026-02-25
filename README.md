@@ -164,6 +164,24 @@ Notes:
 - Entry ID and creation timestamp are preserved
 - If the entry is not found in the current repo's project, all projects are searched
 
+### `hourgit remove`
+
+Remove a log or checkout entry by its hash.
+
+```bash
+hourgit remove <hash> [--project <project_name>] [--yes]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--project` | Project name or ID (auto-detected from repo if omitted) |
+| `--yes` | Skip confirmation prompt |
+
+Notes:
+- Works with both log and checkout entries (unlike `edit`, which only supports log entries)
+- Shows entry details and asks for confirmation before deleting
+- If the entry is not found in the current repo's project, all projects are searched
+
 ### `hourgit checkout`
 
 Record a branch checkout event. This command is called internally by the post-checkout git hook to track branch transitions.
@@ -432,7 +450,6 @@ Every project starts with a copy of the defaults. You can then customize a proje
 
 The following features are planned but not yet implemented:
 
-- **Deleting entries** — remove entries by hash
 - **Status** — show currently active branch/project and time logged today
 
 ## License
