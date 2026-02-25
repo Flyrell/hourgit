@@ -114,6 +114,7 @@ func BuildExportData(
 
 	// Add checkout attribution as synthetic entries
 	for branch, dayMap := range checkoutBucket {
+		cleanedBranch := cleanBranchName(branch)
 		for day, mins := range dayMap {
 			if mins <= 0 {
 				continue
@@ -121,15 +122,15 @@ func BuildExportData(
 			if dayGroups[day] == nil {
 				dayGroups[day] = make(map[string]*dayTask)
 			}
-			dt := dayGroups[day][branch]
+			dt := dayGroups[day][cleanedBranch]
 			if dt == nil {
-				dt = &dayTask{task: branch}
-				dayGroups[day][branch] = dt
+				dt = &dayTask{task: cleanedBranch}
+				dayGroups[day][cleanedBranch] = dt
 			}
 			dt.entries = append(dt.entries, ExportEntry{
 				Start:   time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
 				Minutes: mins,
-				Message: branch,
+				Message: cleanedBranch,
 			})
 		}
 	}

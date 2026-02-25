@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	taskColWidth = 30
+	taskColWidth = 40
 	dayColWidth  = 7
 )
 
@@ -52,7 +52,8 @@ type reportModel struct {
 }
 
 func (m reportModel) visibleDays() int {
-	available := m.termWidth - taskColWidth - 3 // separators + padding
+	sumColSpace := dayColWidth + 3 // " | " + sum column
+	available := m.termWidth - taskColWidth - 3 - sumColSpace // separators + padding + sum column
 	if available <= 0 {
 		return 1
 	}

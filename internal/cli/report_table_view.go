@@ -35,6 +35,8 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 
 	// Header row
 	b.WriteString(headerStyle.Render(padRight("Task", taskColWidth)))
+	b.WriteString(" | ")
+	b.WriteString(headerStyle.Render(padCenter("Sum", dayColWidth)))
 	for i := 0; i < visibleDays; i++ {
 		day := scrollX + i + 1
 		b.WriteString(" | ")
@@ -44,6 +46,8 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 
 	// Separator
 	b.WriteString(strings.Repeat("-", taskColWidth))
+	b.WriteString("-+-")
+	b.WriteString(strings.Repeat("-", dayColWidth))
 	for i := 0; i < visibleDays; i++ {
 		b.WriteString("-+-")
 		b.WriteString(strings.Repeat("-", dayColWidth))
@@ -58,11 +62,14 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 	for rowIdx := scrollY; rowIdx < endRow; rowIdx++ {
 		row := data.Rows[rowIdx]
 		label := row.Name
-		if len(label) > taskColWidth-12 {
-			label = label[:taskColWidth-15] + "..."
+		if len(label) > taskColWidth {
+			label = label[:taskColWidth-3] + "..."
 		}
-		label = fmt.Sprintf("%s [%s]", label, entry.FormatMinutes(row.TotalMinutes))
 		b.WriteString(padRight(label, taskColWidth))
+
+		// Sum column
+		b.WriteString(" | ")
+		b.WriteString(padCenter(entry.FormatMinutes(row.TotalMinutes), dayColWidth))
 
 		for i := 0; i < visibleDays; i++ {
 			day := scrollX + i + 1
@@ -101,6 +108,8 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 
 	// Totals separator
 	b.WriteString(strings.Repeat("-", taskColWidth))
+	b.WriteString("-+-")
+	b.WriteString(strings.Repeat("-", dayColWidth))
 	for i := 0; i < visibleDays; i++ {
 		b.WriteString("-+-")
 		b.WriteString(strings.Repeat("-", dayColWidth))
@@ -112,8 +121,11 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 	for _, row := range data.Rows {
 		totalMinutes += row.TotalMinutes
 	}
-	totalLabel := fmt.Sprintf("Total [%s]", entry.FormatMinutes(totalMinutes))
-	b.WriteString(headerStyle.Render(padRight(totalLabel, taskColWidth)))
+	b.WriteString(headerStyle.Render(padRight("Total", taskColWidth)))
+
+	// Grand total in Sum column
+	b.WriteString(" | ")
+	b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutes(totalMinutes), dayColWidth)))
 
 	for i := 0; i < visibleDays; i++ {
 		day := scrollX + i + 1
