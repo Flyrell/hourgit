@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
@@ -27,12 +26,11 @@ var editCmd = LeafCommand{
 		{Name: "message", Shorthand: "m", Usage: "new message"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 		durationFlag, _ := cmd.Flags().GetString("duration")
 		fromFlag, _ := cmd.Flags().GetString("from")

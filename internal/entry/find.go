@@ -13,39 +13,47 @@ type FoundEntry struct {
 	Slug  string
 }
 
-// FindEntryAcrossProjects scans all project directories under ~/.hourgit/
-// looking for a log entry with the given ID. Returns the first match.
-func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
+// iterateProjectSlugs returns all project directory names under ~/.hourgit/.
+func iterateProjectSlugs(homeDir string) ([]string, error) {
 	hourgitDir := filepath.Join(homeDir, ".hourgit")
 	dirs, err := os.ReadDir(hourgitDir)
 	if err != nil {
-		// Directory not existing means no projects exist yet — treat as not found.
-		// Other errors (permissions, IO) are propagated.
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("entry '%s' not found", id)
+			return nil, nil
 		}
 		return nil, fmt.Errorf("reading hourgit directory: %w", err)
 	}
 
+	var slugs []string
 	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
+		if d.IsDir() {
+			slugs = append(slugs, d.Name())
 		}
-		slug := d.Name()
-		e, err := ReadEntry(homeDir, slug, id)
-		if err != nil {
-			// ReadEntry returns "not found" or type-mismatch errors — skip to next project.
-			continue
-		}
-		return &FoundEntry{Entry: e, Slug: slug}, nil
+	}
+	return slugs, nil
+}
+
+// FindEntryAcrossProjects scans all project directories under ~/.hourgit/
+// looking for a log entry with the given ID. Returns the first match.
+// If the ID exists as a checkout entry, returns an error indicating it cannot be edited.
+func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
+	slugs, err := iterateProjectSlugs(homeDir)
+	if err != nil {
+		return nil, err
+	}
+	if slugs == nil {
+		return nil, fmt.Errorf("entry '%s' not found", id)
 	}
 
-	// Check if it exists as a checkout entry
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
+	for _, slug := range slugs {
+		// Try as log entry
+		e, err := ReadEntry(homeDir, slug, id)
+		if err == nil {
+			return &FoundEntry{Entry: e, Slug: slug}, nil
 		}
-		if IsCheckoutEntry(homeDir, d.Name(), id) {
+
+		// Check if it's a checkout entry
+		if IsCheckoutEntry(homeDir, slug, id) {
 			return nil, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", id)
 		}
 	}
@@ -64,21 +72,15 @@ type FoundAnyEntry struct {
 // FindAnyEntryAcrossProjects scans all project directories under ~/.hourgit/
 // looking for a log or checkout entry with the given ID. Returns the first match.
 func FindAnyEntryAcrossProjects(homeDir, id string) (*FoundAnyEntry, error) {
-	hourgitDir := filepath.Join(homeDir, ".hourgit")
-	dirs, err := os.ReadDir(hourgitDir)
+	slugs, err := iterateProjectSlugs(homeDir)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("entry '%s' not found", id)
-		}
-		return nil, fmt.Errorf("reading hourgit directory: %w", err)
+		return nil, err
+	}
+	if slugs == nil {
+		return nil, fmt.Errorf("entry '%s' not found", id)
 	}
 
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
-		}
-		slug := d.Name()
-
+	for _, slug := range slugs {
 		// Try as log entry
 		e, err := ReadEntry(homeDir, slug, id)
 		if err == nil {

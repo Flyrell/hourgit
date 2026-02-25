@@ -46,9 +46,16 @@ func TestWriteAndReadEntry(t *testing.T) {
 
 func TestReadEntryNotFound(t *testing.T) {
 	home := t.TempDir()
-	_, err := ReadEntry(home, "test-project", "nope")
+	_, err := ReadEntry(home, "test-project", "aaa0000")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestReadEntryInvalidID(t *testing.T) {
+	home := t.TempDir()
+	_, err := ReadEntry(home, "test-project", "nope")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid entry ID")
 }
 
 func TestReadAllEntries(t *testing.T) {
@@ -84,9 +91,16 @@ func TestDeleteEntry(t *testing.T) {
 
 func TestDeleteEntryNotFound(t *testing.T) {
 	home := t.TempDir()
-	err := DeleteEntry(home, "test-project", "nope")
+	err := DeleteEntry(home, "test-project", "aaa0000")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestDeleteEntryInvalidID(t *testing.T) {
+	home := t.TempDir()
+	err := DeleteEntry(home, "test-project", "nope")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid entry ID")
 }
 
 // --- Checkout entry tests ---
@@ -109,7 +123,7 @@ func TestWriteAndReadCheckoutEntry(t *testing.T) {
 
 func TestReadCheckoutEntryNotFound(t *testing.T) {
 	home := t.TempDir()
-	_, err := ReadCheckoutEntry(home, "test-project", "missing")
+	_, err := ReadCheckoutEntry(home, "test-project", "aaa0000")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -142,35 +156,35 @@ func TestReadAllEntriesSkipsCheckouts(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
-	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("chk1111", "main", "feat")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
 
 	entries, err := ReadAllEntries(home, slug)
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
-	assert.Equal(t, "log1111", entries[0].ID)
+	assert.Equal(t, "a0a1111", entries[0].ID)
 }
 
 func TestReadAllCheckoutEntriesSkipsLogs(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
-	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("chk1111", "main", "feat")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
 
 	entries, err := ReadAllCheckoutEntries(home, slug)
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
-	assert.Equal(t, "chk1111", entries[0].ID)
+	assert.Equal(t, "c0c1111", entries[0].ID)
 }
 
 func TestReadEntryRejectsCheckoutType(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("chk1111", "main", "feat")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
 
-	_, err := ReadEntry(home, slug, "chk1111")
+	_, err := ReadEntry(home, slug, "c0c1111")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -179,9 +193,9 @@ func TestReadCheckoutEntryRejectsLogType(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
 
-	_, err := ReadCheckoutEntry(home, slug, "log1111")
+	_, err := ReadCheckoutEntry(home, slug, "a0a1111")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -222,7 +236,7 @@ func testSubmitEntry(id string) SubmitEntry {
 func TestWriteAndReadSubmitEntry(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
-	e := testSubmitEntry("sub1234")
+	e := testSubmitEntry("aab1234")
 
 	require.NoError(t, WriteSubmitEntry(home, slug, e))
 
@@ -246,37 +260,52 @@ func TestReadAllSubmitEntriesSkipsOtherTypes(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
-	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("chk1111", "main", "feat")))
-	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1111")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("00b1111")))
 
 	entries, err := ReadAllSubmitEntries(home, slug)
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
-	assert.Equal(t, "sub1111", entries[0].ID)
+	assert.Equal(t, "00b1111", entries[0].ID)
 }
 
 func TestReadAllEntriesSkipsSubmitEntries(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteEntry(home, slug, testEntry("log1111", "work")))
-	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1111")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("00b1111")))
 
 	entries, err := ReadAllEntries(home, slug)
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
-	assert.Equal(t, "log1111", entries[0].ID)
+	assert.Equal(t, "a0a1111", entries[0].ID)
 }
 
 func TestWriteSubmitEntrySetsTypeField(t *testing.T) {
 	home := t.TempDir()
 	slug := "test-project"
 
-	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("sub1234")))
+	require.NoError(t, WriteSubmitEntry(home, slug, testSubmitEntry("aab1234")))
 
 	entries, err := ReadAllSubmitEntries(home, slug)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, TypeSubmit, entries[0].Type)
+}
+
+// --- ID validation tests ---
+
+func TestValidateID(t *testing.T) {
+	assert.NoError(t, validateID("abc1234"))
+	assert.NoError(t, validateID("0000000"))
+	assert.NoError(t, validateID("abcdef0"))
+
+	assert.Error(t, validateID("nope"))
+	assert.Error(t, validateID(""))
+	assert.Error(t, validateID("abc123"))   // 6 chars
+	assert.Error(t, validateID("abc12345")) // 8 chars
+	assert.Error(t, validateID("ABCDEF0"))  // uppercase
+	assert.Error(t, validateID("abc123g"))  // non-hex
 }

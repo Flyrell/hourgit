@@ -64,13 +64,7 @@ var initCmd = LeafCommand{
 		}
 
 		confirm := ResolveConfirmFunc(yes)
-
-		var selectFn SelectFunc
-		if yes {
-			selectFn = func(title string, options []string) (int, error) { return 0, nil }
-		} else {
-			selectFn = NewSelectFunc()
-		}
+		selectFn := ResolveSelectFunc(yes)
 
 		return runInit(cmd, dir, homeDir, projectName, force, merge, binPath, confirm, selectFn)
 	},

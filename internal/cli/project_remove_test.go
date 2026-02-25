@@ -75,10 +75,10 @@ func TestProjectRemoveWithReposDeclined(t *testing.T) {
 	require.NoError(t, project.AssignProject(home, repo, entry))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	_, err = execProjectRemove(home, "My Project", decline)
+	stdout, err := execProjectRemove(home, "My Project", decline)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "aborted")
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "cancelled")
 
 	// Verify project still exists
 	cfg, err := project.ReadConfig(home)

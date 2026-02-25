@@ -89,6 +89,15 @@ func ResolveConfirmFunc(yes bool) ConfirmFunc {
 	return NewConfirmFunc()
 }
 
+// ResolveSelectFunc returns a SelectFunc that always picks the first option if yes is true,
+// otherwise returns an interactive SelectFunc.
+func ResolveSelectFunc(yes bool) SelectFunc {
+	if yes {
+		return func(_ string, _ []string) (int, error) { return 0, nil }
+	}
+	return NewSelectFunc()
+}
+
 // PromptWithDefaultFunc prompts the user for input with a pre-filled default value.
 type PromptWithDefaultFunc func(prompt, defaultValue string) (string, error)
 

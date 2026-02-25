@@ -29,7 +29,7 @@ func setupRemoveTest(t *testing.T) (homeDir string, repoDir string, proj *projec
 	p = project.FindProjectByID(cfg, p.ID)
 
 	le := entry.Entry{
-		ID:        "rmlog12",
+		ID:        "0010012",
 		Start:     time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes:   120,
 		Message:   "test work",
@@ -39,7 +39,7 @@ func setupRemoveTest(t *testing.T) (homeDir string, repoDir string, proj *projec
 	require.NoError(t, entry.WriteEntry(homeDir, p.Slug, le))
 
 	ce := entry.CheckoutEntry{
-		ID:        "rmchk12",
+		ID:        "00c0012",
 		Type:      "checkout",
 		Timestamp: time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Previous:  "main",
@@ -62,26 +62,26 @@ func execRemove(homeDir, repoDir, projectFlag, hash string, confirm ConfirmFunc)
 func TestRemoveLogEntry(t *testing.T) {
 	homeDir, repoDir, proj, _, _ := setupRemoveTest(t)
 
-	stdout, err := execRemove(homeDir, repoDir, "", "rmlog12", AlwaysYes())
+	stdout, err := execRemove(homeDir, repoDir, "", "0010012", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "log")
 	assert.Contains(t, stdout, "removed entry")
 
-	_, err = entry.ReadEntry(homeDir, proj.Slug, "rmlog12")
+	_, err = entry.ReadEntry(homeDir, proj.Slug, "0010012")
 	assert.Error(t, err)
 }
 
 func TestRemoveCheckoutEntry(t *testing.T) {
 	homeDir, repoDir, proj, _, _ := setupRemoveTest(t)
 
-	stdout, err := execRemove(homeDir, repoDir, "", "rmchk12", AlwaysYes())
+	stdout, err := execRemove(homeDir, repoDir, "", "00c0012", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "checkout")
 	assert.Contains(t, stdout, "removed entry")
 
-	_, err = entry.ReadCheckoutEntry(homeDir, proj.Slug, "rmchk12")
+	_, err = entry.ReadCheckoutEntry(homeDir, proj.Slug, "00c0012")
 	assert.Error(t, err)
 }
 
@@ -101,21 +101,21 @@ func TestRemoveConfirmDeclined(t *testing.T) {
 		return false, nil
 	}
 
-	stdout, err := execRemove(homeDir, repoDir, "", "rmlog12", confirm)
+	stdout, err := execRemove(homeDir, repoDir, "", "0010012", confirm)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "cancelled")
 	assert.NotContains(t, stdout, "removed entry")
 
 	// Entry should still exist
-	_, err = entry.ReadEntry(homeDir, proj.Slug, "rmlog12")
+	_, err = entry.ReadEntry(homeDir, proj.Slug, "0010012")
 	assert.NoError(t, err)
 }
 
 func TestRemoveYesSkipsConfirmation(t *testing.T) {
 	homeDir, repoDir, _, _, _ := setupRemoveTest(t)
 
-	stdout, err := execRemove(homeDir, repoDir, "", "rmlog12", AlwaysYes())
+	stdout, err := execRemove(homeDir, repoDir, "", "0010012", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "removed entry")
@@ -124,12 +124,12 @@ func TestRemoveYesSkipsConfirmation(t *testing.T) {
 func TestRemoveWithProjectFlag(t *testing.T) {
 	homeDir, _, proj, _, _ := setupRemoveTest(t)
 
-	stdout, err := execRemove(homeDir, "", proj.Name, "rmlog12", AlwaysYes())
+	stdout, err := execRemove(homeDir, "", proj.Name, "0010012", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "removed entry")
 
-	_, err = entry.ReadEntry(homeDir, proj.Slug, "rmlog12")
+	_, err = entry.ReadEntry(homeDir, proj.Slug, "0010012")
 	assert.Error(t, err)
 }
 
@@ -144,7 +144,7 @@ func TestRemoveCrossProjectScan(t *testing.T) {
 	p = project.FindProjectByID(cfg, p.ID)
 
 	e := entry.Entry{
-		ID:        "scnrm12",
+		ID:        "5c00012",
 		Start:     time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes:   60,
 		Message:   "scan work",
@@ -153,12 +153,12 @@ func TestRemoveCrossProjectScan(t *testing.T) {
 	require.NoError(t, entry.WriteEntry(homeDir, p.Slug, e))
 
 	// No repo, no project flag — should scan and find it
-	stdout, err := execRemove(homeDir, "", "", "scnrm12", AlwaysYes())
+	stdout, err := execRemove(homeDir, "", "", "5c00012", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "removed entry")
 
-	_, err = entry.ReadEntry(homeDir, p.Slug, "scnrm12")
+	_, err = entry.ReadEntry(homeDir, p.Slug, "5c00012")
 	assert.Error(t, err)
 }
 

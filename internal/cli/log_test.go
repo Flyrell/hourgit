@@ -539,7 +539,7 @@ func TestLogScheduleOverrunWarning(t *testing.T) {
 	// Default schedule: Mon-Fri 9am-5pm = 8h
 	// Pre-log 4h so that logging 6h triggers the overrun warning
 	e := entry.Entry{
-		ID:      "pre0001",
+		ID:      "00e0001",
 		Start:   time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes: 240,
 		Message: "earlier work",
@@ -571,7 +571,7 @@ func TestLogScheduleOverrunDeclined(t *testing.T) {
 
 	// Pre-log 4h on Monday
 	e := entry.Entry{
-		ID:      "pre0001",
+		ID:      "00e0001",
 		Start:   time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes: 240,
 		Message: "earlier work",

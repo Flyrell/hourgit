@@ -38,7 +38,7 @@ func TestFindEntryAcrossProjectsNotFound(t *testing.T) {
 	homeDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(homeDir, ".hourgit", "some-project"), 0755))
 
-	_, err := FindEntryAcrossProjects(homeDir, "nonexistent")
+	_, err := FindEntryAcrossProjects(homeDir, "aaa0000")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -52,7 +52,7 @@ func TestFindEntryAcrossProjectsSkipsCheckoutEntries(t *testing.T) {
 
 	// Write a checkout entry — should be skipped
 	ce := CheckoutEntry{
-		ID:        "chk1234",
+		ID:        "c0c1234",
 		Type:      "checkout",
 		Timestamp: time.Date(2025, 6, 15, 9, 0, 0, 0, time.UTC),
 		Previous:  "main",
@@ -60,7 +60,7 @@ func TestFindEntryAcrossProjectsSkipsCheckoutEntries(t *testing.T) {
 	}
 	require.NoError(t, WriteCheckoutEntry(homeDir, slug, ce))
 
-	_, err := FindEntryAcrossProjects(homeDir, "chk1234")
+	_, err := FindEntryAcrossProjects(homeDir, "c0c1234")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot be edited")
 }

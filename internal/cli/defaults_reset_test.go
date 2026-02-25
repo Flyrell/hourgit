@@ -47,10 +47,10 @@ func TestDefaultsResetDeclined(t *testing.T) {
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	_, err := execDefaultsReset(homeDir, decline)
+	stdout, err := execDefaultsReset(homeDir, decline)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "aborted")
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "cancelled")
 
 	// Verify defaults unchanged
 	cfg, err := project.ReadConfig(homeDir)

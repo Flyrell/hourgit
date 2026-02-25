@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
@@ -19,12 +18,11 @@ var checkoutCmd = LeafCommand{
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 		prevFlag, _ := cmd.Flags().GetString("prev")
 		nextFlag, _ := cmd.Flags().GetString("next")

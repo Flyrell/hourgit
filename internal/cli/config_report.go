@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/project"
@@ -18,12 +17,10 @@ var configReportCmd = LeafCommand{
 		{Name: "year", Usage: "year (default: current)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
-
-		repoDir, _ := os.Getwd()
 
 		projectFlag, _ := cmd.Flags().GetString("project")
 		monthFlag, _ := cmd.Flags().GetString("month")

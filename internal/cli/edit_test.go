@@ -29,7 +29,7 @@ func setupEditTest(t *testing.T) (homeDir string, repoDir string, proj *project.
 	p = project.FindProjectByID(cfg, p.ID)
 
 	e = entry.Entry{
-		ID:        "edt1234",
+		ID:        "ed01234",
 		Start:     time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes:   180,
 		Message:   "original work",
@@ -70,14 +70,14 @@ func TestEditDurationOnly(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "2h", "", "", "", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "duration:")
 	assert.Contains(t, stdout, "2h")
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 120, e.Minutes)
 	// Start should be preserved
@@ -92,12 +92,12 @@ func TestEditFromToMode(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "10am", "1pm", "", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "1pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 10, e.Start.Hour())
 	assert.Equal(t, 180, e.Minutes)
@@ -108,12 +108,12 @@ func TestEditFromOnly(t *testing.T) {
 
 	// Original: 9:00 - 12:00 (180 min). Change from to 10:00, keep end at 12:00.
 	flags := map[string]bool{"from": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "10am", "", "", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 10, e.Start.Hour())
 	assert.Equal(t, 120, e.Minutes) // 10:00 - 12:00 = 2h
@@ -124,12 +124,12 @@ func TestEditToOnly(t *testing.T) {
 
 	// Original: 9:00 - 12:00 (180 min). Change end to 2pm, keep start at 9:00.
 	flags := map[string]bool{"to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "2pm", "", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "2pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 9, e.Start.Hour())
 	assert.Equal(t, 300, e.Minutes) // 9:00 - 14:00 = 5h
@@ -139,12 +139,12 @@ func TestEditDateOnly(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"date": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "2025-07-01", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "2025-07-01", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 2025, e.Start.Year())
 	assert.Equal(t, time.July, e.Start.Month())
@@ -160,13 +160,13 @@ func TestEditTask(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "", "reviews", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "reviews", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "task:")
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, "reviews", e.Task)
 }
@@ -175,13 +175,13 @@ func TestEditClearTask(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "task:")
 	assert.Contains(t, stdout, "(none)")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, "", e.Task)
 }
@@ -190,13 +190,13 @@ func TestEditMessage(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"message": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "", "", "updated work")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "updated work")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "message:")
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, "updated work", e.Message)
 }
@@ -205,7 +205,7 @@ func TestEditEmptyMessageError(t *testing.T) {
 	homeDir, repoDir, _, _ := setupEditTest(t)
 
 	flags := map[string]bool{"message": true}
-	_, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message is required")
@@ -215,7 +215,7 @@ func TestEditDurationFromToMutuallyExclusive(t *testing.T) {
 	homeDir, repoDir, _, _ := setupEditTest(t)
 
 	flags := map[string]bool{"duration": true, "from": true}
-	_, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "2h", "9am", "", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "9am", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "mutually exclusive")
@@ -225,7 +225,7 @@ func TestEditExceeds24Hours(t *testing.T) {
 	homeDir, repoDir, _, _ := setupEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "25h", "", "", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "25h", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot log more than 24h")
@@ -246,7 +246,7 @@ func TestEditNoChanges(t *testing.T) {
 
 	// Set task to same value
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "", "", "", "coding", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "coding", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "no changes")
@@ -257,11 +257,11 @@ func TestEditPreservesIDAndCreatedAt(t *testing.T) {
 	homeDir, repoDir, proj, original := setupEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "5h", "", "", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "5h", "", "", "", "", "")
 
 	require.NoError(t, err)
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, original.ID, e.ID)
 	assert.True(t, original.CreatedAt.Equal(e.CreatedAt))
@@ -271,12 +271,12 @@ func TestEditByProjectFlag(t *testing.T) {
 	homeDir, _, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, "", proj.Name, "edt1234", flags, "1h", "", "", "", "", "")
+	stdout, err := execEdit(homeDir, "", proj.Name, "ed01234", flags, "1h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 60, e.Minutes)
 }
@@ -293,7 +293,7 @@ func TestEditCrossProjectScan(t *testing.T) {
 	p = project.FindProjectByID(cfg, p.ID)
 
 	e := entry.Entry{
-		ID:        "scn1234",
+		ID:        "5c01234",
 		Start:     time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Minutes:   60,
 		Message:   "scan work",
@@ -303,12 +303,12 @@ func TestEditCrossProjectScan(t *testing.T) {
 
 	// No repo, no project flag — should scan and find it
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, "", "", "scn1234", flags, "2h", "", "", "", "", "")
+	stdout, err := execEdit(homeDir, "", "", "5c01234", flags, "2h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	updated, err := entry.ReadEntry(homeDir, p.Slug, "scn1234")
+	updated, err := entry.ReadEntry(homeDir, p.Slug, "5c01234")
 	require.NoError(t, err)
 	assert.Equal(t, 120, updated.Minutes)
 }
@@ -339,14 +339,14 @@ func TestEditInteractiveMode(t *testing.T) {
 	}
 
 	flags := map[string]bool{} // no flags = interactive mode
-	err := runEdit(cmd, homeDir, repoDir, "", "edt1234",
+	err := runEdit(cmd, homeDir, repoDir, "", "ed01234",
 		"", "", "", "", "", "",
 		flags, pk, nil, fixedNow)
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 10, e.Start.Hour())
 	assert.Equal(t, 120, e.Minutes) // 10:00 - 12:00
@@ -365,12 +365,12 @@ func TestEditDateAndFrom(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
 	flags := map[string]bool{"date": true, "from": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "edt1234", flags, "", "10am", "", "2025-08-01", "", "")
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "2025-08-01", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 
-	e, err := entry.ReadEntry(homeDir, proj.Slug, "edt1234")
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 2025, e.Start.Year())
 	assert.Equal(t, time.August, e.Start.Month())
@@ -392,7 +392,7 @@ func TestEditScheduleWarningOutsideHours(t *testing.T) {
 	}
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", confirm)
 
 	require.NoError(t, err)
@@ -410,7 +410,7 @@ func TestEditScheduleWarningDeclined(t *testing.T) {
 	}
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", confirm)
 
 	require.NoError(t, err)
@@ -428,7 +428,7 @@ func TestEditMessageOnlyNoWarning(t *testing.T) {
 	}
 
 	flags := map[string]bool{"message": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "", "", "", "", "new message", confirm)
 
 	require.NoError(t, err)
@@ -441,7 +441,7 @@ func TestEditYesFlagSkipsWarning(t *testing.T) {
 
 	// Move to outside schedule with --yes (AlwaysYes)
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", AlwaysYes())
 
 	require.NoError(t, err)
@@ -454,7 +454,7 @@ func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
 	// Original entry: edt1234, 9:00–12:00 (180 min) on Monday.
 	// Add another 5h entry to fill up most of the 8h budget.
 	e2 := entry.Entry{
-		ID:        "edt5678",
+		ID:        "ed05678",
 		Start:     time.Date(2025, 6, 16, 12, 0, 0, 0, time.UTC),
 		Minutes:   300,
 		Message:   "other work",
@@ -471,7 +471,7 @@ func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
 	}
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "edt1234", flags,
+	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"2h", "", "", "", "", "", confirm)
 
 	require.NoError(t, err)
@@ -484,7 +484,7 @@ func TestEditCheckoutEntryRejected(t *testing.T) {
 
 	// Write a checkout entry
 	ce := entry.CheckoutEntry{
-		ID:        "chk9999",
+		ID:        "c009999",
 		Type:      "checkout",
 		Timestamp: time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
 		Previous:  "main",
@@ -493,7 +493,7 @@ func TestEditCheckoutEntryRejected(t *testing.T) {
 	require.NoError(t, entry.WriteCheckoutEntry(homeDir, proj.Slug, ce))
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "chk9999", flags, "2h", "", "", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "c009999", flags, "2h", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot be edited")

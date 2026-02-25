@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -38,12 +37,11 @@ var reportCmd = LeafCommand{
 		{Name: "output", Usage: "export report as PDF to the given path (auto-named if empty)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 		monthFlag, _ := cmd.Flags().GetString("month")
 		weekFlag, _ := cmd.Flags().GetString("week")
@@ -218,7 +216,6 @@ func parseWeekRange(weekFlag, yearFlag string, now time.Time) (from, to time.Tim
 func isoWeekStart(year, week int) time.Time {
 	// Jan 4 is always in week 1 of its ISO year
 	jan4 := time.Date(year, 1, 4, 0, 0, 0, 0, time.UTC)
-	_, jan4Week := jan4.ISOWeek()
 
 	// Find the Monday of week 1
 	jan4Weekday := jan4.Weekday()
@@ -226,9 +223,6 @@ func isoWeekStart(year, week int) time.Time {
 		jan4Weekday = 7
 	}
 	week1Monday := jan4.AddDate(0, 0, -int(jan4Weekday-time.Monday))
-
-	// Adjust if Jan 4 is in a different week than expected
-	_ = jan4Week
 
 	// Add (week - 1) * 7 days to get to the target week's Monday
 	return week1Monday.AddDate(0, 0, (week-1)*7)

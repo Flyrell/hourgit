@@ -52,7 +52,8 @@ func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm Co
 			return err
 		}
 		if !confirmed {
-			return fmt.Errorf("aborted")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "cancelled")
+			return nil
 		}
 	}
 

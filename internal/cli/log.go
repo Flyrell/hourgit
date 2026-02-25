@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -29,12 +28,11 @@ var logCmd = LeafCommand{
 		{Name: "task", Usage: "task label for this entry"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 		durationFlag, _ := cmd.Flags().GetString("duration")
 		fromFlag, _ := cmd.Flags().GetString("from")

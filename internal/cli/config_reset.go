@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/spf13/cobra"
@@ -18,12 +17,11 @@ var configResetCmd = LeafCommand{
 		{Name: "yes", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		homeDir, err := os.UserHomeDir()
+		homeDir, repoDir, err := getContextPaths()
 		if err != nil {
 			return err
 		}
 
-		repoDir, _ := os.Getwd()
 		projectFlag, _ := cmd.Flags().GetString("project")
 
 		yes, _ := cmd.Flags().GetBool("yes")
@@ -44,7 +42,8 @@ func runConfigReset(cmd *cobra.Command, homeDir, repoDir, projectFlag string, co
 		return err
 	}
 	if !confirmed {
-		return fmt.Errorf("aborted")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "cancelled")
+		return nil
 	}
 
 	if err := project.ResetSchedules(homeDir, entry.ID); err != nil {

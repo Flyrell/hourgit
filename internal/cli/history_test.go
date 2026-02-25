@@ -94,7 +94,7 @@ func TestHistoryMixedChronologicalOrder(t *testing.T) {
 
 	// Older entry
 	require.NoError(t, entry.WriteCheckoutEntry(homeDir, proj.Slug, entry.CheckoutEntry{
-		ID:        "older01",
+		ID:        "01de001",
 		Timestamp: time.Date(2025, 6, 14, 9, 0, 0, 0, time.UTC),
 		Previous:  "main",
 		Next:      "develop",
@@ -102,7 +102,7 @@ func TestHistoryMixedChronologicalOrder(t *testing.T) {
 
 	// Newer entry
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, entry.Entry{
-		ID:        "newer01",
+		ID:        "0e0e001",
 		Start:     time.Date(2025, 6, 15, 11, 0, 0, 0, time.UTC),
 		Minutes:   60,
 		Message:   "Recent work",
@@ -114,8 +114,8 @@ func TestHistoryMixedChronologicalOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	// Newer should appear before older (newest first)
-	newerIdx := bytes.Index([]byte(stdout), []byte("newer01"))
-	olderIdx := bytes.Index([]byte(stdout), []byte("older01"))
+	newerIdx := bytes.Index([]byte(stdout), []byte("0e0e001"))
+	olderIdx := bytes.Index([]byte(stdout), []byte("01de001"))
 	assert.Greater(t, olderIdx, newerIdx, "newer entry should appear before older entry")
 }
 
@@ -127,7 +127,7 @@ func TestHistoryProjectFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, entry.Entry{
-		ID:        "proj1aa",
+		ID:        "00f1aaa",
 		Start:     time.Date(2025, 6, 15, 11, 0, 0, 0, time.UTC),
 		Minutes:   30,
 		Message:   "First project work",
@@ -135,7 +135,7 @@ func TestHistoryProjectFilter(t *testing.T) {
 	}))
 
 	require.NoError(t, entry.WriteEntry(homeDir, proj2.Slug, entry.Entry{
-		ID:        "proj2bb",
+		ID:        "00f2bbb",
 		Start:     time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC),
 		Minutes:   45,
 		Message:   "Second project work",
@@ -146,8 +146,8 @@ func TestHistoryProjectFilter(t *testing.T) {
 	stdout, err := execHistory(homeDir, proj.Name, 50)
 
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "proj1aa")
-	assert.NotContains(t, stdout, "proj2bb")
+	assert.Contains(t, stdout, "00f1aaa")
+	assert.NotContains(t, stdout, "00f2bbb")
 }
 
 func TestHistoryLimit(t *testing.T) {
@@ -155,7 +155,7 @@ func TestHistoryLimit(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, entry.Entry{
-			ID:        "entry0" + string(rune('a'+i)),
+			ID:        "e00f00" + string(rune('a'+i)),
 			Start:     time.Date(2025, 6, 15, 10+i, 0, 0, 0, time.UTC),
 			Minutes:   30,
 			Message:   "Work item",
@@ -176,7 +176,7 @@ func TestHistoryLimitZeroShowsAll(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, entry.Entry{
-			ID:        "allll0" + string(rune('a'+i)),
+			ID:        "a11110" + string(rune('a'+i)),
 			Start:     time.Date(2025, 6, 15, 10+i, 0, 0, 0, time.UTC),
 			Minutes:   30,
 			Message:   "Work item",
@@ -195,7 +195,7 @@ func TestHistoryLogWithTask(t *testing.T) {
 	homeDir, proj := setupHistoryTest(t)
 
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, entry.Entry{
-		ID:        "task123",
+		ID:        "1a50123",
 		Start:     time.Date(2025, 6, 15, 11, 0, 0, 0, time.UTC),
 		Minutes:   45,
 		Message:   "Weekly review",
