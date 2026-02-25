@@ -112,3 +112,62 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
     observer.observe(el);
   });
 })();
+
+// ── Consent Manager ────────────────────────────────────────────────
+
+(function () {
+  var GTM_ID = 'GTM-WRLZND6J';
+  var banner = document.getElementById('consent-banner');
+  var acceptBtn = document.getElementById('consent-accept');
+  var rejectBtn = document.getElementById('consent-reject');
+
+  function loadGTM() {
+    // Update consent state
+    gtag('consent', 'update', {
+      'analytics_storage': 'granted'
+    });
+
+    // Inject GTM script
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', GTM_ID);
+  }
+
+  function hideBanner() {
+    banner.classList.add('hidden');
+  }
+
+  function showBanner() {
+    banner.style.display = '';
+  }
+
+  // Check stored consent
+  var consent = localStorage.getItem('consent');
+
+  if (consent === 'accepted') {
+    banner.style.display = 'none';
+    loadGTM();
+  } else if (consent === 'rejected') {
+    banner.style.display = 'none';
+  } else {
+    showBanner();
+  }
+
+  acceptBtn.addEventListener('click', function () {
+    localStorage.setItem('consent', 'accepted');
+    hideBanner();
+    loadGTM();
+  });
+
+  rejectBtn.addEventListener('click', function () {
+    localStorage.setItem('consent', 'rejected');
+    hideBanner();
+  });
+})();

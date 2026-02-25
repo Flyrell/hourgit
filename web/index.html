@@ -11,6 +11,18 @@
   <link rel="canonical" href="https://hourgit.com/">
   <meta name="theme-color" content="#d4a246">
 
+  <!-- Google Consent Mode v2 defaults -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'analytics_storage': 'denied',
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied'
+    });
+  </script>
+
   <!-- Open Graph -->
   <meta property="og:title" content="Hourgit — Time tracking that follows your git flow">
   <meta property="og:description" content="Git-integrated time tracking for developers. No timers. No manual input. Just code.">
@@ -58,6 +70,9 @@
   <link rel="apple-touch-icon" href="assets/favicon.png">
 </head>
 <body>
+  <!-- GTM noscript fallback (only rendered, GTM itself loads via consent JS) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WRLZND6J"
+                    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
   <!-- ── Nav ─────────────────────────────────────────────────────────── -->
   <nav class="nav" id="nav">
@@ -354,6 +369,20 @@ Repository assigned to <span class="t-accent">Work</span></span></code></pre>
       </div>
     </div>
   </footer>
+
+  <!-- ── Consent Banner ──────────────────────────────────────────────── -->
+  <div class="consent-banner" id="consent-banner">
+    <div class="consent-banner-inner">
+      <p class="consent-text">
+        <strong>We don't track your time commits</strong> — but we'd love to know what you do on this site.
+        We use cookies for analytics to improve the experience.
+      </p>
+      <div class="consent-actions">
+        <button class="consent-btn consent-btn--reject" id="consent-reject">No thanks</button>
+        <button class="consent-btn consent-btn--accept" id="consent-accept">Sure, track away</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/main.js"></script>
 </body>
