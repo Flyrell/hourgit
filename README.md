@@ -2,7 +2,9 @@
 
 > Git-integrated time tracking for developers. No timers. No manual input. Just code.
 
-## Overview
+[![License: Polyform Shield 1.0.0](https://img.shields.io/badge/License-Polyform--Shield--1.0.0-blue)](LICENSE)
+[![CI](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Flyrell/hour-git)](https://github.com/Flyrell/hour-git/releases)
 
 Hourgit tracks your working time automatically by hooking into git's checkout events. When you switch branches, Hourgit starts attributing time to the new branch. Your configured working hours act as the boundary — so overnight gaps, weekends, and days off are handled automatically without any extra input from you.
 
@@ -10,212 +12,185 @@ Each unit of logged time is called a **log entry**, identified by a short hash (
 
 Manual logging is supported for non-code work (research, analysis, meetings) via explicit commands.
 
+## Quick Start
+
+1. **Install the hook** in your git repository:
+   ```bash
+   hourgit init
+   ```
+
+2. **Work normally** — time tracks automatically on every `git checkout`.
+
+3. **Log non-git work** manually:
+   ```bash
+   hourgit log --duration 1h30m "standup"
+   hourgit log --from 9am --to 10:30am "standup"
+   ```
+
+4. **View the interactive report:**
+   ```bash
+   hourgit report
+   ```
+   Navigate with arrow keys, press `e` to edit entries, `a` to add new ones. Checkout-derived time appears automatically (marked with `*`). Press `s` to **submit** the period — this persists all generated entries and marks the period as complete.
+
+5. **Export a PDF** for sharing:
+   ```bash
+   hourgit report --output timesheet.pdf
+   ```
+
 ## Installation
 
 Installation instructions will be available once the first release is published.
 
-## Getting Started
+## Table of Contents
 
-Initialize Hourgit in a git repository:
-
-```bash
-hourgit init
-```
-
-This installs a post-checkout hook that automatically tracks branch switches. You can optionally assign the repo to a project during initialization:
-
-```bash
-hourgit init --project <project_name>
-```
-
-If the project doesn't exist yet, it will be created for you.
+- [Commands](#commands)
+  - [Time Tracking](#time-tracking) — init, log, edit, remove, checkout, report, history
+  - [Project Management](#project-management) — project add/assign/list/remove
+  - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
+  - [Default Schedule](#default-schedule) — defaults get/set/reset/report
+  - [Shell Completions](#shell-completions) — completion install/generate
+  - [Other](#other) — version
+- [Configuration](#configuration)
+- [Data Storage](#data-storage)
+- [Roadmap](#roadmap)
+- [License](#license)
 
 ## Commands
 
-### `hourgit init`
+### Time Tracking
+
+Core commands for recording, viewing, and managing your time entries.
+
+Commands: `init` · `log` · `edit` · `remove` · `checkout` · `report` · `history`
+
+#### `hourgit init`
 
 Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit init [--project <project_name>] [--force] [--merge] [--yes]
+hourgit init [--project <name>] [--force] [--merge] [--yes]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Assign repository to a project by name or ID (creates if needed) |
-| `--force` | Overwrite existing post-checkout hook |
-| `--merge` | Append to existing post-checkout hook |
-| `--yes` | Skip confirmation prompt |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
+| `--force` | `false` | Overwrite existing post-checkout hook |
+| `--merge` | `false` | Append to existing post-checkout hook |
+| `--yes` | `false` | Skip confirmation prompt |
 
-### `hourgit completion`
-
-Manage shell completions. Supported shells: `bash`, `zsh`, `fish`, `powershell`.
-
-#### `hourgit completion install`
-
-Install shell completions into your shell config file. Auto-detects your shell if not specified.
-
-```bash
-hourgit completion install [SHELL] [--yes]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--yes` | Skip confirmation prompt |
-
-
-#### `hourgit completion generate`
-
-Generate a shell completion script. If no shell is specified, Hourgit auto-detects it from the `$SHELL` environment variable.
-
-```bash
-hourgit completion generate [SHELL]
-```
-
-Shell completions are also offered automatically during `hourgit init`.
-
-For manual setup, add the appropriate line to your shell config:
-
-```bash
-# zsh (~/.zshrc)
-eval "$(hourgit completion generate zsh)"
-
-# bash (~/.bashrc)
-eval "$(hourgit completion generate bash)"
-
-# fish (~/.config/fish/config.fish)
-hourgit completion generate fish | source
-```
-
-### `hourgit log`
+#### `hourgit log`
 
 Manually log time for a project. Uses a hybrid mode: provide any combination of flags and you'll be prompted only for the missing pieces.
 
-**Fully specified** — no prompts:
+```bash
+hourgit log [MESSAGE] [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [--project <name>]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+| `--duration` | — | Duration to log (e.g. `30m`, `3h`, `1d3h30m`) |
+| `--from` | — | Start time (e.g. `9am`, `14:00`) |
+| `--to` | — | End time (e.g. `5pm`, `17:00`) |
+| `--date` | today | Date to log for (`YYYY-MM-DD`) |
+| `--task` | — | Task label for this entry |
+
+> `--duration` and `--from`/`--to` are mutually exclusive. A message is always required (prompted if not provided).
+
+**Examples**
 
 ```bash
+# Fully specified — no prompts
 hourgit log --duration 3h "did some work"
 hourgit log --from 9am --to 12pm "morning work"
 hourgit log --duration 3h --date 2025-01-10 "forgot to log"
-```
 
-**Partial flags** — prompted for the rest:
-
-```bash
+# Partial flags — prompted for the rest
 hourgit log --duration 3h          # prompted for message
 hourgit log --from 9am             # prompted for --to and message
 hourgit log "meeting notes"        # prompted for time mode and inputs
-hourgit log --date 2025-01-10      # prompted for time mode, inputs, and message
-```
 
-**Fully interactive** — guided prompts for everything:
-
-```bash
+# Fully interactive
 hourgit log
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
-| `--duration` | Duration to log (e.g. `30m`, `3h`, `1d3h30m`) |
-| `--from` | Start time (e.g. `9am`, `14:00`) |
-| `--to` | End time (e.g. `5pm`, `17:00`) |
-| `--date` | Date to log for (`YYYY-MM-DD`, default: today) |
-| `--task` | Task label for this entry |
+#### `hourgit edit`
 
-Notes:
-- `--duration` and `--from`/`--to` are mutually exclusive
-- A message is always required (prompted if not provided)
-
-### `hourgit edit`
-
-Edit an existing log entry by its hash. Supports two modes:
-
-**Flag mode** — when any edit flag is provided, apply only those changes directly:
+Edit an existing log entry by its hash. When edit flags are provided, only those changes are applied directly. Without flags, an interactive editor opens with current values pre-filled.
 
 ```bash
-hourgit edit <hash> --duration 3h
-hourgit edit <hash> --from 9am --to 12pm
-hourgit edit <hash> --task "reviews"
-hourgit edit <hash> --date 2025-02-20
-hourgit edit <hash> -m "updated message"
+hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [-m <msg>] [--project <name>]
 ```
 
-**Interactive mode** — when no edit flags provided, prompts for each field with current values pre-filled:
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+| `--duration` | — | New duration (e.g. `30m`, `3h`, `3h30m`) |
+| `--from` | — | New start time (e.g. `9am`, `14:00`) |
+| `--to` | — | New end time (e.g. `5pm`, `17:00`) |
+| `--date` | — | New date (`YYYY-MM-DD`) |
+| `--task` | — | New task label (empty string clears it) |
+| `-m`, `--message` | — | New message |
+
+> `--duration` and `--from`/`--to` are mutually exclusive. `--from` only: keeps existing end time, recalculates duration. `--to` only: keeps existing start time, recalculates duration. Entry ID and creation timestamp are preserved. If the entry is not found in the current repo's project, all projects are searched.
+
+**Examples**
 
 ```bash
-hourgit edit <hash>
+hourgit edit abc1234 --duration 3h
+hourgit edit abc1234 --from 9am --to 12pm
+hourgit edit abc1234 --task "reviews"
+hourgit edit abc1234 -m "updated message"
+hourgit edit abc1234              # interactive mode
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
-| `--duration` | New duration (e.g. `30m`, `3h`, `3h30m`) |
-| `--from` | New start time (e.g. `9am`, `14:00`) |
-| `--to` | New end time (e.g. `5pm`, `17:00`) |
-| `--date` | New date (`YYYY-MM-DD`) |
-| `--task` | New task label (empty string clears it) |
-| `-m`, `--message` | New message |
-
-Notes:
-- `--duration` and `--from`/`--to` are mutually exclusive
-- `--from` only: keeps existing end time, recalculates duration
-- `--to` only: keeps existing start time, recalculates duration
-- Entry ID and creation timestamp are preserved
-- If the entry is not found in the current repo's project, all projects are searched
-
-### `hourgit remove`
+#### `hourgit remove`
 
 Remove a log or checkout entry by its hash.
 
 ```bash
-hourgit remove <hash> [--project <project_name>] [--yes]
+hourgit remove <hash> [--project <name>] [--yes]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
-| `--yes` | Skip confirmation prompt |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+| `--yes` | `false` | Skip confirmation prompt |
 
-Notes:
-- Works with both log and checkout entries (unlike `edit`, which only supports log entries)
-- Shows entry details and asks for confirmation before deleting
-- If the entry is not found in the current repo's project, all projects are searched
+> Works with both log and checkout entries (unlike `edit`, which only supports log entries). Shows entry details and asks for confirmation before deleting. If the entry is not found in the current repo's project, all projects are searched.
 
-### `hourgit checkout`
+#### `hourgit checkout`
 
-Record a branch checkout event. This command is called internally by the post-checkout git hook to track branch transitions.
+Record a branch checkout event. Called internally by the post-checkout git hook to track branch transitions.
 
 ```bash
-hourgit checkout --prev <branch> --next <branch> [--project <project_name>]
+hourgit checkout --prev <branch> --next <branch> [--project <name>]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--prev` | Previous branch name (required) |
-| `--next` | Next branch name (required) |
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--prev` | — | Previous branch name (required) |
+| `--next` | — | Next branch name (required) |
+| `--project` | auto-detect | Project name or ID |
 
-### `hourgit report`
+#### `hourgit report`
 
-Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries. Checkout-derived time is generated in-memory and can be edited, added to, or removed directly in the table. Pressing `s` submits the period, persisting all generated entries.
+Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries.
 
 ```bash
-hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <project_name>] [--output <path>]
+hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--output <path>]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--month` | Month number 1-12 (default: current month) |
-| `--week` | ISO week number 1-53 (default: current week) |
-| `--year` | Year (complementary to `--month` or `--week`) |
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
-| `--output` | Export report as a PDF timesheet to the given path (auto-named if empty) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--month` | current month | Month number 1-12 |
+| `--week` | — | ISO week number 1-53 |
+| `--year` | current year | Year (complementary to `--month` or `--week`) |
+| `--project` | auto-detect | Project name or ID |
+| `--output` | — | Export report as a PDF timesheet to the given path (auto-named if empty) |
 
-Notes:
-- `--month` and `--week` cannot be used together
-- `--year` alone is not valid — it must be paired with `--month` or `--week`
-- Neither flag defaults to the current month
+> `--month` and `--week` cannot be used together. `--year` alone is not valid — it must be paired with `--month` or `--week`. Neither flag defaults to the current month.
 
 **Interactive table keybindings:**
 
@@ -230,69 +205,61 @@ Notes:
 
 In-memory generated entries (from checkout attribution) are marked with `*` in the table. Editing a generated entry persists it immediately. Submitting persists all remaining generated entries and creates a submit marker.
 
-Previously submitted periods show a warning banner and can be re-edited and re-submitted.
+Previously submitted periods show a warning banner and can be re-edited and re-submitted. In non-interactive environments (piped output), a static table is printed instead.
 
-In non-interactive environments (piped output), a static table is printed instead.
-
-**PDF export:**
+**Examples**
 
 ```bash
-hourgit report --output timesheet.pdf
-hourgit report --output                       # auto-names as <project>-<YYYY>-<MM>.pdf
+hourgit report                                    # current month, interactive
+hourgit report --week 8                           # ISO week 8
+hourgit report --output timesheet.pdf             # export PDF
+hourgit report --output                           # auto-named PDF (<project>-<YYYY>-<MM>.pdf)
 hourgit report --output report.pdf --month 1 --year 2025
 ```
 
-The PDF shows a day-by-day breakdown with individual time entries grouped by task, suitable for A4 printing and sharing.
+#### `hourgit history`
 
-### `hourgit history`
-
-Show a chronological feed of all recorded activity (log entries and checkout events) across projects, newest first.
+Show a chronological feed of all recorded activity (log entries and checkout events), newest first.
 
 ```bash
-hourgit history [--project <project_name>] [--limit <N>]
+hourgit history [--project <name>] [--limit <N>]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Filter by project name or ID |
-| `--limit` | Maximum number of entries to show (default: 50, use 0 for all) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | all projects | Filter by project name or ID |
+| `--limit` | `50` | Maximum number of entries to show (use `0` for all) |
 
-Each line shows the entry hash, timestamp, type (log or checkout), project name, and details:
-- **Log entries:** duration + task label (if set) + message
-- **Checkout entries:** previous branch → next branch
+> Each line shows the entry hash, timestamp, type (log or checkout), project name, and details. Log entries display duration + task label (if set) + message. Checkout entries display previous branch → next branch.
 
-### `hourgit version`
+### Project Management
 
-Print version information.
+Group repositories into projects for organized time tracking.
 
-```bash
-hourgit version
-```
-
-### `hourgit project`
-
-Manage projects. Projects group repositories together and hold schedule configuration.
+Commands: `project add` · `project assign` · `project list` · `project remove`
 
 #### `hourgit project add`
 
 Create a new project.
 
 ```bash
-hourgit project add <project_name>
+hourgit project add <name>
 ```
+
+No flags.
 
 #### `hourgit project assign`
 
 Assign the current repository to a project.
 
 ```bash
-hourgit project assign <project_name> [--force] [--yes]
+hourgit project assign <name> [--force] [--yes]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--force` | Reassign repository to a different project |
-| `--yes` | Skip confirmation prompt |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--force` | `false` | Reassign repository to a different project |
+| `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit project list`
 
@@ -302,63 +269,82 @@ List all projects and their repositories.
 hourgit project list
 ```
 
+No flags.
+
 #### `hourgit project remove`
 
 Remove a project and clean up its repository assignments.
 
 ```bash
-hourgit project remove <project_name> [--yes]
+hourgit project remove <name> [--yes]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--yes` | Skip confirmation prompt |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--yes` | `false` | Skip confirmation prompt |
 
-### `hourgit config`
+### Schedule Configuration
 
 Manage per-project schedule configuration. If `--project` is omitted, the project is auto-detected from the current repository.
+
+Commands: `config get` · `config set` · `config reset` · `config report`
 
 #### `hourgit config get`
 
 Show the schedule configuration for a project.
 
 ```bash
-hourgit config get [--project <project_name> or <project_id>]
+hourgit config get [--project <name>]
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
 
 #### `hourgit config set`
 
 Interactively edit a project's schedule using a guided schedule builder.
 
 ```bash
-hourgit config set [--project <project_name> or <project_id>]
+hourgit config set [--project <name>]
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
 
 #### `hourgit config reset`
 
 Reset a project's schedule to the defaults.
 
 ```bash
-hourgit config reset [--project <project_name> or <project_id>] [--yes]
+hourgit config reset [--project <name>] [--yes]
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+| `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit config report`
 
 Show expanded working hours for a given month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit config report [--project <project_name> or <project_id>] [--month <1-12>] [--year <YYYY>]
+hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--project` | Project name or ID (auto-detected from repo if omitted) |
-| `--month` | Month number 1-12 (default: current month) |
-| `--year` | Year (default: current year) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+| `--month` | current month | Month number 1-12 |
+| `--year` | current year | Year |
 
-### `hourgit defaults`
+### Default Schedule
 
 Manage the default schedule applied to new projects.
+
+Commands: `defaults get` · `defaults set` · `defaults reset` · `defaults report`
 
 #### `hourgit defaults get`
 
@@ -368,6 +354,8 @@ Show the default schedule for new projects.
 hourgit defaults get
 ```
 
+No flags.
+
 #### `hourgit defaults set`
 
 Interactively edit the default schedule for new projects.
@@ -376,13 +364,19 @@ Interactively edit the default schedule for new projects.
 hourgit defaults set
 ```
 
+No flags.
+
 #### `hourgit defaults reset`
 
-Reset the default schedule to factory settings (Mon–Fri, 9 AM – 5 PM).
+Reset the default schedule to factory settings (Mon-Fri, 9 AM - 5 PM).
 
 ```bash
 hourgit defaults reset [--yes]
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit defaults report`
 
@@ -392,14 +386,69 @@ Show expanded default working hours for a given month.
 hourgit defaults report [--month <1-12>] [--year <YYYY>]
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--month` | Month number 1-12 (default: current month) |
-| `--year` | Year (default: current year) |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--month` | current month | Month number 1-12 |
+| `--year` | current year | Year |
+
+### Shell Completions
+
+Set up tab completions for your shell. Supported shells: `bash`, `zsh`, `fish`, `powershell`.
+
+Commands: `completion install` · `completion generate`
+
+#### `hourgit completion install`
+
+Install shell completions into your shell config file. Auto-detects your shell if not specified.
+
+```bash
+hourgit completion install [SHELL] [--yes]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--yes` | `false` | Skip confirmation prompt |
+
+#### `hourgit completion generate`
+
+Generate a shell completion script. If no shell is specified, Hourgit auto-detects it from the `$SHELL` environment variable.
+
+```bash
+hourgit completion generate [SHELL]
+```
+
+No flags.
+
+Shell completions are also offered automatically during `hourgit init`.
+
+**Examples**
+
+```bash
+# zsh (~/.zshrc)
+eval "$(hourgit completion generate zsh)"
+
+# bash (~/.bashrc)
+eval "$(hourgit completion generate bash)"
+
+# fish (~/.config/fish/config.fish)
+hourgit completion generate fish | source
+```
+
+### Other
+
+#### `hourgit version`
+
+Print version information.
+
+```bash
+hourgit version
+```
+
+No flags.
 
 ## Configuration
 
-Hourgit uses a schedule system to define working hours. The factory default is **Monday–Friday, 9 AM – 5 PM**.
+Hourgit uses a schedule system to define working hours. The factory default is **Monday-Friday, 9 AM - 5 PM**.
 
 ### Schedule types
 
@@ -421,7 +470,7 @@ Every project starts with a copy of the defaults. You can then customize a proje
 |------|---------|
 | `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
 | `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
-| `~/.hourgit/<slug>/<hash>` | Per-project entries (one JSON file per entry — log, checkout, or generated-day marker) |
+| `~/.hourgit/<slug>/<hash>` | Per-project entries (one JSON file per entry — log, checkout, or submit marker) |
 
 ## Roadmap
 
@@ -431,4 +480,6 @@ The following features are planned but not yet implemented:
 
 ## License
 
-This project is licensed under the [Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT)](LICENSE).
+This project is licensed under the [Polyform Shield License 1.0.0](LICENSE).
+
+Free for individual developers and organizations with fewer than 10 employees. Organizations exceeding 10 employees must obtain a [commercial license](mailto:dawid@zbinski.dev).
