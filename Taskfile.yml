@@ -9,15 +9,9 @@ includes:
 vars:
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
-  COMMIT:
-    sh: git rev-parse --short HEAD 2>/dev/null || echo "none"
-  BUILD_DATE:
-    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
   LDFLAGS: >-
     -s -w
     -X main.version={{.VERSION}}
-    -X main.commit={{.COMMIT}}
-    -X main.date={{.BUILD_DATE}}
 
 tasks:
   build:
