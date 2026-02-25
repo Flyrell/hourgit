@@ -12,6 +12,44 @@ Each unit of logged time is called a **log entry**, identified by a short hash (
 
 Manual logging is supported for non-code work (research, analysis, meetings) via explicit commands.
 
+## Installation
+
+Download the latest binary for your platform from the [Releases page](https://github.com/Flyrell/hour-git/releases/latest).
+
+### macOS
+
+```bash
+# Apple Silicon (M1/M2/M3/M4)
+chmod +x hourgit-darwin-arm64-*
+sudo mv hourgit-darwin-arm64-* /usr/local/bin/hourgit
+
+# Intel
+chmod +x hourgit-darwin-amd64-*
+sudo mv hourgit-darwin-amd64-* /usr/local/bin/hourgit
+```
+
+### Linux
+
+```bash
+# x86_64
+chmod +x hourgit-linux-amd64-*
+sudo mv hourgit-linux-amd64-* /usr/local/bin/hourgit
+
+# ARM64
+chmod +x hourgit-linux-arm64-*
+sudo mv hourgit-linux-arm64-* /usr/local/bin/hourgit
+```
+
+### Windows
+
+Move `hourgit-windows-amd64-*.exe` to a directory in your `PATH` and rename it to `hourgit.exe`.
+
+### Verify
+
+```bash
+hourgit version
+```
+
 ## Quick Start
 
 1. **Install the hook** in your git repository:
@@ -37,10 +75,6 @@ Manual logging is supported for non-code work (research, analysis, meetings) via
    ```bash
    hourgit report --output timesheet.pdf
    ```
-
-## Installation
-
-Installation instructions will be available once the first release is published.
 
 ## Table of Contents
 
