@@ -143,6 +143,9 @@ func runGenerate(
 		}
 	}
 
+	// Build a lookup from day date to first schedule window start
+	dayStartTimes := buildDayStartTimes(daySchedules)
+
 	// Compute checkout attribution for each month in range
 	entries, err := buildGenerateEntries(checkouts, daySchedules, from, to, now)
 	if err != nil {
@@ -181,9 +184,13 @@ func runGenerate(
 	generatedDays := make(map[string]bool)
 	for _, ge := range entries {
 		dt, _ := time.Parse("2006-01-02", ge.Date)
+		startHour, startMin := 9, 0 // fallback
+		if tod, ok := dayStartTimes[ge.Date]; ok {
+			startHour, startMin = tod.Hour, tod.Minute
+		}
 		e := entry.Entry{
 			ID:        hashutil.GenerateID("generate"),
-			Start:     time.Date(dt.Year(), dt.Month(), dt.Day(), 9, 0, 0, 0, time.UTC),
+			Start:     time.Date(dt.Year(), dt.Month(), dt.Day(), startHour, startMin, 0, 0, time.UTC),
 			Minutes:   ge.Minutes,
 			Message:   ge.Branch,
 			Task:      ge.Branch,
@@ -387,6 +394,18 @@ func buildGenerateEntries(
 	})
 
 	return result, nil
+}
+
+// buildDayStartTimes returns a map from date string to the first schedule
+// window's start time for that day.
+func buildDayStartTimes(daySchedules []schedule.DaySchedule) map[string]schedule.TimeOfDay {
+	m := make(map[string]schedule.TimeOfDay)
+	for _, ds := range daySchedules {
+		if len(ds.Windows) > 0 {
+			m[ds.Date.Format("2006-01-02")] = ds.Windows[0].From
+		}
+	}
+	return m
 }
 
 // deleteGeneratedEntries deletes log entries with source="generate" that fall

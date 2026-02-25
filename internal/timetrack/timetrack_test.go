@@ -211,6 +211,42 @@ func TestBuildReport_LastCheckoutCappedAtNow(t *testing.T) {
 	assert.Equal(t, 240, report.Rows[0].TotalMinutes)
 }
 
+func TestBuildReport_ScheduleWindowsInterpretedInLocalTimezone(t *testing.T) {
+	year, month := 2025, time.January
+	loc := time.FixedZone("UTC+1", 1*60*60)
+
+	// Schedule: 0:00-8:00 (user means local midnight to 8am local)
+	days := []schedule.DaySchedule{
+		{
+			Date: time.Date(year, month, 2, 0, 0, 0, 0, time.UTC),
+			Windows: []schedule.TimeWindow{
+				{
+					From: schedule.TimeOfDay{Hour: 0, Minute: 0},
+					To:   schedule.TimeOfDay{Hour: 8, Minute: 0},
+				},
+			},
+		},
+	}
+
+	// Checkout at local midnight (00:00 UTC+1 = 23:00 UTC day before)
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 1, 23, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	// "now" is 7:55 local (UTC+1) = 6:55 UTC.
+	// With UTC-interpreted windows: overlap of [23:00 UTC, 6:55 UTC] with
+	// [00:00 UTC, 08:00 UTC] = 6h55m (wrong).
+	// With local-interpreted windows: overlap of [23:00 UTC, 6:55 UTC] with
+	// [23:00 UTC, 07:00 UTC] (= 00:00-08:00 UTC+1) = 7h55m (correct).
+	now := time.Date(2025, 1, 2, 7, 55, 0, 0, loc) // = 6:55 UTC
+
+	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+
+	assert.Equal(t, 1, len(report.Rows))
+	assert.Equal(t, "feature-x", report.Rows[0].Name)
+	assert.Equal(t, 475, report.Rows[0].Days[2]) // 7h55m = 475 min
+}
+
 func findRow(report ReportData, name string) *TaskRow {
 	for i := range report.Rows {
 		if report.Rows[i].Name == name {
