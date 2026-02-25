@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -40,7 +39,7 @@ func execReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string) (stri
 	cmd := reportCmd
 	cmd.SetOut(stdout)
 
-	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, "", fixedNow)
+	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, "", yearFlag, "", false, false, false, fixedNow)
 	return stdout.String(), err
 }
 
@@ -102,6 +101,117 @@ func TestParseMonthYearFlags_InvalidYear(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestParseReportDateRange_DefaultMonth(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	from, to, year, month, err := parseReportDateRange("", "", "", false, false, false, now)
+	require.NoError(t, err)
+	assert.Equal(t, 2025, year)
+	assert.Equal(t, time.March, month)
+	assert.Equal(t, "2025-03-01", from.Format("2006-01-02"))
+	assert.Equal(t, "2025-03-31", to.Format("2006-01-02"))
+}
+
+func TestParseReportDateRange_ExplicitMonth(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	from, to, year, month, err := parseReportDateRange("6", "", "", true, false, false, now)
+	require.NoError(t, err)
+	assert.Equal(t, 2025, year)
+	assert.Equal(t, time.June, month)
+	assert.Equal(t, "2025-06-01", from.Format("2006-01-02"))
+	assert.Equal(t, "2025-06-30", to.Format("2006-01-02"))
+}
+
+func TestParseReportDateRange_MonthWithYear(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	from, to, year, month, err := parseReportDateRange("2", "", "2024", true, false, true, now)
+	require.NoError(t, err)
+	assert.Equal(t, 2024, year)
+	assert.Equal(t, time.February, month)
+	assert.Equal(t, "2024-02-01", from.Format("2006-01-02"))
+	assert.Equal(t, "2024-02-29", to.Format("2006-01-02")) // 2024 is leap year
+}
+
+func TestParseReportDateRange_WeekCurrent(t *testing.T) {
+	// June 15, 2025 is a Sunday, ISO week 24
+	now := time.Date(2025, 6, 15, 14, 0, 0, 0, time.UTC)
+	from, to, _, _, err := parseReportDateRange("", "", "", false, true, false, now)
+	require.NoError(t, err)
+
+	// Week 24 of 2025: Mon Jun 9 - Sun Jun 15
+	assert.Equal(t, time.Monday, from.Weekday())
+	assert.Equal(t, time.Sunday, to.Weekday())
+	assert.Equal(t, "2025-06-09", from.Format("2006-01-02"))
+	assert.Equal(t, "2025-06-15", to.Format("2006-01-02"))
+}
+
+func TestParseReportDateRange_WeekExplicit(t *testing.T) {
+	now := time.Date(2025, 6, 15, 14, 0, 0, 0, time.UTC)
+	from, to, _, _, err := parseReportDateRange("", "1", "", false, true, false, now)
+	require.NoError(t, err)
+
+	// Week 1 of 2025
+	assert.Equal(t, time.Monday, from.Weekday())
+	assert.Equal(t, time.Sunday, to.Weekday())
+}
+
+func TestParseReportDateRange_WeekWithYear(t *testing.T) {
+	now := time.Date(2025, 6, 15, 14, 0, 0, 0, time.UTC)
+	from, to, _, _, err := parseReportDateRange("", "22", "2025", false, true, true, now)
+	require.NoError(t, err)
+	assert.Equal(t, time.Monday, from.Weekday())
+	assert.Equal(t, time.Sunday, to.Weekday())
+}
+
+func TestParseReportDateRange_MonthAndWeekError(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	_, _, _, _, err := parseReportDateRange("3", "10", "", true, true, false, now)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be used together")
+}
+
+func TestParseReportDateRange_YearAloneError(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	_, _, _, _, err := parseReportDateRange("", "", "2024", false, false, true, now)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "must be used with")
+}
+
+func TestParseReportDateRange_InvalidWeek(t *testing.T) {
+	now := time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC)
+	_, _, _, _, err := parseReportDateRange("", "0", "", false, true, false, now)
+	assert.Error(t, err)
+
+	_, _, _, _, err = parseReportDateRange("", "54", "", false, true, false, now)
+	assert.Error(t, err)
+
+	_, _, _, _, err = parseReportDateRange("", "abc", "", false, true, false, now)
+	assert.Error(t, err)
+}
+
+func TestIsoWeekStart(t *testing.T) {
+	t.Run("week 1 of 2025", func(t *testing.T) {
+		monday := isoWeekStart(2025, 1)
+		isoYear, isoWeek := monday.ISOWeek()
+		assert.Equal(t, 2025, isoYear)
+		assert.Equal(t, 1, isoWeek)
+		assert.Equal(t, time.Monday, monday.Weekday())
+	})
+
+	t.Run("week 52 of 2025", func(t *testing.T) {
+		monday := isoWeekStart(2025, 52)
+		isoYear, isoWeek := monday.ISOWeek()
+		assert.Equal(t, 2025, isoYear)
+		assert.Equal(t, 52, isoWeek)
+		assert.Equal(t, time.Monday, monday.Weekday())
+	})
+
+	t.Run("week 24 of 2025", func(t *testing.T) {
+		monday := isoWeekStart(2025, 24)
+		assert.Equal(t, time.Monday, monday.Weekday())
+		assert.Equal(t, "2025-06-09", monday.Format("2006-01-02"))
+	})
+}
+
 func TestReportNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 	_, err := execReport(homeDir, "", "", "", "")
@@ -120,10 +230,9 @@ func TestReportEmptyMonth(t *testing.T) {
 func TestReportWithLogEntries(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
-	// Write a log entry for June 2025 (fixedNow month)
 	e := entry.Entry{
 		ID:        "test01",
-		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC), // Mon Jun 2
+		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
 		Minutes:   120,
 		Message:   "research",
 		Task:      "research",
@@ -131,87 +240,50 @@ func TestReportWithLogEntries(t *testing.T) {
 	}
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
 
-	// runReport outputs via bubbletea (interactive), which won't work in test.
-	// Test loadReportInputs + BuildReport directly.
 	now := time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
-	inputs, err := loadReportInputs(homeDir, repoDir, "", "6", "2025", now)
+	inputs, err := loadReportInputs(homeDir, repoDir, "", "6", "", "2025", true, false, true, now)
 	require.NoError(t, err)
 
-	data := timetrack.BuildReport(inputs.checkouts, inputs.logs, inputs.schedules, inputs.year, inputs.month, now, inputs.genDays)
+	data := timetrack.BuildDetailedReport(inputs.checkouts, inputs.logs, inputs.schedules, inputs.from, inputs.to, now)
 	assert.Equal(t, 1, len(data.Rows))
 	assert.Equal(t, "research", data.Rows[0].Name)
 	assert.Equal(t, 120, data.Rows[0].TotalMinutes)
 }
 
-func TestRenderTable(t *testing.T) {
-	data := timetrack.ReportData{
-		Year:        2025,
-		Month:       time.January,
-		DaysInMonth: 31,
-		Rows: []timetrack.TaskRow{
-			{
-				Name:         "feature-x",
-				TotalMinutes: 600,
-				Days:         map[int]int{2: 480, 3: 120},
-			},
-		},
-	}
+func TestIsSubmitted(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
-	output := renderTable(data, 0, 5, false)
+	t.Run("no submits", func(t *testing.T) {
+		assert.False(t, isSubmitted(nil, from, to))
+	})
 
-	assert.Contains(t, output, "Task")
-	assert.Contains(t, output, "feature-x")
-	assert.Contains(t, output, "10h")  // total 600 min
-	assert.Contains(t, output, "8h")   // day 2 = 480 min
-	assert.Contains(t, output, "2h")   // day 3 = 120 min
-	assert.Contains(t, output, ".")    // zero days show dots
-
-	// Totals footer row
-	assert.Contains(t, output, "Total")
-	// Total row should show the same values (single task = totals match)
-	lines := strings.Split(output, "\n")
-	lastDataLine := ""
-	for _, l := range lines {
-		if strings.HasPrefix(l, "Total") || strings.Contains(l, "Total") {
-			lastDataLine = l
+	t.Run("overlapping submit", func(t *testing.T) {
+		submits := []entry.SubmitEntry{
+			{From: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), To: time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)},
 		}
-	}
-	assert.NotEmpty(t, lastDataLine)
-	assert.Contains(t, lastDataLine, "8h")
-	assert.Contains(t, lastDataLine, "2h")
-}
+		assert.True(t, isSubmitted(submits, from, to))
+	})
 
-func TestRenderTable_WithFooter(t *testing.T) {
-	data := timetrack.ReportData{
-		Year:        2025,
-		Month:       time.January,
-		DaysInMonth: 31,
-		Rows: []timetrack.TaskRow{
-			{
-				Name:         "task-a",
-				TotalMinutes: 60,
-				Days:         map[int]int{1: 60},
-			},
-		},
-	}
-
-	output := renderTable(data, 0, 3, true)
-	assert.Contains(t, output, "January 2025")
-	assert.Contains(t, output, "←/→ scroll")
-	assert.Contains(t, output, "q quit")
+	t.Run("non-overlapping submit", func(t *testing.T) {
+		submits := []entry.SubmitEntry{
+			{From: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC), To: time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)},
+		}
+		assert.False(t, isSubmitted(submits, from, to))
+	})
 }
 
 func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, outputFlag string) (string, error) {
 	t.Helper()
 	stdout := new(bytes.Buffer)
 
-	// Build a fresh report command to avoid sharing state across tests
 	cmd := LeafCommand{
 		Use:   "report",
 		Short: "Generate a monthly time report",
 		StrFlags: []StringFlag{
 			{Name: "month", Usage: "month number 1-12 (default: current)"},
-			{Name: "year", Usage: "year (default: current)"},
+			{Name: "week", Usage: "ISO week number"},
+			{Name: "year", Usage: "year"},
 			{Name: "project", Usage: "project name or ID"},
 			{Name: "output", Usage: "export report as PDF"},
 		},
@@ -219,7 +291,9 @@ func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, o
 			of, _ := c.Flags().GetString("output")
 			mf, _ := c.Flags().GetString("month")
 			yf, _ := c.Flags().GetString("year")
-			return runReport(c, homeDir, repoDir, "", mf, yf, of, fixedNow)
+			mc := c.Flags().Changed("month")
+			yc := c.Flags().Changed("year")
+			return runReport(c, homeDir, repoDir, "", mf, "", yf, of, mc, false, yc, fixedNow)
 		},
 	}.Build()
 
@@ -295,7 +369,6 @@ func TestReportOutputFlag_AutoName(t *testing.T) {
 	}
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
 
-	// Change to temp dir so auto-named file lands there
 	origDir, _ := os.Getwd()
 	tmpDir := t.TempDir()
 	require.NoError(t, os.Chdir(tmpDir))

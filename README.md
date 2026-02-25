@@ -196,64 +196,41 @@ hourgit checkout --prev <branch> --next <branch> [--project <project_name>]
 | `--next` | Next branch name (required) |
 | `--project` | Project name or ID (auto-detected from repo if omitted) |
 
-### `hourgit generate`
-
-Generate editable time entries from checkout history. Materializes checkout-derived time into log entries that you can review and edit before they appear in reports.
-
-**With flags:**
-
-```bash
-hourgit generate --today
-hourgit generate --week
-hourgit generate --month [--year <YYYY>]
-hourgit generate --date 2025-06-10
-```
-
-**Interactive** — prompted for timeframe:
-
-```bash
-hourgit generate
-```
-
-| Flag | Description |
-|------|-------------|
-| `-p`, `--project` | Project name or slug (auto-detected from repo if omitted) |
-| `--today` | Generate for today |
-| `--week` | Generate for the current week (Monday–Sunday) |
-| `--month` | Generate for the current month |
-| `--date` | Generate for a specific date (`YYYY-MM-DD`) |
-| `--year` | Year (used with `--month`) |
-| `--yes` | Skip confirmation prompts |
-
-Notes:
-- Only one timeframe flag can be used at a time
-- Shows a preview of entries to be created before confirming
-- If the range has already been generated, prompts to overwrite (deletes old generated entries first)
-- Generated entries have `source: "generate"` and use the branch name as the task label
-- Days with generated entries are marked as "generated" — `report` skips checkout attribution for those days
-- Generated entries are editable via `hourgit edit` like any other log entry
-
 ### `hourgit report`
 
-Generate a monthly time report as an interactive table showing tasks (rows) × days (columns). Time is attributed to branches based on checkout events clipped to your configured schedule, with manual log entries shown alongside.
+Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries. Checkout-derived time is generated in-memory and can be edited, added to, or removed directly in the table. Pressing `s` submits the period, persisting all generated entries.
 
 ```bash
-hourgit report [--month <1-12>] [--year <YYYY>] [--project <project_name>] [--output <path>]
+hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <project_name>] [--output <path>]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--month` | Month number 1-12 (default: current month) |
-| `--year` | Year (default: current year) |
+| `--week` | ISO week number 1-53 (default: current week) |
+| `--year` | Year (complementary to `--month` or `--week`) |
 | `--project` | Project name or ID (auto-detected from repo if omitted) |
 | `--output` | Export report as a PDF timesheet to the given path (auto-named if empty) |
 
-The table shows:
-- Each row is a task (branch name or manual log task/message)
-- Each column is a day of the month
-- Totals are shown in brackets next to task names
-- Use `←`/`→` arrow keys to scroll horizontally
-- Press `q`, `Esc`, or `Ctrl+C` to quit
+Notes:
+- `--month` and `--week` cannot be used together
+- `--year` alone is not valid — it must be paired with `--month` or `--week`
+- Neither flag defaults to the current month
+
+**Interactive table keybindings:**
+
+| Key | Action |
+|-----|--------|
+| `←`/`→`/`↑`/`↓` or `h`/`l`/`k`/`j` | Navigate cells |
+| `e` | Edit selected cell entry |
+| `a` | Add a new entry to selected cell |
+| `r` or `Del` | Remove entry from selected cell |
+| `s` | Submit period (persists all generated entries) |
+| `q` or `Esc` | Quit |
+
+In-memory generated entries (from checkout attribution) are marked with `*` in the table. Editing a generated entry persists it immediately. Submitting persists all remaining generated entries and creates a submit marker.
+
+Previously submitted periods show a warning banner and can be re-edited and re-submitted.
 
 In non-interactive environments (piped output), a static table is printed instead.
 

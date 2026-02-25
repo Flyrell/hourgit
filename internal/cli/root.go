@@ -18,7 +18,6 @@ func newRootCmd() *cobra.Command {
 			editCmd,
 			removeCmd,
 			checkoutCmd,
-			generateCmd,
 			reportCmd,
 			historyCmd,
 			versionCmd,
