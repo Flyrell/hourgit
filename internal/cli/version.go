@@ -6,16 +6,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	appVersion = "dev"
-	appCommit  = "none"
-	appDate    = "unknown"
-)
+var appVersion = "dev"
 
-func SetVersionInfo(version, commit, date string) {
+func SetVersionInfo(version string) {
 	appVersion = version
-	appCommit = commit
-	appDate = date
 }
 
 var versionCmd = LeafCommand{
@@ -27,6 +21,6 @@ var versionCmd = LeafCommand{
 }.Build()
 
 func runVersion(cmd *cobra.Command) error {
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hourgit %s (commit: %s, built: %s)", appVersion, appCommit, appDate)))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("hourgit %s", appVersion)))
 	return nil
 }

@@ -7,14 +7,10 @@ import (
 	"github.com/Flyrell/hourgit/internal/project"
 )
 
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-)
+var version = "dev"
 
 func main() {
-	cli.SetVersionInfo(version, commit, date)
+	cli.SetVersionInfo(version)
 	project.SetVersion(version)
 	if err := cli.Execute(); err != nil {
 		os.Exit(1)

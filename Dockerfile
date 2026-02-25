@@ -1,8 +1,6 @@
 FROM golang:1.26-alpine AS builder
 
 ARG VERSION=dev
-ARG COMMIT=none
-ARG BUILD_DATE=unknown
 
 WORKDIR /build
 
@@ -12,7 +10,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 go build \
-    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+    -ldflags="-s -w -X main.version=${VERSION}" \
     -o /build/hourgit \
     ./cmd/hourgit
 

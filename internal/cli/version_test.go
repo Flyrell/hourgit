@@ -16,19 +16,19 @@ func execVersion() (string, error) {
 }
 
 func TestVersionDefault(t *testing.T) {
-	SetVersionInfo("dev", "none", "unknown")
+	SetVersionInfo("dev")
 
 	out, err := execVersion()
 
 	assert.NoError(t, err)
-	assert.Contains(t, out, "hourgit dev (commit: none, built: unknown)")
+	assert.Contains(t, out, "hourgit dev")
 }
 
 func TestVersionRelease(t *testing.T) {
-	SetVersionInfo("1.0.0", "abc1234", "2025-01-01")
+	SetVersionInfo("1.0.0")
 
 	out, err := execVersion()
 
 	assert.NoError(t, err)
-	assert.Contains(t, out, "hourgit 1.0.0 (commit: abc1234, built: 2025-01-01)")
+	assert.Contains(t, out, "hourgit 1.0.0")
 }
