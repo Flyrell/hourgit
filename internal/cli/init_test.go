@@ -51,6 +51,7 @@ func execInitDirect(dir, homeDir, projectName string, force, merge bool, binPath
 func TestInitInGitRepo(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
+	t.Setenv("SHELL", "")
 
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
 
@@ -113,6 +114,7 @@ func TestInitHookExistsNoFlag(t *testing.T) {
 func TestInitHookExistsForce(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
+	t.Setenv("SHELL", "")
 
 	hooksDir := filepath.Join(dir, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
@@ -132,6 +134,7 @@ func TestInitHookExistsForce(t *testing.T) {
 func TestInitHookExistsMerge(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
+	t.Setenv("SHELL", "")
 
 	hooksDir := filepath.Join(dir, ".git", "hooks")
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
