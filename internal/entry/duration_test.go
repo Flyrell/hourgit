@@ -18,15 +18,17 @@ func TestParseDuration(t *testing.T) {
 		{"3h30m", 210, false},
 		{"1H30M", 90, false},    // case insensitive
 		{" 2h ", 120, false},    // whitespace trimmed
+		{"1h 30m", 90, false},   // spaces between parts
+		{"3h  30m", 210, false}, // multiple spaces between parts
 		{"", 0, true},           // empty
 		{"abc", 0, true},        // invalid
 		{"0m", 0, true},         // zero
 		{"0h0m", 0, true},       // zero
-		{"-1h", 0, true},       // negative
-		{"3.5h", 0, true},      // fractional
-		{"3h30", 0, true},      // missing unit
-		{"2d", 0, true},        // days not supported
-		{"1d3h30m", 0, true},   // days not supported
+		{"-1h", 0, true},        // negative
+		{"3.5h", 0, true},       // fractional
+		{"3h30", 0, true},       // missing unit
+		{"2d", 0, true},         // days not supported
+		{"1d3h30m", 0, true},    // days not supported
 	}
 
 	for _, tt := range tests {

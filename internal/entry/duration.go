@@ -13,7 +13,7 @@ var durationRe = regexp.MustCompile(`^(?:(\d+)h)?(?:(\d+)m)?$`)
 // Supported formats: "30m", "3h", "3h30m".
 // Returns an error for empty, zero, or negative durations.
 func ParseDuration(s string) (int, error) {
-	s = strings.TrimSpace(strings.ToLower(s))
+	s = strings.ReplaceAll(strings.TrimSpace(strings.ToLower(s)), " ", "")
 	if s == "" {
 		return 0, fmt.Errorf("empty duration")
 	}
