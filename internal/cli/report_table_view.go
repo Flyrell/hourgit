@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/timetrack"
@@ -23,6 +24,17 @@ func (m reportModel) View() string {
 	return tableStr
 }
 
+// isWeekend returns true if the given date falls on Saturday or Sunday.
+func isWeekend(year int, month time.Month, day int) bool {
+	wd := time.Date(year, month, day, 0, 0, 0, 0, time.UTC).Weekday()
+	return wd == time.Saturday || wd == time.Sunday
+}
+
+// dayAbbrev returns a 3-letter weekday abbreviation for the given date.
+func dayAbbrev(year int, month time.Month, day int) string {
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC).Weekday().String()[:3]
+}
+
 // renderDetailedTable produces the table string from DetailedReportData with cursor highlighting.
 func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, visibleDays, visibleRows, cursorRow, cursorCol int, submitted bool, footerMsg string) string {
 	var b strings.Builder
@@ -33,6 +45,11 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 		b.WriteString("\n")
 	}
 
+	// Title line
+	title := fmt.Sprintf("--- %s %d ---", data.Month, data.Year)
+	b.WriteString(headerStyle.Render(title))
+	b.WriteString("\n")
+
 	// Header row
 	b.WriteString(headerStyle.Render(padRight("Task", taskColWidth)))
 	b.WriteString(" | ")
@@ -40,7 +57,12 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 	for i := 0; i < visibleDays; i++ {
 		day := scrollX + i + 1
 		b.WriteString(" | ")
-		b.WriteString(headerStyle.Render(padCenter(fmt.Sprintf("%d", day), dayColWidth)))
+		label := fmt.Sprintf("%s %d", dayAbbrev(data.Year, data.Month, day), day)
+		if isWeekend(data.Year, data.Month, day) {
+			b.WriteString(weekendStyle.Bold(true).Render(padCenter(label, dayColWidth)))
+		} else {
+			b.WriteString(headerStyle.Render(padCenter(label, dayColWidth)))
+		}
 	}
 	b.WriteString("\n")
 
@@ -76,6 +98,9 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 			colIdx := scrollX + i // 0-indexed day column
 			b.WriteString(" | ")
 
+			weekend := isWeekend(data.Year, data.Month, day)
+			scheduled := data.ScheduledDays[day]
+
 			cd := row.Days[day]
 			cellText := ""
 			if cd != nil && cd.TotalMinutes > 0 {
@@ -91,6 +116,8 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 				if hasInMemory {
 					cellText = padCenter(entry.FormatMinutes(cd.TotalMinutes)+"*", dayColWidth)
 				}
+			} else if !scheduled {
+				cellText = padCenter("x", dayColWidth)
 			} else {
 				cellText = padCenter(".", dayColWidth)
 			}
@@ -98,7 +125,13 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 			if rowIdx == cursorRow && colIdx == cursorCol {
 				b.WriteString(selectedStyle.Render(cellText))
 			} else if cd != nil && cd.TotalMinutes > 0 {
-				b.WriteString(cellText)
+				if weekend {
+					b.WriteString(weekendStyle.Render(cellText))
+				} else {
+					b.WriteString(cellText)
+				}
+			} else if !scheduled {
+				b.WriteString(unscheduledStyle.Render(cellText))
 			} else {
 				b.WriteString(dotStyle.Render(cellText))
 			}
@@ -130,6 +163,10 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 	for i := 0; i < visibleDays; i++ {
 		day := scrollX + i + 1
 		b.WriteString(" | ")
+
+		weekend := isWeekend(data.Year, data.Month, day)
+		scheduled := data.ScheduledDays[day]
+
 		dayTotal := 0
 		for _, row := range data.Rows {
 			cd := row.Days[day]
@@ -138,7 +175,13 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 			}
 		}
 		if dayTotal > 0 {
-			b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutes(dayTotal), dayColWidth)))
+			if weekend {
+				b.WriteString(weekendStyle.Bold(true).Render(padCenter(entry.FormatMinutes(dayTotal), dayColWidth)))
+			} else {
+				b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutes(dayTotal), dayColWidth)))
+			}
+		} else if !scheduled {
+			b.WriteString(unscheduledStyle.Render(padCenter("x", dayColWidth)))
 		} else {
 			b.WriteString(dotStyle.Render(padCenter(".", dayColWidth)))
 		}

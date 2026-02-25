@@ -57,12 +57,13 @@ type DetailedTaskRow struct {
 
 // DetailedReportData holds the complete entry-level report for a date range.
 type DetailedReportData struct {
-	Year        int
-	Month       time.Month
-	DaysInMonth int
-	From        time.Time
-	To          time.Time
-	Rows        []DetailedTaskRow
+	Year          int
+	Month         time.Month
+	DaysInMonth   int
+	From          time.Time
+	To            time.Time
+	Rows          []DetailedTaskRow
+	ScheduledDays map[int]bool // day-of-month -> true if day has scheduled working hours
 }
 
 // BuildReport computes a monthly time report from checkout entries, manual log
@@ -343,6 +344,12 @@ func BuildDetailedReport(
 	daysInMonth := daysIn(year, month)
 
 	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
+
+	scheduledDays := make(map[int]bool, len(scheduledMins))
+	for day := range scheduledMins {
+		scheduledDays[day] = true
+	}
+
 	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
 
 	// Index persisted checkout-generated entries by (task, day) for deduplication
@@ -469,12 +476,13 @@ func BuildDetailedReport(
 	})
 
 	return DetailedReportData{
-		Year:        year,
-		Month:       month,
-		DaysInMonth: daysInMonth,
-		From:        from,
-		To:          to,
-		Rows:        rows,
+		Year:          year,
+		Month:         month,
+		DaysInMonth:   daysInMonth,
+		From:          from,
+		To:            to,
+		Rows:          rows,
+		ScheduledDays: scheduledDays,
 	}
 }
 

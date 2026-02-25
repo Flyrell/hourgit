@@ -55,13 +55,24 @@ func TestPadCenter(t *testing.T) {
 	})
 }
 
+// makeScheduledDays returns a ScheduledDays map for Feb 2026 weekdays (Mon-Fri).
+// Feb 2026: 1=Sun, so weekdays are 2-6, 9-13, 16-20, 23-27.
+func makeScheduledDays() map[int]bool {
+	days := map[int]bool{}
+	for _, d := range []int{2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 23, 24, 25, 26, 27} {
+		days[d] = true
+	}
+	return days
+}
+
 func makeDetailedData() timetrack.DetailedReportData {
 	return timetrack.DetailedReportData{
-		Year:        2026,
-		Month:       time.February,
-		DaysInMonth: 28,
-		From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-		To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		Year:          2026,
+		Month:         time.February,
+		DaysInMonth:   28,
+		From:          time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:            time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		ScheduledDays: makeScheduledDays(),
 		Rows: []timetrack.DetailedTaskRow{
 			{
 				Name:         "feature-x",
@@ -102,11 +113,13 @@ func TestRenderDetailedTableOutput(t *testing.T) {
 
 	result := renderDetailedTable(data, 0, 0, 5, len(data.Rows), -1, -1, false, "")
 
-	// Header should contain day numbers
-	assert.Contains(t, result, "Task")
-	assert.Contains(t, result, "1")
-	assert.Contains(t, result, "2")
-	assert.Contains(t, result, "3")
+	// Title line
+	assert.Contains(t, result, "--- February 2026 ---")
+
+	// Header should contain day-of-week labels
+	assert.Contains(t, result, "Sun 1")
+	assert.Contains(t, result, "Mon 2")
+	assert.Contains(t, result, "Tue 3")
 
 	// Rows should contain task names and times
 	assert.Contains(t, result, "feature-x")
@@ -119,6 +132,9 @@ func TestRenderDetailedTableOutput(t *testing.T) {
 
 	// In-memory entries should be marked with asterisk
 	assert.Contains(t, result, "*")
+
+	// Non-scheduled day (Sun 1) should show "x" not "."
+	assert.Contains(t, result, "x")
 }
 
 func TestRenderDetailedTableWithFooter(t *testing.T) {
@@ -255,8 +271,8 @@ func TestRenderDetailedTableScroll(t *testing.T) {
 	result := renderDetailedTable(data, 14, 0, 3, 1, -1, -1, false, "")
 	lines := strings.Split(result, "\n")
 
-	// Header should show days 15, 16, 17
-	header := lines[0]
+	// Header is on line 1 (line 0 is the title)
+	header := lines[1]
 	assert.Contains(t, header, "15")
 	assert.Contains(t, header, "16")
 	assert.Contains(t, header, "17")
@@ -307,4 +323,51 @@ func TestRenderDetailedTable_FooterMsg(t *testing.T) {
 
 	result := renderDetailedTable(data, 0, 0, 5, 0, -1, -1, false, "Entry saved!")
 	assert.Contains(t, result, "Entry saved!")
+}
+
+func TestRenderDetailedTable_NonScheduledDaysShowX(t *testing.T) {
+	// Only day 2 (Mon) is scheduled; day 1 (Sun) is not
+	data := timetrack.DetailedReportData{
+		Year:          2026,
+		Month:         time.February,
+		DaysInMonth:   28,
+		From:          time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:            time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		ScheduledDays: map[int]bool{2: true},
+		Rows: []timetrack.DetailedTaskRow{
+			{
+				Name:         "task",
+				TotalMinutes: 60,
+				Days: map[int]*timetrack.CellData{
+					2: {TotalMinutes: 60, Entries: []timetrack.CellEntry{
+						{ID: "e100001", Minutes: 60, Persisted: true},
+					}},
+				},
+			},
+		},
+	}
+
+	// Show days 1 and 2
+	result := renderDetailedTable(data, 0, 0, 2, 1, -1, -1, false, "")
+	lines := strings.Split(result, "\n")
+
+	// Data row: day 1 (non-scheduled) should have "x", day 2 should have time
+	dataLine := lines[3] // title(0) + header(1) + separator(2) + data(3)
+	assert.Contains(t, dataLine, "x")
+	assert.Contains(t, dataLine, "1h")
+}
+
+func TestIsWeekend(t *testing.T) {
+	// Feb 1, 2026 = Sunday
+	assert.True(t, isWeekend(2026, time.February, 1))
+	// Feb 7, 2026 = Saturday
+	assert.True(t, isWeekend(2026, time.February, 7))
+	// Feb 2, 2026 = Monday
+	assert.False(t, isWeekend(2026, time.February, 2))
+}
+
+func TestDayAbbrev(t *testing.T) {
+	assert.Equal(t, "Sun", dayAbbrev(2026, time.February, 1))
+	assert.Equal(t, "Mon", dayAbbrev(2026, time.February, 2))
+	assert.Equal(t, "Sat", dayAbbrev(2026, time.February, 7))
 }

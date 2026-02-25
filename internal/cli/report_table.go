@@ -18,10 +18,12 @@ const (
 )
 
 var (
-	headerStyle   = lipgloss.NewStyle().Bold(true)
-	footerStyle   = lipgloss.NewStyle().Faint(true)
-	dotStyle      = lipgloss.NewStyle().Faint(true)
-	selectedStyle = lipgloss.NewStyle().Reverse(true)
+	headerStyle      = lipgloss.NewStyle().Bold(true)
+	footerStyle      = lipgloss.NewStyle().Faint(true)
+	dotStyle         = lipgloss.NewStyle().Faint(true)
+	selectedStyle    = lipgloss.NewStyle().Reverse(true)
+	weekendStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF8C00"))
+	unscheduledStyle = lipgloss.NewStyle().Faint(true)
 )
 
 // reportMode represents the current interaction mode of the report table.
@@ -68,8 +70,8 @@ func (m reportModel) visibleDays() int {
 }
 
 func (m reportModel) visibleRows() int {
-	// Reserve lines for: header(1) + separator(1) + totals separator(1) + totals(1) + footer(2) + warning(1)
-	reserved := 7
+	// Reserve lines for: title(1) + header(1) + separator(1) + totals separator(1) + totals(1) + footer(2) + warning(1)
+	reserved := 8
 	if m.submitted {
 		reserved++
 	}
