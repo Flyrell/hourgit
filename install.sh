@@ -154,6 +154,12 @@ info "Checksum verified"
 
 mv "${DOWNLOAD_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/hourgit"
 chmod +x "${INSTALL_DIR}/hourgit"
+
+# Remove macOS quarantine attribute to prevent Gatekeeper warnings
+if [ "$OS" = "darwin" ]; then
+  xattr -d com.apple.quarantine "${INSTALL_DIR}/hourgit" 2>/dev/null || true
+fi
+
 info "Installed to $(bold "${INSTALL_DIR}/hourgit")"
 
 # Create symlink in ~/.local/bin
