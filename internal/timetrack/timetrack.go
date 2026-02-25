@@ -2,11 +2,18 @@ package timetrack
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/schedule"
 )
+
+// cleanBranchName strips the "remotes/" prefix from branch names.
+// For example, "remotes/origin/feature" becomes "origin/feature".
+func cleanBranchName(name string) string {
+	return strings.TrimPrefix(name, "remotes/")
+}
 
 // TaskRow holds aggregated time data for a single task (branch or manual log).
 type TaskRow struct {
@@ -186,7 +193,7 @@ func buildCheckoutBucket(
 
 	if lastBeforeIdx >= 0 {
 		pairs = append(pairs, checkoutRange{
-			branch: sorted[lastBeforeIdx].Next,
+			branch: cleanBranchName(sorted[lastBeforeIdx].Next),
 			from:   monthStart,
 		})
 	}
@@ -194,7 +201,7 @@ func buildCheckoutBucket(
 	for _, c := range sorted {
 		if c.Timestamp.After(monthStart) && !c.Timestamp.After(monthEnd) {
 			pairs = append(pairs, checkoutRange{
-				branch: c.Next,
+				branch: cleanBranchName(c.Next),
 				from:   c.Timestamp,
 			})
 		}
@@ -424,8 +431,8 @@ func BuildDetailedReport(
 				ID:        "", // no ID for in-memory entries
 				Minutes:   mins,
 				Start:     time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
-				Message:   branch,
-				Task:      branch,
+				Message:   cleanBranchName(branch),
+				Task:      cleanBranchName(branch),
 				Source:    "checkout",
 				Persisted: false,
 				Entry:    nil,
