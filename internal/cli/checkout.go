@@ -42,6 +42,9 @@ func runCheckout(
 	if next == "" {
 		return fmt.Errorf("--next is required")
 	}
+	if prev == next {
+		return nil // silent no-op, known benign case from hook
+	}
 
 	proj, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
 	if err != nil {

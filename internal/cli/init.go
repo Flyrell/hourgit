@@ -17,9 +17,12 @@ func hookScript(binPath, version string) string {
 # Only act on branch checkouts (flag=1), skip file checkouts (flag=0)
 [ "$3" = "0" ] && exit 0
 
+# Skip if old and new HEAD are the same SHA (e.g. pull, fetch, rebase)
+[ "$1" = "$2" ] && exit 0
+
 # Resolve branch names from SHA refs provided by git ($1=prev HEAD, $2=new HEAD)
-PREV=$(git name-rev --name-only "$1" 2>/dev/null)
-NEXT=$(git name-rev --name-only "$2" 2>/dev/null)
+PREV=$(git name-rev --name-only --refs='refs/heads/*' "$1" 2>/dev/null)
+NEXT=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 if [ -n "$PREV" ] && [ -n "$NEXT" ] && [ "$PREV" != "$NEXT" ]; then
   %s checkout --prev "$PREV" --next "$NEXT" 2>/dev/null || true

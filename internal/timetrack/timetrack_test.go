@@ -206,8 +206,8 @@ func TestBuildReport_LastCheckoutCappedAtNow(t *testing.T) {
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)
-	assert.Equal(t, 240, report.Rows[0].Days[2])  // 9:00-13:00 = 4h
-	assert.Equal(t, 0, report.Rows[0].Days[3])     // Jan 3 should have no time (now is before it)
+	assert.Equal(t, 240, report.Rows[0].Days[2]) // 9:00-13:00 = 4h
+	assert.Equal(t, 0, report.Rows[0].Days[3])   // Jan 3 should have no time (now is before it)
 	assert.Equal(t, 240, report.Rows[0].TotalMinutes)
 }
 
@@ -404,4 +404,34 @@ func TestBuildDetailedReport_SortedByTotalDescending(t *testing.T) {
 	assert.Equal(t, 2, len(report.Rows))
 	assert.Equal(t, "big", report.Rows[0].Name)
 	assert.Equal(t, "small", report.Rows[1].Name)
+}
+
+func TestBuildReport_ConsecutiveSameBranchCheckoutsDeduped(t *testing.T) {
+	year, month := 2025, time.January
+
+	days := []schedule.DaySchedule{
+		workday(year, month, 2), // Thu Jan 2: 9-17
+		workday(year, month, 3), // Fri Jan 3: 9-17
+	}
+
+	// Duplicate consecutive checkouts to the same branch (simulates spurious hook triggers)
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-a"},
+		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-a"}, // duplicate
+		{ID: "c3", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Previous: "feature-a", Next: "feature-b"},
+	}
+
+	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
+
+	rowA := findRow(report, "feature-a")
+	rowB := findRow(report, "feature-b")
+	assert.NotNil(t, rowA)
+	assert.NotNil(t, rowB)
+
+	// Without dedup, feature-a would lose time (c2 would restart its range at 10:00).
+	// With dedup, c2 is skipped, so feature-a gets 9:00-13:00 = 240 min on day 2.
+	assert.Equal(t, 240, rowA.Days[2])
+	// feature-b gets 13:00-17:00 = 240 min on day 2, plus full day 3 = 480 min
+	assert.Equal(t, 240, rowB.Days[2])
+	assert.Equal(t, 480, rowB.Days[3])
 }

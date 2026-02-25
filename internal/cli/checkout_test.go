@@ -112,6 +112,19 @@ func TestCheckoutTimestamp(t *testing.T) {
 	assert.Equal(t, expected, entries[0].Timestamp)
 }
 
+func TestCheckoutSameBranch(t *testing.T) {
+	homeDir, repoDir, proj := setupCheckoutTest(t)
+
+	stdout, err := execCheckout(homeDir, repoDir, "", "main", "main")
+
+	require.NoError(t, err)
+	assert.Empty(t, stdout) // silent no-op
+
+	entries, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 0) // no entry written
+}
+
 func TestCheckoutRegisteredAsSubcommand(t *testing.T) {
 	root := newRootCmd()
 	names := make([]string, len(root.Commands()))
