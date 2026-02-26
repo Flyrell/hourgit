@@ -284,6 +284,35 @@ func TestSyncMultipleCheckouts(t *testing.T) {
 	assert.Len(t, entries, 3)
 }
 
+func TestSyncSameCommitRefDifferentDirections(t *testing.T) {
+	homeDir, repoDir, proj := setupSyncTest(t)
+
+	// Both checkouts share the same commit ref (HEAD didn't move),
+	// which happens when switching A→B and back B→A without new commits.
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s",
+		`abc1234 HEAD@{2025-06-15 15:00:00 +0000}: checkout: moving from feature-x to main`,
+		`abc1234 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to feature-x`,
+	)
+
+	stdout, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "synced 2 checkout(s)")
+
+	entries, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
+
+	// Verify both directions were recorded
+	nexts := map[string]bool{}
+	for _, e := range entries {
+		nexts[e.Next] = true
+	}
+	assert.True(t, nexts["main"], "checkout to main should be recorded")
+	assert.True(t, nexts["feature-x"], "checkout to feature-x should be recorded")
+}
+
 func TestSyncRegisteredAsSubcommand(t *testing.T) {
 	root := newRootCmd()
 	names := make([]string, len(root.Commands()))
