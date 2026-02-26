@@ -20,7 +20,7 @@ func hookScript(binPath, version string) string {
 # Skip if old and new HEAD are the same SHA (e.g. pull, fetch)
 [ "$1" = "$2" ] && exit 0
 
-%s sync 2>/dev/null || true
+%s sync --skip-updates 2>/dev/null || true
 `, project.HookMarker, version, binPath)
 }
 
