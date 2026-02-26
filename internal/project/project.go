@@ -43,9 +43,11 @@ type ProjectEntry struct {
 
 // Config holds the global hourgit configuration including projects and defaults.
 type Config struct {
-	Version  string                   `json:"version"`
-	Defaults []schedule.ScheduleEntry `json:"defaults"`
-	Projects []ProjectEntry           `json:"projects"`
+	Version         string                   `json:"version"`
+	Defaults        []schedule.ScheduleEntry `json:"defaults"`
+	Projects        []ProjectEntry           `json:"projects"`
+	LastUpdateCheck *time.Time               `json:"last_update_check,omitempty"`
+	LatestVersion   string                   `json:"latest_version,omitempty"`
 }
 
 // HourgitDir returns the global hourgit config directory.
