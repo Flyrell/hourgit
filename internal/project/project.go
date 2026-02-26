@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Flyrell/hourgit/internal/hashutil"
 	"github.com/Flyrell/hourgit/internal/schedule"
@@ -26,8 +27,9 @@ func SetVersion(v string) {
 
 // RepoConfig is the per-repo marker stored in .git/.hourgit.
 type RepoConfig struct {
-	Project   string `json:"project"`
-	ProjectID string `json:"project_id,omitempty"`
+	Project   string     `json:"project"`
+	ProjectID string     `json:"project_id,omitempty"`
+	LastSync  *time.Time `json:"last_sync,omitempty"`
 }
 
 // ProjectEntry represents a single project in the global registry.
