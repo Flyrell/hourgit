@@ -377,7 +377,7 @@ func TestHookScript(t *testing.T) {
 	assert.Contains(t, script, "#!/bin/sh")
 	assert.Contains(t, script, project.HookMarker)
 	assert.Contains(t, script, "(version: 1.2.3)")
-	assert.Contains(t, script, `/usr/local/bin/hourgit sync`)
+	assert.Contains(t, script, `/usr/local/bin/hourgit sync --skip-updates`)
 	assert.Contains(t, script, `[ "$3" = "0" ] && exit 0`)
 	assert.Contains(t, script, `[ "$1" = "$2" ] && exit 0`)
 	assert.NotContains(t, script, `checkout --prev`)

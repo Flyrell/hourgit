@@ -31,6 +31,11 @@ func newRootCmd() *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.CompletionOptions.DisableDefaultCmd = true
 	cmd.SetHelpFunc(colorizedHelpFunc())
+	cmd.PersistentFlags().Bool("skip-updates", false, "skip the automatic update check")
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		checkForUpdate(cmd, defaultUpdateDeps())
+		return nil
+	}
 	return cmd
 }
 
