@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Google Consent Mode v2 defaults -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'analytics_storage': 'denied',
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied'
+    });
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} — Hourgit Docs</title>
+  <meta name="description" content="Hourgit documentation — {{.Title}}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>">
+  <link rel="stylesheet" href="{{.CSSPath}}">
+</head>
+<body>
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WRLZND6J"
+                    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="{{.RootPath}}" class="brand-link">Hourgit</a>
+    </div>
+    {{.Sidebar}}
+  </aside>
+  <main class="content">
+    <article class="markdown-body">
+      {{.Content}}
+    </article>
+  </main>
+
+  <!-- ── Consent Banner ──────────────────────────────────────────────── -->
+  <div class="consent-banner" id="consent-banner">
+    <div class="consent-banner-inner">
+      <p class="consent-text">
+        <strong>We don't track your time commits</strong> — but we'd love to know what you do on this site.
+        We use cookies for analytics to improve the experience.
+      </p>
+      <div class="consent-actions">
+        <button class="consent-btn consent-btn--reject" id="consent-reject">No thanks</button>
+        <button class="consent-btn consent-btn--accept" id="consent-accept">Sure, track away</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Consent Manager + GTM ─────────────────────────────────────── -->
+  <script>
+    (function () {
+      var GTM_ID = 'GTM-WRLZND6J';
+      var banner = document.getElementById('consent-banner');
+      var acceptBtn = document.getElementById('consent-accept');
+      var rejectBtn = document.getElementById('consent-reject');
+
+      function loadGTM() {
+        gtag('consent', 'update', {
+          'analytics_storage': 'granted'
+        });
+        (function (w, d, s, l, i) {
+          w[l] = w[l] || [];
+          w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+          var f = d.getElementsByTagName(s)[0],
+            j = d.createElement(s),
+            dl = l != 'dataLayer' ? '&l=' + l : '';
+          j.async = true;
+          j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+          f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', GTM_ID);
+      }
+
+      function hideBanner() {
+        banner.classList.add('hidden');
+      }
+
+      function showBanner() {
+        banner.style.display = '';
+      }
+
+      var consent = localStorage.getItem('consent');
+
+      if (consent === 'accepted') {
+        banner.style.display = 'none';
+        loadGTM();
+      } else if (consent === 'rejected') {
+        banner.style.display = 'none';
+      } else {
+        showBanner();
+      }
+
+      acceptBtn.addEventListener('click', function () {
+        localStorage.setItem('consent', 'accepted');
+        hideBanner();
+        loadGTM();
+      });
+
+      rejectBtn.addEventListener('click', function () {
+        localStorage.setItem('consent', 'rejected');
+        hideBanner();
+      });
+    })();
+  </script>
+</body>
+</html>
