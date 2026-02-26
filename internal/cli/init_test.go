@@ -65,7 +65,7 @@ func TestInitInGitRepo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(content), project.HookMarker)
 	assert.Contains(t, string(content), "#!/bin/sh")
-	assert.Contains(t, string(content), `checkout --prev "$PREV" --next "$NEXT"`)
+	assert.Contains(t, string(content), "sync")
 	assert.Contains(t, string(content), `[ "$3" = "0" ] && exit 0`)
 
 	info, err := os.Stat(hookPath)
@@ -377,11 +377,14 @@ func TestHookScript(t *testing.T) {
 	assert.Contains(t, script, "#!/bin/sh")
 	assert.Contains(t, script, project.HookMarker)
 	assert.Contains(t, script, "(version: 1.2.3)")
-	assert.Contains(t, script, `/usr/local/bin/hourgit checkout --prev "$PREV" --next "$NEXT"`)
+	assert.Contains(t, script, `/usr/local/bin/hourgit sync`)
 	assert.Contains(t, script, `[ "$3" = "0" ] && exit 0`)
 	assert.Contains(t, script, `[ "$1" = "$2" ] && exit 0`)
-	assert.Contains(t, script, `git name-rev --name-only --refs='refs/heads/*'`)
-	assert.Contains(t, script, `git rev-parse --abbrev-ref HEAD`)
+	assert.NotContains(t, script, `checkout --prev`)
+	assert.NotContains(t, script, `git name-rev`)
+	assert.NotContains(t, script, `git symbolic-ref`)
+	assert.NotContains(t, script, `git rev-parse --git-dir`)
+	assert.NotContains(t, script, `rebase-merge`)
 }
 
 func TestInitRegistered(t *testing.T) {

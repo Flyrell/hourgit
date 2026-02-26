@@ -89,7 +89,7 @@ hourgit version
 ## Table of Contents
 
 - [Commands](#commands)
-  - [Time Tracking](#time-tracking) — init, log, edit, remove, checkout, report, history
+  - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history
   - [Project Management](#project-management) — project add/assign/list/remove
   - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
   - [Default Schedule](#default-schedule) — defaults get/set/reset/report
@@ -106,7 +106,7 @@ hourgit version
 
 Core commands for recording, viewing, and managing your time entries.
 
-Commands: `init` · `log` · `edit` · `remove` · `checkout` · `report` · `history`
+Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `history`
 
 #### `hourgit init`
 
@@ -204,18 +204,16 @@ hourgit remove <hash> [--project <name>] [--yes]
 
 > Works with both log and checkout entries (unlike `edit`, which only supports log entries). Shows entry details and asks for confirmation before deleting. If the entry is not found in the current repo's project, all projects are searched.
 
-#### `hourgit checkout`
+#### `hourgit sync`
 
-Record a branch checkout event. Called internally by the post-checkout git hook to track branch transitions.
+Sync branch checkouts from git reflog. Called automatically by the post-checkout hook, or run manually to backfill history.
 
 ```bash
-hourgit checkout --prev <branch> --next <branch> [--project <name>]
+hourgit sync [--project <name>]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--prev` | — | Previous branch name (required) |
-| `--next` | — | Next branch name (required) |
 | `--project` | auto-detect | Project name or ID |
 
 #### `hourgit report`

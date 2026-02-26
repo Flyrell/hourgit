@@ -98,18 +98,16 @@ hourgit remove <hash> [--project <name>] [--yes]
 
 > Works with both log and checkout entries. Shows entry details and asks for confirmation before deleting.
 
-## `hourgit checkout`
+## `hourgit sync`
 
-Record a branch checkout event. Called internally by the post-checkout git hook.
+Sync branch checkouts from git reflog. Called automatically by the post-checkout hook, or run manually to backfill history.
 
 ```bash
-hourgit checkout --prev <branch> --next <branch> [--project <name>]
+hourgit sync [--project <name>]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--prev` | — | Previous branch name (required) |
-| `--next` | — | Next branch name (required) |
 | `--project` | auto-detect | Project name or ID |
 
 ## `hourgit report`

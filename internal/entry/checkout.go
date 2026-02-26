@@ -9,4 +9,5 @@ type CheckoutEntry struct {
 	Timestamp time.Time `json:"timestamp"`
 	Previous  string    `json:"previous"`
 	Next      string    `json:"next"`
+	CommitRef string    `json:"commit_ref,omitempty"`
 }
