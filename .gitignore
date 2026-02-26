@@ -20,6 +20,7 @@ vendor/
 
 # Generated docs
 web/docs/*.html
+!web/docs/_template.html
 web/docs/commands/*.html
 
 # Agents
