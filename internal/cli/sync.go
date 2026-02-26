@@ -86,16 +86,14 @@ func runSync(
 	// Parse reflog
 	records := reflog.ParseReflog(output)
 
-	// Build known refs set from existing checkout entries
+	// Build known IDs set from existing checkout entries
 	existingEntries, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
 	if err != nil {
 		return err
 	}
-	knownRefs := make(map[string]bool, len(existingEntries))
+	knownIDs := make(map[string]bool, len(existingEntries))
 	for _, e := range existingEntries {
-		if e.CommitRef != "" {
-			knownRefs[e.CommitRef] = true
-		}
+		knownIDs[e.ID] = true
 	}
 
 	// Process records oldest-first
@@ -103,11 +101,6 @@ func runSync(
 	var newestTimestamp time.Time
 	for i := len(records) - 1; i >= 0; i-- {
 		rec := records[i]
-
-		// Skip known refs (dedup)
-		if knownRefs[rec.CommitRef] {
-			continue
-		}
 
 		// Skip detached HEAD (branch name looks like a commit hash)
 		if looksLikeCommitHash(rec.Previous) || looksLikeCommitHash(rec.Next) {
@@ -128,6 +121,11 @@ func runSync(
 		seed := rec.CommitRef + rec.Timestamp.Format(time.RFC3339) + rec.Previous + rec.Next
 		id := hashutil.GenerateIDFromSeed(seed)
 
+		// Skip already-synced entries (dedup by ID)
+		if knownIDs[id] {
+			continue
+		}
+
 		e := entry.CheckoutEntry{
 			ID:        id,
 			Timestamp: rec.Timestamp,
@@ -140,7 +138,7 @@ func runSync(
 			return err
 		}
 
-		knownRefs[rec.CommitRef] = true
+		knownIDs[id] = true
 		created++
 
 		if rec.Timestamp.After(newestTimestamp) {
