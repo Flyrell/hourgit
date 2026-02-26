@@ -11,6 +11,7 @@
   - [Schedule Configuration](commands/schedule.md)
   - [Default Schedule](commands/defaults.md)
   - [Shell Completions](commands/shell-completions.md)
+  - [Utility](commands/utility.md)
 
 - **Reference**
   - [Configuration](configuration.md)
