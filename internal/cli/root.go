@@ -25,6 +25,7 @@ func newRootCmd() *cobra.Command {
 			configCmd,
 			defaultsCmd,
 			completionCmd,
+			updateCmd,
 		},
 	}.Build()
 	cmd.SilenceUsage = true

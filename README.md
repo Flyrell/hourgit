@@ -478,12 +478,24 @@ hourgit completion generate fish | source
 
 ### Other
 
+Commands: `version` · `update`
+
 #### `hourgit version`
 
 Print version information.
 
 ```bash
 hourgit version
+```
+
+No flags.
+
+#### `hourgit update`
+
+Check for and install updates. Always checks the latest version from GitHub, bypassing the cache TTL used by the automatic update check.
+
+```bash
+hourgit update
 ```
 
 No flags.
