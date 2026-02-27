@@ -234,6 +234,15 @@ code, pre {
   border-color: var(--accent);
 }
 
+.nav-sponsor-btn {
+  color: #db61a2;
+}
+
+.nav-sponsor-btn:hover {
+  color: #bf4b8b;
+  border-color: #db61a2;
+}
+
 .nav-mobile-toggle {
   display: none;
   background: none;
@@ -653,9 +662,18 @@ code, pre {
     --section-padding: 80px 0;
   }
 
+  .nav.menu-open {
+    height: 100dvh;
+    background: var(--bg-primary);
+  }
+
+  .nav.menu-open .nav-inner {
+    height: var(--nav-height);
+  }
+
   .nav-links {
     display: flex;
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
@@ -665,8 +683,7 @@ code, pre {
     align-items: center;
     justify-content: center;
     gap: 32px;
-    padding: 24px;
-    z-index: 99;
+    padding: var(--nav-height) 24px 24px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -702,6 +719,8 @@ code, pre {
 
   .nav-actions {
     margin-left: auto;
+    position: relative;
+    z-index: 1;
   }
 
   .pricing-grid {

@@ -68,10 +68,13 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
   var toggle = document.getElementById('nav-mobile-toggle');
   var links = document.querySelector('.nav-links');
 
-  if (toggle && links) {
+  var nav = document.getElementById('nav');
+
+  if (toggle && links && nav) {
     toggle.addEventListener('click', function () {
       var isOpen = links.classList.toggle('open');
       toggle.classList.toggle('open', isOpen);
+      nav.classList.toggle('menu-open', isOpen);
       document.body.style.overflow = isOpen ? 'hidden' : '';
     });
 
@@ -80,6 +83,7 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
       a.addEventListener('click', function () {
         links.classList.remove('open');
         toggle.classList.remove('open');
+        nav.classList.remove('menu-open');
         document.body.style.overflow = '';
       });
     });
