@@ -196,7 +196,7 @@ func fetchLatestVersion() (string, error) {
 
 // runSelfInstall runs the install script to update the binary.
 func runSelfInstall() error {
-	cmd := exec.Command("bash", "-c", "curl -fsSL https://hourgit.com/install.sh | bash")
+	cmd := exec.Command("bash", "-c", "curl -fsSL --connect-timeout 10 --max-time 30 https://hourgit.com/install.sh | bash")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
