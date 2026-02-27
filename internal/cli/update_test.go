@@ -280,6 +280,36 @@ func TestUpdateInstallFlowFailure(t *testing.T) {
 	assert.Contains(t, output, "Update failed")
 }
 
+func TestUpdateAutoCheckFetchErrorSilentlyIgnored(t *testing.T) {
+	_, deps := setupUpdateTest(t)
+	deps.fetchVersion = func() (string, error) { return "", fmt.Errorf("network error") }
+
+	output := execUpdateCheck(t, "0.1.0", deps)
+
+	assert.Empty(t, output)
+}
+
+func TestUpdateAutoCheckFetchErrorDoesNotUpdateCache(t *testing.T) {
+	homeDir, deps := setupUpdateTest(t)
+
+	now := deps.now()
+	stale := now.Add(-9 * time.Hour)
+	require.NoError(t, project.WriteConfig(homeDir, &project.Config{
+		LastUpdateCheck: &stale,
+		LatestVersion:   "0.5.0",
+	}))
+
+	deps.fetchVersion = func() (string, error) { return "", fmt.Errorf("network error") }
+
+	_ = execUpdateCheck(t, "0.1.0", deps)
+
+	// Cache should remain unchanged
+	cfg, err := project.ReadConfig(homeDir)
+	require.NoError(t, err)
+	assert.Equal(t, "0.5.0", cfg.LatestVersion)
+	assert.Equal(t, stale.Unix(), cfg.LastUpdateCheck.Unix())
+}
+
 func TestUpdateHomeDirErrorSkips(t *testing.T) {
 	_, deps := setupUpdateTest(t)
 	deps.homeDir = func() (string, error) { return "", fmt.Errorf("no home") }

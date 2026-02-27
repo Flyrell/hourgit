@@ -134,6 +134,44 @@ func TestUpdateCommandHomeDirError(t *testing.T) {
 	assert.Contains(t, output, "up to date")
 }
 
+func TestUpdateCommandHomeDirErrorWithNewerVersion(t *testing.T) {
+	_, deps := setupUpdateCmdTest(t)
+	deps.fetchVersion = func() (string, error) { return "v2.0.0", nil }
+	deps.homeDir = func() (string, error) { return "", fmt.Errorf("no home") }
+
+	confirmCalled := false
+	deps.confirm = func(_ string) (bool, error) {
+		confirmCalled = true
+		return false, nil
+	}
+
+	output, err := execUpdateCmd(t, "v1.0.0", deps)
+
+	assert.NoError(t, err)
+	assert.Contains(t, output, "new version")
+	assert.True(t, confirmCalled)
+}
+
+func TestUpdateCommandConfigReadErrorWithNewerVersion(t *testing.T) {
+	_, deps := setupUpdateCmdTest(t)
+	deps.fetchVersion = func() (string, error) { return "v2.0.0", nil }
+	deps.readConfig = func(_ string) (*project.Config, error) {
+		return nil, fmt.Errorf("corrupt config")
+	}
+
+	confirmCalled := false
+	deps.confirm = func(_ string) (bool, error) {
+		confirmCalled = true
+		return false, nil
+	}
+
+	output, err := execUpdateCmd(t, "v1.0.0", deps)
+
+	assert.NoError(t, err)
+	assert.Contains(t, output, "new version")
+	assert.True(t, confirmCalled)
+}
+
 func TestUpdateCommandBypassesCacheTTL(t *testing.T) {
 	homeDir, deps := setupUpdateCmdTest(t)
 

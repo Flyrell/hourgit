@@ -104,7 +104,7 @@ GITHUB_REPO="Flyrell/hourgit"
 API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
 
 info "Fetching latest release..."
-RELEASE_JSON="$(curl -fsSL "$API_URL")"
+RELEASE_JSON="$(curl -fsSL --connect-timeout 10 --max-time 30 "$API_URL")"
 
 VERSION="$(echo "$RELEASE_JSON" | grep '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
 
@@ -121,11 +121,11 @@ BINARY_NAME="hourgit-${OS}-${ARCH}-${VERSION}"
 BASE_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}"
 
 info "Downloading ${BINARY_NAME}..."
-curl -fsSL -o "${DOWNLOAD_DIR}/${BINARY_NAME}" "${BASE_URL}/${BINARY_NAME}"
+curl -fsSL --connect-timeout 10 --max-time 120 -o "${DOWNLOAD_DIR}/${BINARY_NAME}" "${BASE_URL}/${BINARY_NAME}"
 
 info "Downloading checksums..."
 CHECKSUMS_OK=false
-if curl -fsSL -o "${DOWNLOAD_DIR}/SHA256SUMS" "${BASE_URL}/SHA256SUMS" 2>/dev/null; then
+if curl -fsSL --connect-timeout 10 --max-time 30 -o "${DOWNLOAD_DIR}/SHA256SUMS" "${BASE_URL}/SHA256SUMS" 2>/dev/null; then
   CHECKSUMS_OK=true
 fi
 
