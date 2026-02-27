@@ -1,6 +1,7 @@
 package timetrack
 
 import (
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -223,12 +224,15 @@ func buildCheckoutBucket(
 	if now.Before(lastEnd) {
 		lastEnd = now
 	}
+	lastEnd = lastEnd.Truncate(time.Minute)
 	for i := range pairs {
 		if i+1 < len(pairs) {
 			pairs[i].to = pairs[i+1].from
 		} else {
 			pairs[i].to = lastEnd
 		}
+		pairs[i].from = pairs[i].from.Truncate(time.Minute)
+		pairs[i].to = pairs[i].to.Truncate(time.Minute)
 	}
 
 	checkoutBucket := make(map[string]map[int]int)
@@ -278,9 +282,21 @@ func deductScheduleOverrun(checkoutBucket map[string]map[int]int, logMinsByDay, 
 
 		if totalCheckoutMins > availableForCheckouts && totalCheckoutMins > 0 {
 			ratio := float64(availableForCheckouts) / float64(totalCheckoutMins)
+			roundedSum := 0
+			largestBranch := ""
+			largestMins := 0
 			for branch, dayMap := range checkoutBucket {
-				dayMap[day] = int(float64(dayMap[day]) * ratio)
+				dayMap[day] = int(math.Round(float64(dayMap[day]) * ratio))
+				roundedSum += dayMap[day]
+				if dayMap[day] > largestMins {
+					largestMins = dayMap[day]
+					largestBranch = branch
+				}
 				checkoutBucket[branch] = dayMap
+			}
+			// Clamp: if rounding pushed the total over available, subtract excess from the largest branch
+			if excess := roundedSum - availableForCheckouts; excess > 0 && largestBranch != "" {
+				checkoutBucket[largestBranch][day] -= excess
 			}
 		}
 	}
@@ -532,7 +548,7 @@ func overlapMinutes(from, to time.Time, year int, month time.Month, day int, win
 		}
 
 		if overlapEnd.After(overlapStart) {
-			total += int(overlapEnd.Sub(overlapStart).Minutes())
+			total += int(math.Round(overlapEnd.Sub(overlapStart).Minutes()))
 		}
 	}
 	return total

@@ -273,7 +273,7 @@ func TestIsSubmitted(t *testing.T) {
 	})
 }
 
-func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, outputFlag string) (string, error) {
+func execReportWithExport(t *testing.T, homeDir, repoDir, monthFlag, weekFlag, yearFlag, exportFlag string) (string, error) {
 	t.Helper()
 	stdout := new(bytes.Buffer)
 
@@ -285,15 +285,17 @@ func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, o
 			{Name: "week", Usage: "ISO week number"},
 			{Name: "year", Usage: "year"},
 			{Name: "project", Usage: "project name or ID"},
-			{Name: "output", Usage: "export report as PDF"},
+			{Name: "export", Usage: "export format (pdf)"},
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			of, _ := c.Flags().GetString("output")
+			ef, _ := c.Flags().GetString("export")
 			mf, _ := c.Flags().GetString("month")
+			wf, _ := c.Flags().GetString("week")
 			yf, _ := c.Flags().GetString("year")
 			mc := c.Flags().Changed("month")
+			wc := c.Flags().Changed("week")
 			yc := c.Flags().Changed("year")
-			return runReport(c, homeDir, repoDir, "", mf, "", yf, of, mc, false, yc, fixedNow)
+			return runReport(c, homeDir, repoDir, "", mf, wf, yf, ef, mc, wc, yc, fixedNow)
 		},
 	}.Build()
 
@@ -303,21 +305,20 @@ func execReportWithOutput(t *testing.T, homeDir, repoDir, monthFlag, yearFlag, o
 	if monthFlag != "" {
 		cmdArgs = append(cmdArgs, "--month", monthFlag)
 	}
+	if weekFlag != "" {
+		cmdArgs = append(cmdArgs, "--week", weekFlag)
+	}
 	if yearFlag != "" {
 		cmdArgs = append(cmdArgs, "--year", yearFlag)
 	}
-	if outputFlag != "" {
-		cmdArgs = append(cmdArgs, "--output", outputFlag)
-	} else {
-		cmdArgs = append(cmdArgs, "--output=")
-	}
+	cmdArgs = append(cmdArgs, "--export", exportFlag)
 	cmd.SetArgs(cmdArgs)
 
 	err := cmd.Execute()
 	return stdout.String(), err
 }
 
-func TestReportOutputFlag_GeneratesPDF(t *testing.T) {
+func TestReportExportFlag_GeneratesPDF(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
 	e := entry.Entry{
@@ -330,35 +331,39 @@ func TestReportOutputFlag_GeneratesPDF(t *testing.T) {
 	}
 	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
 
-	outDir := t.TempDir()
-	outPath := filepath.Join(outDir, "test-output.pdf")
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	stdout, err := execReportWithOutput(t, homeDir, repoDir, "6", "2025", outPath)
+	stdout, err := execReportWithExport(t, homeDir, repoDir, "6", "", "2025", "pdf")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "Exported report to")
 
-	info, sErr := os.Stat(outPath)
+	expectedName := fmt.Sprintf("%s-2025-month-06.pdf", proj.Slug)
+	assert.Contains(t, stdout, "Exported report to "+expectedName)
+
+	info, sErr := os.Stat(filepath.Join(tmpDir, expectedName))
 	require.NoError(t, sErr)
 	assert.True(t, info.Size() > 0)
 }
 
-func TestReportOutputFlag_EmptyMonth(t *testing.T) {
+func TestReportExportFlag_EmptyMonth(t *testing.T) {
 	homeDir, repoDir, _ := setupReportTest(t)
 
-	outDir := t.TempDir()
-	outPath := filepath.Join(outDir, "empty.pdf")
+	origDir, _ := os.Getwd()
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	stdout, err := execReportWithOutput(t, homeDir, repoDir, "1", "2025", outPath)
+	stdout, err := execReportWithExport(t, homeDir, repoDir, "1", "", "2025", "pdf")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "No time entries")
-
-	_, sErr := os.Stat(outPath)
-	assert.True(t, os.IsNotExist(sErr))
 }
 
-func TestReportOutputFlag_AutoName(t *testing.T) {
+func TestReportExportFlag_WeekAutoName(t *testing.T) {
 	homeDir, repoDir, proj := setupReportTest(t)
 
+	// Week 23 of 2025 starts Mon Jun 2
 	e := entry.Entry{
 		ID:        "a010010",
 		Start:     time.Date(2025, 6, 2, 10, 0, 0, 0, time.UTC),
@@ -374,15 +379,23 @@ func TestReportOutputFlag_AutoName(t *testing.T) {
 	require.NoError(t, os.Chdir(tmpDir))
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-	stdout, err := execReportWithOutput(t, homeDir, repoDir, "6", "2025", "")
+	stdout, err := execReportWithExport(t, homeDir, repoDir, "", "23", "2025", "pdf")
 	require.NoError(t, err)
 
-	expectedName := fmt.Sprintf("%s-2025-06.pdf", proj.Slug)
+	expectedName := fmt.Sprintf("%s-2025-week-23.pdf", proj.Slug)
 	assert.Contains(t, stdout, expectedName)
 
 	info, sErr := os.Stat(filepath.Join(tmpDir, expectedName))
 	require.NoError(t, sErr)
 	assert.True(t, info.Size() > 0)
+}
+
+func TestReportExportFlag_UnsupportedFormat(t *testing.T) {
+	homeDir, repoDir, _ := setupReportTest(t)
+
+	_, err := execReportWithExport(t, homeDir, repoDir, "6", "", "2025", "csv")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported export format")
 }
 
 func TestReportRegisteredAsSubcommand(t *testing.T) {

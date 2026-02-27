@@ -49,7 +49,7 @@ Press `s` to **submit** the period — this persists all generated entries and m
 ## 5. Export a PDF
 
 ```bash
-hourgit report --output timesheet.pdf
+hourgit report --export pdf
 ```
 
 This generates a PDF timesheet with a day-by-day breakdown grouped by task.

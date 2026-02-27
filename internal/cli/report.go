@@ -24,6 +24,7 @@ type reportInputs struct {
 	to        time.Time
 	year      int
 	month     time.Month
+	weekNum   int // >0 when using --week view
 }
 
 var reportCmd = LeafCommand{
@@ -34,7 +35,7 @@ var reportCmd = LeafCommand{
 		{Name: "week", Usage: "ISO week number 1-53 (default: current week)"},
 		{Name: "year", Usage: "year (complementary to --month or --week)"},
 		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "output", Usage: "export report as PDF to the given path (auto-named if empty)"},
+		{Name: "export", Usage: "export format (pdf)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()
@@ -46,19 +47,19 @@ var reportCmd = LeafCommand{
 		monthFlag, _ := cmd.Flags().GetString("month")
 		weekFlag, _ := cmd.Flags().GetString("week")
 		yearFlag, _ := cmd.Flags().GetString("year")
-		outputFlag, _ := cmd.Flags().GetString("output")
+		exportFlag, _ := cmd.Flags().GetString("export")
 
 		monthChanged := cmd.Flags().Changed("month")
 		weekChanged := cmd.Flags().Changed("week")
 		yearChanged := cmd.Flags().Changed("year")
 
-		return runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, outputFlag, monthChanged, weekChanged, yearChanged, time.Now)
+		return runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag, monthChanged, weekChanged, yearChanged, time.Now)
 	},
 }.Build()
 
 func runReport(
 	cmd *cobra.Command,
-	homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, outputFlag string,
+	homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag string,
 	monthChanged, weekChanged, yearChanged bool,
 	nowFn func() time.Time,
 ) error {
@@ -70,7 +71,11 @@ func runReport(
 	}
 
 	// PDF export path
-	if cmd.Flags().Changed("output") {
+	if exportFlag != "" {
+		if exportFlag != "pdf" {
+			return fmt.Errorf("unsupported export format %q (supported: pdf)", exportFlag)
+		}
+
 		exportData := timetrack.BuildExportData(
 			inputs.checkouts, inputs.logs, inputs.schedules,
 			inputs.year, inputs.month, now, nil,
@@ -82,9 +87,11 @@ func runReport(
 			return nil
 		}
 
-		outputPath := outputFlag
-		if outputPath == "" {
-			outputPath = fmt.Sprintf("%s-%d-%02d.pdf", inputs.proj.Slug, inputs.year, inputs.month)
+		var outputPath string
+		if inputs.weekNum > 0 {
+			outputPath = fmt.Sprintf("%s-%d-week-%02d.pdf", inputs.proj.Slug, inputs.year, inputs.weekNum)
+		} else {
+			outputPath = fmt.Sprintf("%s-%d-month-%02d.pdf", inputs.proj.Slug, inputs.year, inputs.month)
 		}
 
 		if err := renderExportPDF(exportData, outputPath); err != nil {
@@ -273,6 +280,12 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		return nil, err
 	}
 
+	var weekNum int
+	if weekChanged {
+		// Derive week number from the resolved Monday date
+		_, weekNum = from.ISOWeek()
+	}
+
 	return &reportInputs{
 		proj:      proj,
 		checkouts: checkouts,
@@ -283,5 +296,6 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		to:        to,
 		year:      year,
 		month:     month,
+		weekNum:   weekNum,
 	}, nil
 }

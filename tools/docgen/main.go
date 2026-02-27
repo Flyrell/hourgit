@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 
-	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer/html"
@@ -31,10 +31,10 @@ type NavItem struct {
 
 // PageData is the template data for rendering a docs page.
 type PageData struct {
-	Title   string
-	Sidebar template.HTML
-	Content template.HTML
-	CSSPath string
+	Title    string
+	Sidebar  template.HTML
+	Content  template.HTML
+	CSSPath  string
 	RootPath string
 }
 
@@ -125,10 +125,10 @@ func main() {
 
 		// Render full page
 		data := PageData{
-			Title:   title,
-			Sidebar: template.HTML(sidebarHTML),
-			Content: template.HTML(contentHTML),
-			CSSPath: cssPath,
+			Title:    title,
+			Sidebar:  template.HTML(sidebarHTML),
+			Content:  template.HTML(contentHTML),
+			CSSPath:  cssPath,
 			RootPath: rootPath,
 		}
 
@@ -259,7 +259,7 @@ func mdToLinkPath(mdPath string) string {
 	if filepath.Base(htmlPath) == "index.html" {
 		dir := filepath.Dir(htmlPath)
 		if dir == "." {
-			return ""
+			return "."
 		}
 		return dir + "/"
 	}
