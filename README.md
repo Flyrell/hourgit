@@ -2,7 +2,7 @@
 
 > Git-integrated time tracking for developers. No timers. No manual input. Just code.
 
-[![License: Polyform Shield 1.0.0](https://img.shields.io/badge/License-Polyform--Shield--1.0.0-blue)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![CI](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Flyrell/hour-git)](https://github.com/Flyrell/hour-git/releases)
 
@@ -534,6 +534,4 @@ The following features are planned but not yet implemented:
 
 ## License
 
-This project is licensed under the [Polyform Shield License 1.0.0](LICENSE).
-
-Free for individual developers and organizations with fewer than 10 employees. Organizations exceeding 10 employees must obtain a [commercial license](mailto:dawid@zbinski.dev).
+This project is licensed under the [GNU General Public License v3.0](LICENSE).

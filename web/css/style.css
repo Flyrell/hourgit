@@ -574,13 +574,13 @@ code, pre {
   color: #0d0d0d;
 }
 
-.btn--commercial {
-  background: var(--card-bg);
+.btn--contribute {
+  background: transparent;
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
 }
 
-.btn--commercial:hover {
+.btn--contribute:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
