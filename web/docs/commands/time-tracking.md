@@ -161,3 +161,23 @@ hourgit history [--project <name>] [--limit <N>]
 |------|---------|-------------|
 | `--project` | all projects | Filter by project name or ID |
 | `--limit` | `50` | Maximum number of entries to show (use `0` for all) |
+
+## `hourgit status`
+
+Show current tracking status — project, branch, time logged today, and schedule state.
+
+```bash
+hourgit status [--project <name>]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+
+**Output includes:**
+
+- Current project and branch
+- Time since last checkout
+- Time logged today and remaining scheduled hours
+- Today's schedule windows
+- Tracking state (active/inactive based on current time vs schedule)

@@ -20,6 +20,7 @@ func newRootCmd() *cobra.Command {
 			syncCmd,
 			reportCmd,
 			historyCmd,
+			statusCmd,
 			versionCmd,
 			projectCmd,
 			configCmd,

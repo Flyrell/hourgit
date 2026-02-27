@@ -89,7 +89,7 @@ hourgit version
 ## Table of Contents
 
 - [Commands](#commands)
-  - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history
+  - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history, status
   - [Project Management](#project-management) — project add/assign/list/remove
   - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
   - [Default Schedule](#default-schedule) — defaults get/set/reset/report
@@ -106,7 +106,7 @@ hourgit version
 
 Core commands for recording, viewing, and managing your time entries.
 
-Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `history`
+Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `history` · `status`
 
 #### `hourgit init`
 
@@ -273,6 +273,26 @@ hourgit history [--project <name>] [--limit <N>]
 | `--limit` | `50` | Maximum number of entries to show (use `0` for all) |
 
 > Each line shows the entry hash, timestamp, type (log or checkout), project name, and details. Log entries display duration + task label (if set) + message. Checkout entries display previous branch → next branch.
+
+#### `hourgit status`
+
+Show current tracking status — project, branch, time logged today, and schedule state.
+
+```bash
+hourgit status [--project <name>]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--project` | auto-detect | Project name or ID |
+
+**Output includes:**
+
+- Current project and branch
+- Time since last checkout
+- Time logged today and remaining scheduled hours
+- Today's schedule windows
+- Tracking state (active/inactive based on current time vs schedule)
 
 ### Project Management
 
@@ -528,9 +548,7 @@ Every project starts with a copy of the defaults. You can then customize a proje
 
 ## Roadmap
 
-The following features are planned but not yet implemented:
-
-- **Status** — show currently active branch/project and time logged today
+No major features are currently planned. Have an idea? [Open an issue](https://github.com/Flyrell/hourgit/issues).
 
 ## License
 
