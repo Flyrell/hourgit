@@ -25,12 +25,9 @@ jobs:
         run: go run . -docs ${{ github.workspace }}/web/docs -out ${{ github.workspace }}/web/sitemap.xml
 
       - name: Deploy via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          server: ${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USER }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          port: ${{ secrets.SFTP_PORT }}
-          local_path: ./web/
-          remote_path: ./
-          sftp_only: true
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          lftp -u "${{ secrets.SFTP_USER }},${{ secrets.SFTP_PASSWORD }}" \
+            -p ${{ secrets.SFTP_PORT }} \
+            -e "set sftp:auto-confirm yes; mirror -R --verbose ./web/ ./; quit" \
+            sftp://${{ secrets.SFTP_HOST }}
