@@ -56,9 +56,26 @@ tasks:
     generates:
       - web/docs/**/*.html
 
+  sitemap:
+    desc: Generate sitemap.xml from sidebar navigation
+    cmd: >-
+      docker run --rm
+      -v "$PWD":/app -w /app/tools/sitemap
+      golang:1.26-alpine
+      go run . -docs /app/web/docs -out /app/web/sitemap.xml
+    sources:
+      - web/docs/_sidebar.md
+      - tools/sitemap/**/*.go
+    generates:
+      - web/sitemap.xml
+
   web:
+    desc: Build website (docs + sitemap)
+    deps: [docs, sitemap]
+
+  web:dev:
     desc: Serve website locally with Apache (port 8080)
-    deps: [docs]
+    deps: [docs, sitemap]
     cmd: >-
       docker run --rm -p 8080:80
       -v "$PWD/web":/usr/local/apache2/htdocs/

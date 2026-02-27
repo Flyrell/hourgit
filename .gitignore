@@ -22,6 +22,7 @@ vendor/
 web/docs/*.html
 !web/docs/_template.html
 web/docs/commands/*.html
+web/sitemap.xml
 
 # Agents
 .claude
