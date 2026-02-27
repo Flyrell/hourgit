@@ -1,0 +1,37 @@
+name: Deploy Website
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Generate docs
+        working-directory: tools/docgen
+        run: go run . -docs ${{ github.workspace }}/web/docs
+
+      - name: Generate sitemap
+        working-directory: tools/sitemap
+        run: go run . -docs ${{ github.workspace }}/web/docs -out ${{ github.workspace }}/web/sitemap.xml
+
+      - name: Deploy via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USER }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          port: ${{ secrets.SFTP_PORT }}
+          local_path: ./web/
+          remote_path: ./
+          sftp_only: true
