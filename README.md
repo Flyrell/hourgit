@@ -98,6 +98,7 @@ hourgit version
 - [Configuration](#configuration)
 - [Data Storage](#data-storage)
 - [Roadmap](#roadmap)
+- [Sponsor](#sponsor)
 - [License](#license)
 
 ## Commands
@@ -548,7 +549,25 @@ Every project starts with a copy of the defaults. You can then customize a proje
 
 ## Roadmap
 
-No major features are currently planned. Have an idea? [Open an issue](https://github.com/Flyrell/hourgit/issues).
+Planned features:
+
+- **Exporters** — export time data to platforms like Jira, Toggl, Clockify, and Harvest
+- **Web app** — browser-based interface for viewing and managing time entries
+- **GUI** — potentially add a graphical interface on macOS, Linux, and Windows
+
+Have an idea? [Open an issue](https://github.com/Flyrell/hourgit/issues).
+
+## Sponsor
+
+Hourgit is free and open-source software. Sponsorship funds continued development and maintenance, cross-platform testing and releases, and helps keep the project free for everyone.
+
+| Tier | Amount | Description |
+|------|--------|-------------|
+| Base | $5/mo | Support continued development |
+| Pro | $25/mo | Fund cross-platform testing and releases |
+| Enterprise | $100/mo | Help shape the roadmap and keep Hourgit free |
+
+[Become a sponsor on GitHub](https://github.com/sponsors/Flyrell)
 
 ## License
 
