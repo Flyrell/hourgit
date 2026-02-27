@@ -83,7 +83,7 @@ hourgit version
 
 5. **Export a PDF** for sharing:
    ```bash
-   hourgit report --output timesheet.pdf
+   hourgit report --export pdf
    ```
 
 ## Table of Contents
@@ -221,7 +221,7 @@ hourgit sync [--project <name>]
 Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries.
 
 ```bash
-hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--output <path>]
+hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--export <format>]
 ```
 
 | Flag | Default | Description |
@@ -230,7 +230,7 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 | `--week` | — | ISO week number 1-53 |
 | `--year` | current year | Year (complementary to `--month` or `--week`) |
 | `--project` | auto-detect | Project name or ID |
-| `--output` | — | Export report as a PDF timesheet to the given path (auto-named if empty) |
+| `--export` | — | Export format (`pdf`); auto-generates filename based on period |
 
 > `--month` and `--week` cannot be used together. `--year` alone is not valid — it must be paired with `--month` or `--week`. Neither flag defaults to the current month.
 
@@ -254,9 +254,9 @@ Previously submitted periods show a warning banner and can be re-edited and re-s
 ```bash
 hourgit report                                    # current month, interactive
 hourgit report --week 8                           # ISO week 8
-hourgit report --output timesheet.pdf             # export PDF
-hourgit report --output                           # auto-named PDF (<project>-<YYYY>-<MM>.pdf)
-hourgit report --output report.pdf --month 1 --year 2025
+hourgit report --export pdf                       # export PDF (<project>-<YYYY>-month-<MM>.pdf)
+hourgit report --export pdf --week 8              # export PDF (<project>-<YYYY>-week-<WW>.pdf)
+hourgit report --export pdf --month 1 --year 2025
 ```
 
 #### `hourgit history`

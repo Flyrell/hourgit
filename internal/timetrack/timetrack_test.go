@@ -406,6 +406,78 @@ func TestBuildDetailedReport_SortedByTotalDescending(t *testing.T) {
 	assert.Equal(t, "small", report.Rows[1].Name)
 }
 
+func TestOverlapMinutes_RoundsInsteadOfTruncating(t *testing.T) {
+	year, month := 2025, time.January
+	loc := time.UTC
+
+	windows := []schedule.TimeWindow{
+		{From: schedule.TimeOfDay{Hour: 9, Minute: 0}, To: schedule.TimeOfDay{Hour: 17, Minute: 0}},
+	}
+
+	// Checkout from before day start to now with 59 seconds into the last minute
+	// This creates an overlap of 479min + 59sec = 479.983... min → should round to 480
+	from := time.Date(year, month, 2, 8, 0, 0, 0, loc)
+	to := time.Date(year, month, 2, 16, 59, 59, 0, loc)
+
+	mins := overlapMinutes(from, to, year, month, 2, windows, loc)
+	assert.Equal(t, 480, mins, "should round 479.98 to 480, not truncate to 479")
+}
+
+func TestOverlapMinutes_RoundsDownSmallFraction(t *testing.T) {
+	year, month := 2025, time.January
+	loc := time.UTC
+
+	windows := []schedule.TimeWindow{
+		{From: schedule.TimeOfDay{Hour: 9, Minute: 0}, To: schedule.TimeOfDay{Hour: 17, Minute: 0}},
+	}
+
+	// Overlap of exactly 0min 15sec = 0.25 min → should round to 0
+	from := time.Date(year, month, 2, 9, 0, 0, 0, loc)
+	to := time.Date(year, month, 2, 9, 0, 15, 0, loc)
+
+	mins := overlapMinutes(from, to, year, month, 2, windows, loc)
+	assert.Equal(t, 0, mins, "should round 0.25 to 0")
+}
+
+func TestBuildReport_RoundedCheckoutNeverExceedsSchedule(t *testing.T) {
+	year, month := 2025, time.January
+
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 480 min schedule
+
+	// Checkout active for the full day
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2024, 12, 31, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	// now with seconds past the schedule end — truncation to 17:00 aligns with window
+	now := time.Date(2025, 1, 2, 17, 0, 35, 0, time.UTC)
+	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+
+	assert.Equal(t, 1, len(report.Rows))
+	// Should be exactly 480 (rounded), not 479 (truncated), and not >480
+	assert.LessOrEqual(t, report.Rows[0].Days[2], 480)
+	assert.Equal(t, 480, report.Rows[0].Days[2])
+}
+
+func TestBuildReport_CheckoutSecondsAreTruncated(t *testing.T) {
+	year, month := 2025, time.January
+
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 480 min schedule (9-17)
+
+	// Checkout at 9:00:35 — 35 seconds into the first minute.
+	// Without truncation: overlap = 7h59m25s = 479.417 min → math.Round → 479 (wrong)
+	// With truncation: from becomes 9:00:00 → overlap = exactly 480 min
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 35, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	now := afterMonth(year, month)
+	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+
+	assert.Equal(t, 1, len(report.Rows))
+	assert.Equal(t, 480, report.Rows[0].Days[2], "checkout seconds should be truncated, giving exactly 8h")
+}
+
 func TestBuildReport_ConsecutiveSameBranchCheckoutsDeduped(t *testing.T) {
 	year, month := 2025, time.January
 

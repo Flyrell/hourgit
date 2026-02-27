@@ -127,6 +127,31 @@ func TestProjectRemoveMissingRepo(t *testing.T) {
 	assert.Contains(t, stdout, "project 'My Project' removed")
 }
 
+func TestProjectRemoveDeletesEntryDirectory(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := project.CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	// Create the project's entry directory with a fake entry file
+	entryDir := project.LogDir(home, entry.Slug)
+	require.NoError(t, os.MkdirAll(entryDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(entryDir, "abc1234"), []byte(`{"id":"abc1234"}`), 0644))
+
+	// Verify directory exists before removal
+	_, err = os.Stat(entryDir)
+	require.NoError(t, err)
+
+	stdout, err := execProjectRemove(home, "My Project", AlwaysYes())
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'My Project' removed")
+
+	// Verify entry directory was deleted
+	_, err = os.Stat(entryDir)
+	assert.True(t, os.IsNotExist(err), "entry directory should be deleted")
+}
+
 func TestProjectRemoveRegisteredAsSubcommand(t *testing.T) {
 	commands := projectCmd.Commands()
 	names := make([]string, len(commands))

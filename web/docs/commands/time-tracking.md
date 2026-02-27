@@ -115,7 +115,7 @@ hourgit sync [--project <name>]
 Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries.
 
 ```bash
-hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--output <path>]
+hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--export <format>]
 ```
 
 | Flag | Default | Description |
@@ -124,7 +124,7 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 | `--week` | — | ISO week number 1-53 |
 | `--year` | current year | Year |
 | `--project` | auto-detect | Project name or ID |
-| `--output` | — | Export as PDF timesheet |
+| `--export` | — | Export format (`pdf`); auto-generates filename |
 
 > `--month` and `--week` cannot be used together.
 
@@ -144,9 +144,9 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 ```bash
 hourgit report                                    # current month, interactive
 hourgit report --week 8                           # ISO week 8
-hourgit report --output timesheet.pdf             # export PDF
-hourgit report --output                           # auto-named PDF
-hourgit report --output report.pdf --month 1 --year 2025
+hourgit report --export pdf                       # export PDF
+hourgit report --export pdf --week 8              # export week PDF
+hourgit report --export pdf --month 1 --year 2025
 ```
 
 ## `hourgit history`

@@ -65,6 +65,9 @@ func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm Co
 		_ = project.RemoveHookFromRepo(repoDir)
 	}
 
+	// Best-effort cleanup: delete the project's time entry directory
+	_ = os.RemoveAll(project.LogDir(homeDir, entry.Slug))
+
 	// Remove project from registry
 	_, err = project.RemoveProject(homeDir, identifier)
 	if err != nil {
