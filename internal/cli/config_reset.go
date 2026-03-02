@@ -11,10 +11,10 @@ var configResetCmd = LeafCommand{
 	Use:   "reset",
 	Short: "Reset a project's schedule to the defaults",
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
 	},
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

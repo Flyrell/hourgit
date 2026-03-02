@@ -12,7 +12,7 @@ hourgit config get [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 ## `hourgit config set`
 
@@ -24,7 +24,7 @@ hourgit config set [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 The interactive editor lets you define:
 - **Recurring** schedules — repeats on a regular pattern (e.g., every weekday)
@@ -43,8 +43,8 @@ hourgit config reset [--project <name>] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 ## `hourgit config report`
 
@@ -56,6 +56,6 @@ hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--month` | current month | Month number 1-12 |
-| `--year` | current year | Year |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-m`, `--month` | current month | Month number 1-12 |
+| `-y`, `--year` | current year | Year |

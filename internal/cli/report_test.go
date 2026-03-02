@@ -281,11 +281,11 @@ func execReportWithExport(t *testing.T, homeDir, repoDir, monthFlag, weekFlag, y
 		Use:   "report",
 		Short: "Generate a monthly time report",
 		StrFlags: []StringFlag{
-			{Name: "month", Usage: "month number 1-12 (default: current)"},
-			{Name: "week", Usage: "ISO week number"},
-			{Name: "year", Usage: "year"},
-			{Name: "project", Usage: "project name or ID"},
-			{Name: "export", Usage: "export format (pdf)"},
+			{Name: "month", Shorthand: "m", Usage: "month number 1-12 (default: current)"},
+			{Name: "week", Shorthand: "w", Usage: "ISO week number"},
+			{Name: "year", Shorthand: "y", Usage: "year"},
+			{Name: "project", Shorthand: "p", Usage: "project name or ID"},
+			{Name: "export", Shorthand: "e", Usage: "export format (pdf)"},
 		},
 		RunE: func(c *cobra.Command, args []string) error {
 			ef, _ := c.Flags().GetString("export")
@@ -396,6 +396,39 @@ func TestReportExportFlag_UnsupportedFormat(t *testing.T) {
 	_, err := execReportWithExport(t, homeDir, repoDir, "6", "", "2025", "csv")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported export format")
+}
+
+func TestReportShortFlags(t *testing.T) {
+	homeDir, repoDir, _ := setupReportTest(t)
+
+	stdout := new(bytes.Buffer)
+	cmd := LeafCommand{
+		Use:   "report",
+		Short: "Generate a time report",
+		StrFlags: []StringFlag{
+			{Name: "month", Shorthand: "m", Usage: "month number 1-12"},
+			{Name: "week", Shorthand: "w", Usage: "ISO week number"},
+			{Name: "year", Shorthand: "y", Usage: "year"},
+			{Name: "project", Shorthand: "p", Usage: "project name or ID"},
+			{Name: "export", Shorthand: "e", Usage: "export format"},
+		},
+		RunE: func(c *cobra.Command, args []string) error {
+			mf, _ := c.Flags().GetString("month")
+			wf, _ := c.Flags().GetString("week")
+			yf, _ := c.Flags().GetString("year")
+			mc := c.Flags().Changed("month")
+			wc := c.Flags().Changed("week")
+			yc := c.Flags().Changed("year")
+			return runReport(c, homeDir, repoDir, "", mf, wf, yf, "", mc, wc, yc, fixedNow)
+		},
+	}.Build()
+
+	cmd.SetOut(stdout)
+	cmd.SetArgs([]string{"-m", "6", "-y", "2025"})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "No time entries")
 }
 
 func TestReportRegisteredAsSubcommand(t *testing.T) {
