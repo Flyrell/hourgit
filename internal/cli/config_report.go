@@ -12,9 +12,9 @@ var configReportCmd = LeafCommand{
 	Use:   "report",
 	Short: "Show expanded working hours for a given month",
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "month", Usage: "month number 1-12 (default: current)"},
-		{Name: "year", Usage: "year (default: current)"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "month", Shorthand: "m", Usage: "month number 1-12 (default: current)"},
+		{Name: "year", Shorthand: "y", Usage: "year (default: current)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

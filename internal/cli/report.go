@@ -31,11 +31,11 @@ var reportCmd = LeafCommand{
 	Use:   "report",
 	Short: "Generate a monthly time report",
 	StrFlags: []StringFlag{
-		{Name: "month", Usage: "month number 1-12 (default: current month)"},
-		{Name: "week", Usage: "ISO week number 1-53 (default: current week)"},
-		{Name: "year", Usage: "year (complementary to --month or --week)"},
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "export", Usage: "export format (pdf)"},
+		{Name: "month", Shorthand: "m", Usage: "month number 1-12 (default: current month)"},
+		{Name: "week", Shorthand: "w", Usage: "ISO week number 1-53 (default: current week)"},
+		{Name: "year", Shorthand: "y", Usage: "year (complementary to --month or --week)"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "export", Shorthand: "e", Usage: "export format (pdf)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

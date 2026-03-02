@@ -12,7 +12,7 @@ hourgit completion install [SHELL] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 Shell completions are also offered automatically during `hourgit init`.
 
