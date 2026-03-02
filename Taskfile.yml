@@ -76,9 +76,15 @@ tasks:
   web:dev:
     desc: Serve website locally with Apache (port 8080)
     deps: [docs, sitemap]
-    cmd: >-
-      docker run --rm -p 8080:80
-      -v "$PWD/web":/usr/local/apache2/htdocs/
-      -v "$PWD/web/httpd-dev.conf":/usr/local/apache2/conf/extra/dev.conf
-      httpd:alpine
-      sh -c "echo 'Include conf/extra/dev.conf' >> /usr/local/apache2/conf/httpd.conf && httpd-foreground"
+    vars:
+      WEB_VERSION:
+        sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+    cmds:
+      - find ./web -name '*.html' -exec sed -i '' 's/__VERSION__/{{.WEB_VERSION}}/g' {} +
+      - defer: find ./web -name '*.html' -exec sed -i '' 's/{{.WEB_VERSION}}/__VERSION__/g' {} +
+      - >-
+        docker run --rm -p 8080:80
+        -v "$PWD/web":/usr/local/apache2/htdocs/
+        -v "$PWD/web/httpd-dev.conf":/usr/local/apache2/conf/extra/dev.conf
+        httpd:alpine
+        sh -c "echo 'Include conf/extra/dev.conf' >> /usr/local/apache2/conf/httpd.conf && httpd-foreground"

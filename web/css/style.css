@@ -164,6 +164,15 @@ code, pre {
   color: var(--text-primary);
 }
 
+.nav-version {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: 3px;
+  margin-left: -2px;
+}
+
 .nav-icon {
   color: var(--accent);
 }

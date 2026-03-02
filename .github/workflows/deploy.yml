@@ -24,6 +24,11 @@ jobs:
         working-directory: tools/sitemap
         run: go run . -docs ${{ github.workspace }}/web/docs -out ${{ github.workspace }}/web/sitemap.xml
 
+      - name: Inject version into HTML
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          find ./web -name '*.html' -exec sed -i "s/__VERSION__/${VERSION}/g" {} +
+
       - name: Deploy via SFTP
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq lftp
