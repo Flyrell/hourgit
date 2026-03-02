@@ -14,11 +14,11 @@ func TestLeafCommandBuild(t *testing.T) {
 		Short: "A test command",
 		Args:  cobra.ExactArgs(1),
 		BoolFlags: []BoolFlag{
-			{Name: "verbose", Usage: "enable verbose output", Default: false},
+			{Name: "verbose", Shorthand: "v", Usage: "enable verbose output", Default: false},
 			{Name: "dry-run", Usage: "simulate execution", Default: true},
 		},
 		StrFlags: []StringFlag{
-			{Name: "output", Usage: "output file", Default: "out.txt"},
+			{Name: "output", Shorthand: "o", Usage: "output file", Default: "out.txt"},
 		},
 		RunE: func(cmd *cobra.Command, args []string) error { return nil },
 	}.Build()
@@ -31,6 +31,7 @@ func TestLeafCommandBuild(t *testing.T) {
 	verbose := cmd.Flags().Lookup("verbose")
 	require.NotNil(t, verbose)
 	assert.Equal(t, "false", verbose.DefValue)
+	assert.Equal(t, "v", verbose.Shorthand)
 
 	dryRun := cmd.Flags().Lookup("dry-run")
 	require.NotNil(t, dryRun)
@@ -39,6 +40,34 @@ func TestLeafCommandBuild(t *testing.T) {
 	output := cmd.Flags().Lookup("output")
 	require.NotNil(t, output)
 	assert.Equal(t, "out.txt", output.DefValue)
+	assert.Equal(t, "o", output.Shorthand)
+}
+
+func TestLeafCommandShortFlags(t *testing.T) {
+	var gotVerbose bool
+	var gotOutput string
+
+	cmd := LeafCommand{
+		Use:   "test",
+		Short: "A test command",
+		BoolFlags: []BoolFlag{
+			{Name: "verbose", Shorthand: "v", Usage: "enable verbose output"},
+		},
+		StrFlags: []StringFlag{
+			{Name: "output", Shorthand: "o", Usage: "output file"},
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gotVerbose, _ = cmd.Flags().GetBool("verbose")
+			gotOutput, _ = cmd.Flags().GetString("output")
+			return nil
+		},
+	}.Build()
+
+	cmd.SetArgs([]string{"-v", "-o", "result.txt"})
+	require.NoError(t, cmd.Execute())
+
+	assert.True(t, gotVerbose)
+	assert.Equal(t, "result.txt", gotOutput)
 }
 
 func TestLeafCommandBuildNoFlags(t *testing.T) {

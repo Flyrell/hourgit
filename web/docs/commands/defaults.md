@@ -28,7 +28,7 @@ hourgit defaults reset [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 ## `hourgit defaults report`
 
@@ -40,5 +40,5 @@ hourgit defaults report [--month <1-12>] [--year <YYYY>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--month` | current month | Month number 1-12 |
-| `--year` | current year | Year |
+| `-m`, `--month` | current month | Month number 1-12 |
+| `-y`, `--year` | current year | Year |

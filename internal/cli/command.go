@@ -4,9 +4,10 @@ import "github.com/spf13/cobra"
 
 // BoolFlag defines a boolean flag for a command.
 type BoolFlag struct {
-	Name    string
-	Usage   string
-	Default bool
+	Name      string
+	Shorthand string
+	Usage     string
+	Default   bool
 }
 
 // StringFlag defines a string flag for a command.
@@ -37,7 +38,11 @@ func (lc LeafCommand) Build() *cobra.Command {
 		RunE:  lc.RunE,
 	}
 	for _, f := range lc.BoolFlags {
-		cmd.Flags().Bool(f.Name, f.Default, f.Usage)
+		if f.Shorthand != "" {
+			cmd.Flags().BoolP(f.Name, f.Shorthand, f.Default, f.Usage)
+		} else {
+			cmd.Flags().Bool(f.Name, f.Default, f.Usage)
+		}
 	}
 	for _, f := range lc.StrFlags {
 		if f.Shorthand != "" {

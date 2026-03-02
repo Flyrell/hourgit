@@ -28,12 +28,12 @@ var initCmd = LeafCommand{
 	Use:   "init",
 	Short: "Initialize hourgit in a git repository",
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "assign repository to a project by name or ID (creates if needed)"},
+		{Name: "project", Shorthand: "p", Usage: "assign repository to a project by name or ID (creates if needed)"},
 	},
 	BoolFlags: []BoolFlag{
-		{Name: "force", Usage: "overwrite existing post-checkout hook"},
-		{Name: "merge", Usage: "append to existing post-checkout hook"},
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "force", Shorthand: "f", Usage: "overwrite existing post-checkout hook"},
+		{Name: "merge", Shorthand: "m", Usage: "append to existing post-checkout hook"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()

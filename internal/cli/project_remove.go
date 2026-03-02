@@ -14,7 +14,7 @@ var projectRemoveCmd = LeafCommand{
 	Short: "Remove a project and clean up its repository assignments",
 	Args:  cobra.ExactArgs(1),
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()

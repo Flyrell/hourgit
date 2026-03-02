@@ -12,8 +12,8 @@ var defaultsReportCmd = LeafCommand{
 	Use:   "report",
 	Short: "Show expanded default working hours for a given month",
 	StrFlags: []StringFlag{
-		{Name: "month", Usage: "month number 1-12 (default: current)"},
-		{Name: "year", Usage: "year (default: current)"},
+		{Name: "month", Shorthand: "m", Usage: "month number 1-12 (default: current)"},
+		{Name: "year", Shorthand: "y", Usage: "year (default: current)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()

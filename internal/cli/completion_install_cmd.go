@@ -13,7 +13,7 @@ var completionInstallCmd = LeafCommand{
 	Short: "Install shell completions into your shell config",
 	Args:  cobra.RangeArgs(0, 1),
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "Skip confirmation prompt"},
+		{Name: "yes", Shorthand: "y", Usage: "Skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		shell := ""

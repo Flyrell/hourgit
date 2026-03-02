@@ -13,10 +13,10 @@ var removeCmd = LeafCommand{
 	Short: "Remove a log or checkout entry",
 	Args:  cobra.ExactArgs(1),
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

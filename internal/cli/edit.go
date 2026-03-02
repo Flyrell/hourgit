@@ -14,15 +14,15 @@ var editCmd = LeafCommand{
 	Short: "Edit an existing log entry",
 	Args:  cobra.ExactArgs(1),
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompts"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompts"},
 	},
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "duration", Usage: "new duration (e.g. 30m, 3h, 3h30m)"},
-		{Name: "from", Usage: "new start time (e.g. 9am, 14:00)"},
-		{Name: "to", Usage: "new end time (e.g. 5pm, 17:00)"},
-		{Name: "date", Usage: "new date (YYYY-MM-DD)"},
-		{Name: "task", Usage: "new task label (empty string clears it)"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "duration", Shorthand: "d", Usage: "new duration (e.g. 30m, 3h, 3h30m)"},
+		{Name: "from", Shorthand: "F", Usage: "new start time (e.g. 9am, 14:00)"},
+		{Name: "to", Shorthand: "T", Usage: "new end time (e.g. 5pm, 17:00)"},
+		{Name: "date", Shorthand: "D", Usage: "new date (YYYY-MM-DD)"},
+		{Name: "task", Shorthand: "t", Usage: "new task label (empty string clears it)"},
 		{Name: "message", Shorthand: "m", Usage: "new message"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -20,8 +20,8 @@ hourgit project assign <name> [--force] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--force` | `false` | Reassign repository to a different project |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-f`, `--force` | `false` | Reassign repository to a different project |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 ## `hourgit project list`
 
@@ -41,4 +41,4 @@ hourgit project remove <name> [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |

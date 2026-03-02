@@ -119,10 +119,10 @@ hourgit init [--project <name>] [--force] [--merge] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
-| `--force` | `false` | Overwrite existing post-checkout hook |
-| `--merge` | `false` | Append to existing post-checkout hook |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-p`, `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
+| `-f`, `--force` | `false` | Overwrite existing post-checkout hook |
+| `-m`, `--merge` | `false` | Append to existing post-checkout hook |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit log`
 
@@ -134,12 +134,12 @@ hourgit log [MESSAGE] [--duration <dur>] [--from <time>] [--to <time>] [--date <
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--duration` | — | Duration to log (e.g. `30m`, `3h`, `1d3h30m`) |
-| `--from` | — | Start time (e.g. `9am`, `14:00`) |
-| `--to` | — | End time (e.g. `5pm`, `17:00`) |
-| `--date` | today | Date to log for (`YYYY-MM-DD`) |
-| `--task` | — | Task label for this entry |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-d`, `--duration` | — | Duration to log (e.g. `30m`, `3h`, `1d3h30m`) |
+| `-F`, `--from` | — | Start time (e.g. `9am`, `14:00`) |
+| `-T`, `--to` | — | End time (e.g. `5pm`, `17:00`) |
+| `-D`, `--date` | today | Date to log for (`YYYY-MM-DD`) |
+| `-t`, `--task` | — | Task label for this entry |
 
 > `--duration` and `--from`/`--to` are mutually exclusive. A message is always required (prompted if not provided).
 
@@ -170,13 +170,14 @@ hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <da
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--duration` | — | New duration (e.g. `30m`, `3h`, `3h30m`) |
-| `--from` | — | New start time (e.g. `9am`, `14:00`) |
-| `--to` | — | New end time (e.g. `5pm`, `17:00`) |
-| `--date` | — | New date (`YYYY-MM-DD`) |
-| `--task` | — | New task label (empty string clears it) |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-d`, `--duration` | — | New duration (e.g. `30m`, `3h`, `3h30m`) |
+| `-F`, `--from` | — | New start time (e.g. `9am`, `14:00`) |
+| `-T`, `--to` | — | New end time (e.g. `5pm`, `17:00`) |
+| `-D`, `--date` | — | New date (`YYYY-MM-DD`) |
+| `-t`, `--task` | — | New task label (empty string clears it) |
 | `-m`, `--message` | — | New message |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 > `--duration` and `--from`/`--to` are mutually exclusive. `--from` only: keeps existing end time, recalculates duration. `--to` only: keeps existing start time, recalculates duration. Entry ID and creation timestamp are preserved. If the entry is not found in the current repo's project, all projects are searched.
 
@@ -200,8 +201,8 @@ hourgit remove <hash> [--project <name>] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 > Works with both log and checkout entries (unlike `edit`, which only supports log entries). Shows entry details and asks for confirmation before deleting. If the entry is not found in the current repo's project, all projects are searched.
 
@@ -215,7 +216,7 @@ hourgit sync [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 #### `hourgit report`
 
@@ -227,11 +228,11 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--month` | current month | Month number 1-12 |
-| `--week` | — | ISO week number 1-53 |
-| `--year` | current year | Year (complementary to `--month` or `--week`) |
-| `--project` | auto-detect | Project name or ID |
-| `--export` | — | Export format (`pdf`); auto-generates filename based on period |
+| `-m`, `--month` | current month | Month number 1-12 |
+| `-w`, `--week` | — | ISO week number 1-53 |
+| `-y`, `--year` | current year | Year (complementary to `--month` or `--week`) |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-e`, `--export` | — | Export format (`pdf`); auto-generates filename based on period |
 
 > `--month` and `--week` cannot be used together. `--year` alone is not valid — it must be paired with `--month` or `--week`. Neither flag defaults to the current month.
 
@@ -270,8 +271,8 @@ hourgit history [--project <name>] [--limit <N>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | all projects | Filter by project name or ID |
-| `--limit` | `50` | Maximum number of entries to show (use `0` for all) |
+| `-p`, `--project` | all projects | Filter by project name or ID |
+| `-l`, `--limit` | `50` | Maximum number of entries to show (use `0` for all) |
 
 > Each line shows the entry hash, timestamp, type (log or checkout), project name, and details. Log entries display duration + task label (if set) + message. Checkout entries display previous branch → next branch.
 
@@ -285,7 +286,7 @@ hourgit status [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 **Output includes:**
 
@@ -321,8 +322,8 @@ hourgit project assign <name> [--force] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--force` | `false` | Reassign repository to a different project |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-f`, `--force` | `false` | Reassign repository to a different project |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit project list`
 
@@ -344,7 +345,7 @@ hourgit project remove <name> [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 ### Schedule Configuration
 
@@ -362,7 +363,7 @@ hourgit config get [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 #### `hourgit config set`
 
@@ -374,7 +375,7 @@ hourgit config set [--project <name>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
+| `-p`, `--project` | auto-detect | Project name or ID |
 
 #### `hourgit config reset`
 
@@ -386,8 +387,8 @@ hourgit config reset [--project <name>] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--yes` | `false` | Skip confirmation prompt |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit config report`
 
@@ -399,9 +400,9 @@ hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--project` | auto-detect | Project name or ID |
-| `--month` | current month | Month number 1-12 |
-| `--year` | current year | Year |
+| `-p`, `--project` | auto-detect | Project name or ID |
+| `-m`, `--month` | current month | Month number 1-12 |
+| `-y`, `--year` | current year | Year |
 
 ### Default Schedule
 
@@ -439,7 +440,7 @@ hourgit defaults reset [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit defaults report`
 
@@ -451,8 +452,8 @@ hourgit defaults report [--month <1-12>] [--year <YYYY>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--month` | current month | Month number 1-12 |
-| `--year` | current year | Year |
+| `-m`, `--month` | current month | Month number 1-12 |
+| `-y`, `--year` | current year | Year |
 
 ### Shell Completions
 
@@ -470,7 +471,7 @@ hourgit completion install [SHELL] [--yes]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--yes` | `false` | Skip confirmation prompt |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit completion generate`
 

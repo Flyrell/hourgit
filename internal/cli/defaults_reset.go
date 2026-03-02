@@ -12,7 +12,7 @@ var defaultsResetCmd = LeafCommand{
 	Use:   "reset",
 	Short: "Reset the default schedule to factory settings (Mon-Fri 9am-5pm)",
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()

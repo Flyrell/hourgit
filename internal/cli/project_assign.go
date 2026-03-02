@@ -15,8 +15,8 @@ var projectAssignCmd = LeafCommand{
 	Short: "Assign repository to a project",
 	Args:  cobra.ExactArgs(1),
 	BoolFlags: []BoolFlag{
-		{Name: "force", Usage: "reassign repository to a different project"},
-		{Name: "yes", Usage: "skip confirmation prompt"},
+		{Name: "force", Shorthand: "f", Usage: "reassign repository to a different project"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()

@@ -18,7 +18,7 @@ var statusCmd = LeafCommand{
 	Use:   "status",
 	Short: "Show current tracking status",
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

@@ -17,15 +17,15 @@ var logCmd = LeafCommand{
 	Short: "Log time manually for a project",
 	Args:  cobra.MaximumNArgs(1),
 	BoolFlags: []BoolFlag{
-		{Name: "yes", Usage: "skip confirmation prompts"},
+		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompts"},
 	},
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "project name or ID (auto-detected from repo if omitted)"},
-		{Name: "duration", Usage: "duration to log (e.g. 30m, 3h, 3h30m)"},
-		{Name: "from", Usage: "start time (e.g. 9am, 14:00)"},
-		{Name: "to", Usage: "end time (e.g. 5pm, 17:00)"},
-		{Name: "date", Usage: "date to log for (YYYY-MM-DD, default: today)"},
-		{Name: "task", Usage: "task label for this entry"},
+		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
+		{Name: "duration", Shorthand: "d", Usage: "duration to log (e.g. 30m, 3h, 3h30m)"},
+		{Name: "from", Shorthand: "F", Usage: "start time (e.g. 9am, 14:00)"},
+		{Name: "to", Shorthand: "T", Usage: "end time (e.g. 5pm, 17:00)"},
+		{Name: "date", Shorthand: "D", Usage: "date to log for (YYYY-MM-DD, default: today)"},
+		{Name: "task", Shorthand: "t", Usage: "task label for this entry"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()

@@ -25,8 +25,8 @@ var historyCmd = LeafCommand{
 	Use:   "history",
 	Short: "Show a chronological feed of all recorded activity",
 	StrFlags: []StringFlag{
-		{Name: "project", Usage: "filter by project name or ID"},
-		{Name: "limit", Usage: "maximum number of entries to show (0 = all)", Default: "50"},
+		{Name: "project", Shorthand: "p", Usage: "filter by project name or ID"},
+		{Name: "limit", Shorthand: "l", Usage: "maximum number of entries to show (0 = all)", Default: "50"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
