@@ -12,6 +12,23 @@ Each unit of logged time is called a **log entry**, identified by a short hash (
 
 Manual logging is supported for non-code work (research, analysis, meetings) via explicit commands.
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+  - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history, status
+  - [Project Management](#project-management) — project add/assign/list/remove
+  - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
+  - [Default Schedule](#default-schedule) — defaults get/set/reset/report
+  - [Shell Completions](#shell-completions) — completion install/generate
+  - [Other](#other) — version
+- [Configuration](#configuration)
+- [Data Storage](#data-storage)
+- [Roadmap](#roadmap)
+- [Sponsor](#sponsor)
+- [License](#license)
+
 ## Installation
 
 ### Quick install (macOS and Linux)
@@ -85,21 +102,6 @@ hourgit version
    ```bash
    hourgit report --export pdf
    ```
-
-## Table of Contents
-
-- [Commands](#commands)
-  - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history, status
-  - [Project Management](#project-management) — project add/assign/list/remove
-  - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
-  - [Default Schedule](#default-schedule) — defaults get/set/reset/report
-  - [Shell Completions](#shell-completions) — completion install/generate
-  - [Other](#other) — version
-- [Configuration](#configuration)
-- [Data Storage](#data-storage)
-- [Roadmap](#roadmap)
-- [Sponsor](#sponsor)
-- [License](#license)
 
 ## Commands
 
