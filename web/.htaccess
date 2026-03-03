@@ -12,3 +12,11 @@ RewriteRule ^ - [L]
 # Append .html for extensionless paths (docs)
 RewriteCond %{REQUEST_FILENAME}.html -f
 RewriteRule ^(.+)$ $1.html [L]
+
+<FilesMatch "\.(css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+
+<FilesMatch "\.(png|jpg|jpeg|gif|svg|ico|webp)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
