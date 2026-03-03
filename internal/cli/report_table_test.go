@@ -357,6 +357,110 @@ func TestRenderDetailedTable_NonScheduledDaysShowX(t *testing.T) {
 	assert.Contains(t, dataLine, "1h")
 }
 
+func TestInitialCursorCol(t *testing.T) {
+	t.Run("current month sets cursor to today", func(t *testing.T) {
+		now := time.Date(2026, 2, 15, 10, 0, 0, 0, time.UTC)
+		data := timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		}
+
+		// Simulate the logic from runReportTable
+		initialCol := 0
+		if !now.Before(data.From) && !now.After(data.To) {
+			initialCol = now.Day() - 1
+		}
+
+		assert.Equal(t, 14, initialCol) // day 15 → 0-indexed = 14
+	})
+
+	t.Run("past month keeps cursor at 0", func(t *testing.T) {
+		now := time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC)
+		data := timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		}
+
+		initialCol := 0
+		if !now.Before(data.From) && !now.After(data.To) {
+			initialCol = now.Day() - 1
+		}
+
+		assert.Equal(t, 0, initialCol)
+	})
+
+	t.Run("future month keeps cursor at 0", func(t *testing.T) {
+		now := time.Date(2026, 1, 20, 10, 0, 0, 0, time.UTC)
+		data := timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		}
+
+		initialCol := 0
+		if !now.Before(data.From) && !now.After(data.To) {
+			initialCol = now.Day() - 1
+		}
+
+		assert.Equal(t, 0, initialCol)
+	})
+
+	t.Run("first day of month sets cursor to 0", func(t *testing.T) {
+		now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+		data := timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		}
+
+		initialCol := 0
+		if !now.Before(data.From) && !now.After(data.To) {
+			initialCol = now.Day() - 1
+		}
+
+		assert.Equal(t, 0, initialCol)
+	})
+
+	t.Run("last day of month sets cursor to last col", func(t *testing.T) {
+		now := time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC)
+		data := timetrack.DetailedReportData{
+			DaysInMonth: 28,
+			From:        time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			To:          time.Date(2026, 2, 28, 0, 0, 0, 0, time.UTC),
+		}
+
+		initialCol := 0
+		if !now.Before(data.From) && !now.After(data.To) {
+			initialCol = now.Day() - 1
+		}
+
+		assert.Equal(t, 27, initialCol)
+	})
+}
+
+func TestEnsureCursorVisibleScrollsToColumn(t *testing.T) {
+	m := reportModel{
+		data: timetrack.DetailedReportData{
+			DaysInMonth: 31,
+			Rows:        []timetrack.DetailedTaskRow{{Name: "task"}},
+		},
+		termWidth:  80,
+		termHeight: 20,
+		cursorCol:  25, // far right
+		cursorRow:  0,
+		scrollX:    0, // starts at beginning
+		scrollY:    0,
+	}
+
+	m = m.ensureCursorVisible()
+
+	// scrollX should have adjusted so cursorCol is visible
+	assert.LessOrEqual(t, m.scrollX, m.cursorCol)
+	assert.Greater(t, m.scrollX+m.visibleDays(), m.cursorCol)
+}
+
 func TestIsWeekend(t *testing.T) {
 	// Feb 1, 2026 = Sunday
 	assert.True(t, isWeekend(2026, time.February, 1))

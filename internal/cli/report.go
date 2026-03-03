@@ -116,7 +116,7 @@ func runReport(
 	// Check if period was previously submitted
 	submitted := isSubmitted(inputs.submits, inputs.from, inputs.to)
 
-	return runReportTable(cmd, data, homeDir, inputs.proj.Slug, submitted)
+	return runReportTable(cmd, data, homeDir, inputs.proj.Slug, submitted, now)
 }
 
 // isSubmitted checks if any submit entry covers the given date range.
