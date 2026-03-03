@@ -5,6 +5,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![CI](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Flyrell/hour-git/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Flyrell/hour-git)](https://github.com/Flyrell/hour-git/releases)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/dawidzbinski)
 
 Hourgit tracks your working time automatically by hooking into git's checkout events. When you switch branches, Hourgit starts attributing time to the new branch. Your configured working hours act as the boundary — so overnight gaps, weekends, and days off are handled automatically without any extra input from you.
 
