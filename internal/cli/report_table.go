@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/Flyrell/hourgit/internal/timetrack"
 	tea "github.com/charmbracelet/bubbletea"
@@ -247,7 +248,7 @@ func (m reportModel) clampScroll() reportModel {
 	return m
 }
 
-func runReportTable(cmd *cobra.Command, data timetrack.DetailedReportData, homeDir, slug string, submitted bool) error {
+func runReportTable(cmd *cobra.Command, data timetrack.DetailedReportData, homeDir, slug string, submitted bool, now time.Time) error {
 	out := cmd.OutOrStdout()
 
 	// Non-TTY fallback: print static table
@@ -255,8 +256,15 @@ func runReportTable(cmd *cobra.Command, data timetrack.DetailedReportData, homeD
 		return printStaticDetailedTable(out, data)
 	}
 
+	// Start cursor on today's column if the report period contains today
+	initialCol := 0
+	if !now.Before(data.From) && !now.After(data.To) {
+		initialCol = now.Day() - 1
+	}
+
 	m := reportModel{
 		data:       data,
+		cursorCol:  initialCol,
 		termWidth:  120,
 		termHeight: 40,
 		homeDir:    homeDir,
