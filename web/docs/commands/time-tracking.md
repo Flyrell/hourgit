@@ -116,7 +116,7 @@ hourgit sync [--project <name>]
 Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts, commits, and manual log entries. Checkout sessions are automatically split by commits, showing commit messages in a detail panel.
 
 ```bash
-hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--export <format>]
+hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--export <format>] [--detail <level>]
 ```
 
 | Flag | Default | Description |
@@ -126,6 +126,7 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 | `-y`, `--year` | current year | Year |
 | `-p`, `--project` | auto-detect | Project name or ID |
 | `-e`, `--export` | — | Export format (`pdf`); auto-generates filename |
+| `-d`, `--detail` | `summary` | Export detail level: `summary` or `full` (individual entries with commit messages) |
 
 > `--month` and `--week` cannot be used together.
 

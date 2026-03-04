@@ -50,6 +50,7 @@ func BuildExportData(
 	now time.Time,
 	generatedDays []string,
 	projectName string,
+	detail string,
 ) ExportData {
 	daysInMonth := daysIn(year, month)
 
@@ -67,9 +68,10 @@ func BuildExportData(
 	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
 
 	// Use segment-based approach when commits are available
+	var segments []sessionSegment
 	var checkoutBucket map[string]map[int]int
 	if len(commits) > 0 {
-		segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+		segments = buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
 		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
 	} else {
 		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
@@ -121,11 +123,21 @@ func BuildExportData(
 		})
 	}
 
-	// Add checkout attribution as synthetic entries
-	for branch, dayMap := range checkoutBucket {
-		cleanedBranch := cleanBranchName(branch)
-		for day, mins := range dayMap {
-			if mins <= 0 {
+	// Add checkout attribution as entries
+	if detail == "full" && len(commits) > 0 {
+		// Full detail: one ExportEntry per commit segment, preserving messages
+		cellEntries := buildSegmentCellEntries(segments, year, month, daysInMonth, scheduleWindows, now.Location())
+		for _, ce := range cellEntries {
+			cleanedBranch := cleanBranchName(ce.branch)
+			day := ce.day
+			if generatedSet[day] {
+				continue
+			}
+			if ce.minutes <= 0 {
+				continue
+			}
+			// Apply deduction proportionally via checkoutBucket — skip if bucket was zeroed
+			if checkoutBucket[ce.branch] == nil || checkoutBucket[ce.branch][day] <= 0 {
 				continue
 			}
 			if dayGroups[day] == nil {
@@ -136,11 +148,38 @@ func BuildExportData(
 				dt = &dayTask{task: cleanedBranch}
 				dayGroups[day][cleanedBranch] = dt
 			}
+			msg := ce.message
+			if msg == "" {
+				msg = "(uncommitted)"
+			}
 			dt.entries = append(dt.entries, ExportEntry{
-				Start:   time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
-				Minutes: mins,
-				Message: cleanedBranch,
+				Start:   ce.start,
+				Minutes: ce.minutes,
+				Message: msg,
 			})
+		}
+	} else {
+		// Summary: one synthetic entry per branch-day
+		for branch, dayMap := range checkoutBucket {
+			cleanedBranch := cleanBranchName(branch)
+			for day, mins := range dayMap {
+				if mins <= 0 {
+					continue
+				}
+				if dayGroups[day] == nil {
+					dayGroups[day] = make(map[string]*dayTask)
+				}
+				dt := dayGroups[day][cleanedBranch]
+				if dt == nil {
+					dt = &dayTask{task: cleanedBranch}
+					dayGroups[day][cleanedBranch] = dt
+				}
+				dt.entries = append(dt.entries, ExportEntry{
+					Start:   time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
+					Minutes: mins,
+					Message: cleanedBranch,
+				})
+			}
 		}
 	}
 

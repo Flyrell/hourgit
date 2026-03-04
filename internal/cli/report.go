@@ -37,6 +37,7 @@ var reportCmd = LeafCommand{
 		{Name: "year", Shorthand: "y", Usage: "year (complementary to --month or --week)"},
 		{Name: "project", Shorthand: "p", Usage: "project name or ID (auto-detected from repo if omitted)"},
 		{Name: "export", Shorthand: "e", Usage: "export format (pdf)"},
+		{Name: "detail", Shorthand: "d", Usage: "export detail level: summary or full (default: summary)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, repoDir, err := getContextPaths()
@@ -49,22 +50,28 @@ var reportCmd = LeafCommand{
 		weekFlag, _ := cmd.Flags().GetString("week")
 		yearFlag, _ := cmd.Flags().GetString("year")
 		exportFlag, _ := cmd.Flags().GetString("export")
+		detailFlag, _ := cmd.Flags().GetString("detail")
 
 		monthChanged := cmd.Flags().Changed("month")
 		weekChanged := cmd.Flags().Changed("week")
 		yearChanged := cmd.Flags().Changed("year")
 
-		return runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag, monthChanged, weekChanged, yearChanged, time.Now)
+		return runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag, detailFlag, monthChanged, weekChanged, yearChanged, time.Now)
 	},
 }.Build()
 
 func runReport(
 	cmd *cobra.Command,
-	homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag string,
+	homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, exportFlag, detailFlag string,
 	monthChanged, weekChanged, yearChanged bool,
 	nowFn func() time.Time,
 ) error {
 	now := nowFn()
+
+	// Validate detail flag
+	if detailFlag != "" && detailFlag != "summary" && detailFlag != "full" {
+		return fmt.Errorf("invalid --detail value %q (supported: summary, full)", detailFlag)
+	}
 
 	inputs, err := loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFlag, monthChanged, weekChanged, yearChanged, now)
 	if err != nil {
@@ -80,7 +87,7 @@ func runReport(
 		exportData := timetrack.BuildExportData(
 			inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules,
 			inputs.year, inputs.month, now, nil,
-			inputs.proj.Name,
+			inputs.proj.Name, detailFlag,
 		)
 
 		if len(exportData.Days) == 0 {
