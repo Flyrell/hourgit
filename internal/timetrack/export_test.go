@@ -20,7 +20,7 @@ func TestBuildExportData_LogEntriesGroupedByTask(t *testing.T) {
 		{ID: "l3", Start: time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), Minutes: 75, Message: "API design research", Task: ""},
 	}
 
-	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test Project")
+	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test Project", "")
 
 	assert.Equal(t, "Test Project", data.ProjectName)
 	assert.Equal(t, 2025, data.Year)
@@ -57,7 +57,7 @@ func TestBuildExportData_CheckoutAttribution(t *testing.T) {
 		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
 	}
 
-	data := BuildExportData(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil, "Test", "")
 
 	require.Equal(t, 1, len(data.Days))
 	day := data.Days[0]
@@ -83,7 +83,7 @@ func TestBuildExportData_GeneratedDaysSkipCheckouts(t *testing.T) {
 
 	generatedDays := []string{"2025-01-02"}
 
-	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), generatedDays, "Test")
+	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), generatedDays, "Test", "")
 
 	// Day 2 should only have the log entry (checkout skipped due to generated)
 	// Day 3 should have checkout attribution
@@ -101,7 +101,7 @@ func TestBuildExportData_GeneratedDaysSkipCheckouts(t *testing.T) {
 func TestBuildExportData_EmptyMonth(t *testing.T) {
 	year, month := 2025, time.January
 
-	data := BuildExportData(nil, nil, nil, nil, year, month, afterMonth(year, month), nil, "Empty")
+	data := BuildExportData(nil, nil, nil, nil, year, month, afterMonth(year, month), nil, "Empty", "")
 
 	assert.Equal(t, 0, len(data.Days))
 	assert.Equal(t, 0, data.TotalMinutes)
@@ -116,7 +116,7 @@ func TestBuildExportData_MultipleDaysSorted(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 30, Message: "work", Task: "task"},
 	}
 
-	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test", "")
 
 	require.Equal(t, 2, len(data.Days))
 	// Days should be sorted ascending
@@ -137,7 +137,7 @@ func TestBuildExportData_ScheduleDeduction(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
 	}
 
-	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), nil, "Test", "")
 
 	require.Equal(t, 1, len(data.Days))
 	day := data.Days[0]
@@ -157,4 +157,81 @@ func TestBuildExportData_ScheduleDeduction(t *testing.T) {
 	}
 	assert.Equal(t, 360, checkoutMins)
 	assert.Equal(t, 120, logMins)
+}
+
+func TestBuildExportData_FullDetailWithCommits(t *testing.T) {
+	year, month := 2025, time.January
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 9-17
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Message: "Add login form", CommitRef: "abc1234", Branch: "feature-x"},
+		{ID: "cm2", Timestamp: time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), Message: "Fix validation", CommitRef: "def5678", Branch: "feature-x"},
+	}
+
+	data := BuildExportData(checkouts, nil, commits, days, year, month, afterMonth(year, month), nil, "Test", "full")
+
+	require.Equal(t, 1, len(data.Days))
+	day := data.Days[0]
+	assert.Equal(t, 2, day.Date.Day())
+
+	require.Equal(t, 1, len(day.Groups))
+	group := day.Groups[0]
+	assert.Equal(t, "feature-x", group.Task)
+
+	// Should have 3 entries: 2 commit segments + 1 uncommitted trailing
+	require.Equal(t, 3, len(group.Entries))
+	assert.Equal(t, "Add login form", group.Entries[0].Message)
+	assert.Equal(t, 120, group.Entries[0].Minutes) // 9:00-11:00
+	assert.Equal(t, "Fix validation", group.Entries[1].Message)
+	assert.Equal(t, 180, group.Entries[1].Minutes) // 11:00-14:00
+	assert.Equal(t, "(uncommitted)", group.Entries[2].Message)
+	assert.Equal(t, 180, group.Entries[2].Minutes) // 14:00-17:00
+}
+
+func TestBuildExportData_FullDetailNoCommitsFallsBackToSummary(t *testing.T) {
+	year, month := 2025, time.January
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 9-17
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	data := BuildExportData(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil, "Test", "full")
+
+	require.Equal(t, 1, len(data.Days))
+	day := data.Days[0]
+	require.Equal(t, 1, len(day.Groups))
+
+	// Without commits, full detail falls back to summary: one synthetic entry
+	group := day.Groups[0]
+	assert.Equal(t, "feature-x", group.Task)
+	require.Equal(t, 1, len(group.Entries))
+	assert.Equal(t, "feature-x", group.Entries[0].Message)
+	assert.Equal(t, 480, group.Entries[0].Minutes)
+}
+
+func TestBuildExportData_SummaryDetailWithCommits(t *testing.T) {
+	year, month := 2025, time.January
+	days := []schedule.DaySchedule{workday(year, month, 2)}
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
+	}
+
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Message: "Add login form", CommitRef: "abc1234", Branch: "feature-x"},
+	}
+
+	// Summary mode: one synthetic entry despite commits existing
+	data := BuildExportData(checkouts, nil, commits, days, year, month, afterMonth(year, month), nil, "Test", "summary")
+
+	require.Equal(t, 1, len(data.Days))
+	day := data.Days[0]
+	require.Equal(t, 1, len(day.Groups))
+	assert.Equal(t, 1, len(day.Groups[0].Entries))
+	assert.Equal(t, "feature-x", day.Groups[0].Entries[0].Message)
 }

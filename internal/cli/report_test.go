@@ -39,7 +39,7 @@ func execReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string) (stri
 	cmd := reportCmd
 	cmd.SetOut(stdout)
 
-	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, "", yearFlag, "", false, false, false, fixedNow)
+	err := runReport(cmd, homeDir, repoDir, projectFlag, monthFlag, "", yearFlag, "", "", false, false, false, fixedNow)
 	return stdout.String(), err
 }
 
@@ -295,7 +295,7 @@ func execReportWithExport(t *testing.T, homeDir, repoDir, monthFlag, weekFlag, y
 			mc := c.Flags().Changed("month")
 			wc := c.Flags().Changed("week")
 			yc := c.Flags().Changed("year")
-			return runReport(c, homeDir, repoDir, "", mf, wf, yf, ef, mc, wc, yc, fixedNow)
+			return runReport(c, homeDir, repoDir, "", mf, wf, yf, ef, "", mc, wc, yc, fixedNow)
 		},
 	}.Build()
 
@@ -398,6 +398,33 @@ func TestReportExportFlag_UnsupportedFormat(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported export format")
 }
 
+func TestReportDetailFlag_InvalidValue(t *testing.T) {
+	homeDir, repoDir, _ := setupReportTest(t)
+
+	stdout := new(bytes.Buffer)
+	cmd := reportCmd
+	cmd.SetOut(stdout)
+
+	err := runReport(cmd, homeDir, repoDir, "", "6", "", "2025", "pdf", "invalid", false, false, false, fixedNow)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --detail value")
+}
+
+func TestReportDetailFlag_ValidValues(t *testing.T) {
+	homeDir, repoDir, _ := setupReportTest(t)
+
+	stdout := new(bytes.Buffer)
+	cmd := reportCmd
+	cmd.SetOut(stdout)
+
+	// "summary" and "full" should not return a validation error
+	// (they'll print "No time entries" since no data exists)
+	for _, val := range []string{"", "summary", "full"} {
+		err := runReport(cmd, homeDir, repoDir, "", "1", "", "2025", "", val, false, false, false, fixedNow)
+		assert.NoError(t, err, "detail=%q should be valid", val)
+	}
+}
+
 func TestReportShortFlags(t *testing.T) {
 	homeDir, repoDir, _ := setupReportTest(t)
 
@@ -419,7 +446,7 @@ func TestReportShortFlags(t *testing.T) {
 			mc := c.Flags().Changed("month")
 			wc := c.Flags().Changed("week")
 			yc := c.Flags().Changed("year")
-			return runReport(c, homeDir, repoDir, "", mf, wf, yf, "", mc, wc, yc, fixedNow)
+			return runReport(c, homeDir, repoDir, "", mf, wf, yf, "", "", mc, wc, yc, fixedNow)
 		},
 	}.Build()
 
