@@ -82,3 +82,71 @@ func TestParseReflogTimezoneConversion(t *testing.T) {
 	assert.Len(t, records, 1)
 	assert.Equal(t, time.Date(2025, 6, 15, 12, 30, 0, 0, time.UTC), records[0].Timestamp)
 }
+
+func TestParseCommitsStandardCommit(t *testing.T) {
+	input := `abc1234 HEAD@{2025-06-15 14:30:00 +0000}: commit: add login form`
+
+	records := ParseCommits(input)
+
+	assert.Len(t, records, 1)
+	assert.Equal(t, "abc1234", records[0].CommitRef)
+	assert.Equal(t, time.Date(2025, 6, 15, 14, 30, 0, 0, time.UTC), records[0].Timestamp)
+	assert.Equal(t, "add login form", records[0].Message)
+}
+
+func TestParseCommitsAmendCommit(t *testing.T) {
+	input := `def5678 HEAD@{2025-06-15 10:00:00 +0000}: commit (amend): fix typo in README`
+
+	records := ParseCommits(input)
+
+	assert.Len(t, records, 1)
+	assert.Equal(t, "def5678", records[0].CommitRef)
+	assert.Equal(t, time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC), records[0].Timestamp)
+	assert.Equal(t, "fix typo in README", records[0].Message)
+}
+
+func TestParseCommitsSkipsNonCommitLines(t *testing.T) {
+	input := `abc1234 HEAD@{2025-06-15 14:30:00 +0000}: checkout: moving from main to develop
+def5678 HEAD@{2025-06-15 14:00:00 +0000}: commit: implement feature
+ghi9012 HEAD@{2025-06-15 13:30:00 +0000}: merge: branch 'develop'
+jkl3456 HEAD@{2025-06-15 13:00:00 +0000}: rebase: checkout feature
+mno7890 HEAD@{2025-06-15 12:00:00 +0000}: pull: merge`
+
+	records := ParseCommits(input)
+
+	assert.Len(t, records, 1)
+	assert.Equal(t, "def5678", records[0].CommitRef)
+	assert.Equal(t, "implement feature", records[0].Message)
+}
+
+func TestParseCommitsEmptyInput(t *testing.T) {
+	records := ParseCommits("")
+	assert.Empty(t, records)
+}
+
+func TestParseCommitsMultipleCommits(t *testing.T) {
+	input := `abc1234 HEAD@{2025-06-15 16:00:00 +0000}: commit: add unit tests
+def5678 HEAD@{2025-06-15 14:00:00 +0000}: commit (amend): refactor handler
+aab9012 HEAD@{2025-06-15 10:00:00 +0000}: commit: initial scaffold`
+
+	records := ParseCommits(input)
+
+	assert.Len(t, records, 3)
+	// Newest first (reflog order)
+	assert.Equal(t, "abc1234", records[0].CommitRef)
+	assert.Equal(t, "add unit tests", records[0].Message)
+	assert.Equal(t, "def5678", records[1].CommitRef)
+	assert.Equal(t, "refactor handler", records[1].Message)
+	assert.Equal(t, "aab9012", records[2].CommitRef)
+	assert.Equal(t, "initial scaffold", records[2].Message)
+}
+
+func TestParseCommitsTimezoneConversion(t *testing.T) {
+	// +0200 means 14:30 local = 12:30 UTC
+	input := `abc1234 HEAD@{2025-06-15 14:30:00 +0200}: commit: deploy hotfix`
+
+	records := ParseCommits(input)
+
+	assert.Len(t, records, 1)
+	assert.Equal(t, time.Date(2025, 6, 15, 12, 30, 0, 0, time.UTC), records[0].Timestamp)
+}

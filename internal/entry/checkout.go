@@ -10,4 +10,5 @@ type CheckoutEntry struct {
 	Previous  string    `json:"previous"`
 	Next      string    `json:"next"`
 	CommitRef string    `json:"commit_ref,omitempty"`
+	Repo      string    `json:"repo,omitempty"`
 }

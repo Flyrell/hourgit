@@ -27,22 +27,36 @@ func (m reportModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right", "l":
 			if m.cursorCol < m.data.DaysInMonth-1 {
 				m.cursorCol++
+				m.selectedEntryIdx = 0
 				m = m.ensureCursorVisible()
 			}
 		case "left", "h":
 			if m.cursorCol > 0 {
 				m.cursorCol--
+				m.selectedEntryIdx = 0
 				m = m.ensureCursorVisible()
 			}
 		case "down", "j":
 			if m.cursorRow < len(m.data.Rows)-1 {
 				m.cursorRow++
+				m.selectedEntryIdx = 0
 				m = m.ensureCursorVisible()
 			}
 		case "up", "k":
 			if m.cursorRow > 0 {
 				m.cursorRow--
+				m.selectedEntryIdx = 0
 				m = m.ensureCursorVisible()
+			}
+		case "tab", "]":
+			entries := m.currentCellEntries()
+			if len(entries) > 1 {
+				m.selectedEntryIdx = (m.selectedEntryIdx + 1) % len(entries)
+			}
+		case "shift+tab", "[":
+			entries := m.currentCellEntries()
+			if len(entries) > 1 {
+				m.selectedEntryIdx = (m.selectedEntryIdx - 1 + len(entries)) % len(entries)
 			}
 		case "e":
 			return m.startEdit()

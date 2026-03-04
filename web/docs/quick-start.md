@@ -42,7 +42,7 @@ hourgit log --from 9am --to 10:30am "code review"
 hourgit report
 ```
 
-Navigate with arrow keys, press `e` to edit entries, `a` to add new ones. Checkout-derived time appears automatically (marked with `*`).
+Navigate with arrow keys, press `e` to edit entries, `a` to add new ones. Checkout-derived time appears automatically (marked with `*`). When commits are synced, checkout sessions are split by commit — use `Tab` to cycle through entries in a cell and see commit messages in the detail panel.
 
 Press `s` to **submit** the period — this persists all generated entries and marks the period as complete.
 

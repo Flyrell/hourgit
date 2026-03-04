@@ -211,7 +211,7 @@ hourgit remove <hash> [--project <name>] [--yes]
 
 #### `hourgit sync`
 
-Sync branch checkouts from git reflog. Called automatically by the post-checkout hook, or run manually to backfill history.
+Sync branch checkouts and commits from git reflog. Called automatically by the post-checkout hook, or run manually to backfill history. Commits are used to split checkout sessions into finer time blocks with commit messages.
 
 ```bash
 hourgit sync [--project <name>]
@@ -223,7 +223,7 @@ hourgit sync [--project <name>]
 
 #### `hourgit report`
 
-Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts and manual log entries.
+Interactive time report with inline editing. Shows tasks (rows) × days (columns) with time attributed from branch checkouts, commits, and manual log entries. Checkout sessions are automatically split by commits, showing commit messages in a detail panel below the table.
 
 ```bash
 hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name>] [--export <format>]
@@ -244,6 +244,7 @@ hourgit report [--month <1-12>] [--week <1-53>] [--year <YYYY>] [--project <name
 | Key | Action |
 |-----|--------|
 | `←`/`→`/`↑`/`↓` or `h`/`l`/`k`/`j` | Navigate cells |
+| `Tab` or `]` / `Shift+Tab` or `[` | Cycle through entries in selected cell |
 | `e` | Edit selected cell entry |
 | `a` | Add a new entry to selected cell |
 | `r` or `Del` | Remove entry from selected cell |

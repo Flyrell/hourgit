@@ -39,20 +39,38 @@ const (
 )
 
 type reportModel struct {
-	data       timetrack.DetailedReportData
-	scrollX    int // first visible day column (0-indexed offset into days)
-	scrollY    int // first visible row (0-indexed offset into rows)
-	cursorRow  int // selected row index (into data.Rows)
-	cursorCol  int // selected day column (0-indexed offset into days, -1 = task name column)
-	termWidth  int
-	termHeight int
-	mode       reportMode
-	overlay    tea.Model // active overlay (nil in normal mode)
-	homeDir    string
-	slug       string
-	submitted  bool   // whether period was previously submitted
-	footerMsg  string // temporary message shown in footer
+	data             timetrack.DetailedReportData
+	scrollX          int // first visible day column (0-indexed offset into days)
+	scrollY          int // first visible row (0-indexed offset into rows)
+	cursorRow        int // selected row index (into data.Rows)
+	cursorCol        int // selected day column (0-indexed offset into days, -1 = task name column)
+	selectedEntryIdx int // selected entry index within the current cell (for detail panel)
+	termWidth        int
+	termHeight       int
+	mode             reportMode
+	overlay          tea.Model // active overlay (nil in normal mode)
+	homeDir          string
+	slug             string
+	submitted        bool   // whether period was previously submitted
+	footerMsg        string // temporary message shown in footer
 }
+
+// currentCellEntries returns the entries for the currently selected cell, or nil.
+func (m reportModel) currentCellEntries() []timetrack.CellEntry {
+	if m.cursorRow < 0 || m.cursorRow >= len(m.data.Rows) {
+		return nil
+	}
+	if m.cursorCol < 0 || m.cursorCol >= m.data.DaysInMonth {
+		return nil
+	}
+	day := m.cursorCol + 1
+	cd := m.data.Rows[m.cursorRow].Days[day]
+	if cd == nil {
+		return nil
+	}
+	return cd.Entries
+}
+
 
 func (m reportModel) visibleDays() int {
 	sumColSpace := dayColWidth + 3 // " | " + sum column
@@ -70,12 +88,22 @@ func (m reportModel) visibleDays() int {
 	return cols
 }
 
+func (m reportModel) detailPanelHeight() int {
+	entries := m.currentCellEntries()
+	if len(entries) == 0 {
+		return 0
+	}
+	// 1 line for separator + 1 line per entry
+	return 1 + len(entries)
+}
+
 func (m reportModel) visibleRows() int {
-	// Reserve lines for: title(1) + header(1) + separator(1) + totals separator(1) + totals(1) + footer(2) + warning(1)
+	// Reserve lines for: title(1) + header(1) + separator(1) + totals separator(1) + totals(1) + footer(2) + warning(1) + detail panel
 	reserved := 8
 	if m.submitted {
 		reserved++
 	}
+	reserved += m.detailPanelHeight()
 	available := m.termHeight - reserved
 	if available < 1 {
 		return 1

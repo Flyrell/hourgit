@@ -96,3 +96,46 @@ func TestFindEntryAcrossProjectsNoHourgitDir(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
+
+func TestFindEntryAcrossProjectsSkipsCommitEntries(t *testing.T) {
+	homeDir := t.TempDir()
+	slug := "my-project"
+
+	dir := filepath.Join(homeDir, ".hourgit", slug)
+	require.NoError(t, os.MkdirAll(dir, 0755))
+
+	ce := CommitEntry{
+		ID:        "d0d1234",
+		Timestamp: time.Date(2025, 6, 15, 9, 0, 0, 0, time.UTC),
+		Message:   "add feature",
+		CommitRef: "abc1234",
+		Branch:    "feature",
+	}
+	require.NoError(t, WriteCommitEntry(homeDir, slug, ce))
+
+	_, err := FindEntryAcrossProjects(homeDir, "d0d1234")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot be edited")
+}
+
+func TestFindAnyEntryAcrossProjectsFindsCommit(t *testing.T) {
+	homeDir := t.TempDir()
+	slug := "my-project"
+
+	dir := filepath.Join(homeDir, ".hourgit", slug)
+	require.NoError(t, os.MkdirAll(dir, 0755))
+
+	ce := CommitEntry{
+		ID:        "d0d1234",
+		Timestamp: time.Date(2025, 6, 15, 9, 0, 0, 0, time.UTC),
+		Message:   "add feature",
+		CommitRef: "abc1234",
+		Branch:    "feature",
+	}
+	require.NoError(t, WriteCommitEntry(homeDir, slug, ce))
+
+	found, err := FindAnyEntryAcrossProjects(homeDir, "d0d1234")
+	require.NoError(t, err)
+	assert.Equal(t, TypeCommit, found.Type)
+	assert.Equal(t, slug, found.Slug)
+}

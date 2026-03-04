@@ -244,7 +244,7 @@ func TestReportWithLogEntries(t *testing.T) {
 	inputs, err := loadReportInputs(homeDir, repoDir, "", "6", "", "2025", true, false, true, now)
 	require.NoError(t, err)
 
-	data := timetrack.BuildDetailedReport(inputs.checkouts, inputs.logs, inputs.schedules, inputs.from, inputs.to, now)
+	data := timetrack.BuildDetailedReport(inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules, inputs.from, inputs.to, now)
 	assert.Equal(t, 1, len(data.Rows))
 	assert.Equal(t, "research", data.Rows[0].Name)
 	assert.Equal(t, 120, data.Rows[0].TotalMinutes)

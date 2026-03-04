@@ -295,6 +295,109 @@ func TestWriteSubmitEntrySetsTypeField(t *testing.T) {
 	assert.Equal(t, TypeSubmit, entries[0].Type)
 }
 
+// --- Commit entry tests ---
+
+func testCommitEntry(id, branch, message string) CommitEntry {
+	return CommitEntry{
+		ID:        id,
+		Timestamp: time.Date(2025, 6, 15, 14, 0, 0, 0, time.UTC),
+		Message:   message,
+		CommitRef: "abc1234",
+		Branch:    branch,
+	}
+}
+
+func TestWriteAndReadCommitEntry(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+	e := testCommitEntry("aac1234", "main", "fix: resolve nil pointer")
+
+	require.NoError(t, WriteCommitEntry(home, slug, e))
+
+	entries, err := ReadAllCommitEntries(home, slug)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, e.ID, entries[0].ID)
+	assert.Equal(t, TypeCommit, entries[0].Type)
+	assert.Equal(t, e.Timestamp, entries[0].Timestamp)
+	assert.Equal(t, e.Message, entries[0].Message)
+	assert.Equal(t, e.CommitRef, entries[0].CommitRef)
+	assert.Equal(t, e.Branch, entries[0].Branch)
+}
+
+func TestReadAllCommitEntriesEmpty(t *testing.T) {
+	home := t.TempDir()
+	entries, err := ReadAllCommitEntries(home, "nonexistent")
+	require.NoError(t, err)
+	assert.Nil(t, entries)
+}
+
+func TestReadAllCommitEntriesSkipsOtherTypes(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
+	require.NoError(t, WriteCommitEntry(home, slug, testCommitEntry("d0d1111", "main", "fix: bug")))
+
+	entries, err := ReadAllCommitEntries(home, slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "d0d1111", entries[0].ID)
+}
+
+func TestReadAllEntriesSkipsCommitEntries(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCommitEntry(home, slug, testCommitEntry("d0d1111", "main", "fix: bug")))
+
+	entries, err := ReadAllEntries(home, slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "a0a1111", entries[0].ID)
+}
+
+func TestReadAllCheckoutEntriesSkipsCommitEntries(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
+	require.NoError(t, WriteCommitEntry(home, slug, testCommitEntry("d0d1111", "main", "fix: bug")))
+
+	entries, err := ReadAllCheckoutEntries(home, slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "c0c1111", entries[0].ID)
+}
+
+func TestWriteCommitEntrySetsTypeField(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteCommitEntry(home, slug, testCommitEntry("aac1234", "main", "fix: bug")))
+
+	entries, err := ReadAllCommitEntries(home, slug)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, TypeCommit, entries[0].Type)
+}
+
+func TestIsCommitEntry(t *testing.T) {
+	home := t.TempDir()
+	slug := "test-project"
+
+	require.NoError(t, WriteCommitEntry(home, slug, testCommitEntry("d0d1111", "main", "fix: bug")))
+	require.NoError(t, WriteEntry(home, slug, testEntry("a0a1111", "work")))
+	require.NoError(t, WriteCheckoutEntry(home, slug, testCheckoutEntry("c0c1111", "main", "feat")))
+
+	assert.True(t, IsCommitEntry(home, slug, "d0d1111"))
+	assert.False(t, IsCommitEntry(home, slug, "a0a1111"))
+	assert.False(t, IsCommitEntry(home, slug, "c0c1111"))
+	assert.False(t, IsCommitEntry(home, slug, "0000000")) // nonexistent
+}
+
 // --- ID validation tests ---
 
 func TestValidateID(t *testing.T) {

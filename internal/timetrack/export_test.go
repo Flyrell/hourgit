@@ -20,7 +20,7 @@ func TestBuildExportData_LogEntriesGroupedByTask(t *testing.T) {
 		{ID: "l3", Start: time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), Minutes: 75, Message: "API design research", Task: ""},
 	}
 
-	data := BuildExportData(nil, logs, days, year, month, afterMonth(year, month), nil, "Test Project")
+	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test Project")
 
 	assert.Equal(t, "Test Project", data.ProjectName)
 	assert.Equal(t, 2025, data.Year)
@@ -57,7 +57,7 @@ func TestBuildExportData_CheckoutAttribution(t *testing.T) {
 		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-x"},
 	}
 
-	data := BuildExportData(checkouts, nil, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil, "Test")
 
 	require.Equal(t, 1, len(data.Days))
 	day := data.Days[0]
@@ -83,7 +83,7 @@ func TestBuildExportData_GeneratedDaysSkipCheckouts(t *testing.T) {
 
 	generatedDays := []string{"2025-01-02"}
 
-	data := BuildExportData(checkouts, logs, days, year, month, afterMonth(year, month), generatedDays, "Test")
+	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), generatedDays, "Test")
 
 	// Day 2 should only have the log entry (checkout skipped due to generated)
 	// Day 3 should have checkout attribution
@@ -101,7 +101,7 @@ func TestBuildExportData_GeneratedDaysSkipCheckouts(t *testing.T) {
 func TestBuildExportData_EmptyMonth(t *testing.T) {
 	year, month := 2025, time.January
 
-	data := BuildExportData(nil, nil, nil, year, month, afterMonth(year, month), nil, "Empty")
+	data := BuildExportData(nil, nil, nil, nil, year, month, afterMonth(year, month), nil, "Empty")
 
 	assert.Equal(t, 0, len(data.Days))
 	assert.Equal(t, 0, data.TotalMinutes)
@@ -116,7 +116,7 @@ func TestBuildExportData_MultipleDaysSorted(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 30, Message: "work", Task: "task"},
 	}
 
-	data := BuildExportData(nil, logs, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(nil, logs, nil, days, year, month, afterMonth(year, month), nil, "Test")
 
 	require.Equal(t, 2, len(data.Days))
 	// Days should be sorted ascending
@@ -137,7 +137,7 @@ func TestBuildExportData_ScheduleDeduction(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
 	}
 
-	data := BuildExportData(checkouts, logs, days, year, month, afterMonth(year, month), nil, "Test")
+	data := BuildExportData(checkouts, logs, nil, days, year, month, afterMonth(year, month), nil, "Test")
 
 	require.Equal(t, 1, len(data.Days))
 	day := data.Days[0]

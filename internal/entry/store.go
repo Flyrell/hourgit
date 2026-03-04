@@ -165,6 +165,19 @@ func IsCheckoutEntry(homeDir, slug, id string) bool {
 	return matchesType(data, TypeCheckout)
 }
 
+// IsCommitEntry checks if the file at the given path exists and is a commit entry.
+func IsCommitEntry(homeDir, slug, id string) bool {
+	path, err := EntryPath(homeDir, slug, id)
+	if err != nil {
+		return false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return matchesType(data, TypeCommit)
+}
+
 // DeleteEntry removes an entry file by hash.
 func DeleteEntry(homeDir, slug, id string) error {
 	path, err := EntryPath(homeDir, slug, id)
@@ -219,4 +232,15 @@ func ReadAllSubmitEntries(homeDir, slug string) ([]SubmitEntry, error) {
 // ReadAllCheckoutEntries reads all checkout entries from a project's log directory.
 func ReadAllCheckoutEntries(homeDir, slug string) ([]CheckoutEntry, error) {
 	return readAllOfType[CheckoutEntry](homeDir, slug, TypeCheckout)
+}
+
+// WriteCommitEntry writes a single commit entry file to the project's log directory.
+func WriteCommitEntry(homeDir, slug string, e CommitEntry) error {
+	e.Type = TypeCommit
+	return writeTypedEntry(homeDir, slug, e.ID, e)
+}
+
+// ReadAllCommitEntries reads all commit entries from a project's log directory.
+func ReadAllCommitEntries(homeDir, slug string) ([]CommitEntry, error) {
+	return readAllOfType[CommitEntry](homeDir, slug, TypeCommit)
 }

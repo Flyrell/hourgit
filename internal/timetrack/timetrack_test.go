@@ -46,7 +46,7 @@ func TestBuildReport_SingleCheckoutFullMonth(t *testing.T) {
 		}
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)
@@ -73,7 +73,7 @@ func TestBuildReport_TwoCheckoutsSplitDay(t *testing.T) {
 		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Previous: "feature-a", Next: "feature-b"},
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 2, len(report.Rows))
 
@@ -98,7 +98,7 @@ func TestBuildReport_ManualLogDeduction(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
 	}
 
-	report := BuildReport(checkouts, logs, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(checkouts, logs, nil, days, year, month, afterMonth(year, month), nil)
 
 	rowCheckout := findRow(report, "feature-x")
 	rowLog := findRow(report, "research")
@@ -120,7 +120,7 @@ func TestBuildReport_LogTaskKeyFallback(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 60, Message: "did research", Task: ""},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(nil, logs, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "did research", report.Rows[0].Name)
@@ -135,7 +135,7 @@ func TestBuildReport_NoCheckoutsLogsOnly(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 180, Message: "analysis", Task: "analysis"},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(nil, logs, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "analysis", report.Rows[0].Name)
@@ -150,7 +150,7 @@ func TestBuildReport_CheckoutBeforeMonthStart(t *testing.T) {
 		{ID: "c1", Timestamp: time.Date(2025, 1, 15, 10, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-y"},
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-y", report.Rows[0].Name)
@@ -160,7 +160,7 @@ func TestBuildReport_CheckoutBeforeMonthStart(t *testing.T) {
 func TestBuildReport_EmptyMonth(t *testing.T) {
 	year, month := 2025, time.January
 
-	report := BuildReport(nil, nil, nil, year, month, afterMonth(year, month), nil)
+	report := BuildReport(nil, nil, nil, nil, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 0, len(report.Rows))
 	assert.Equal(t, 31, report.DaysInMonth)
@@ -179,7 +179,7 @@ func TestBuildReport_SortedByTotalDescending(t *testing.T) {
 		{ID: "l3", Start: time.Date(2025, 1, 3, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "big", Task: "big"},
 	}
 
-	report := BuildReport(nil, logs, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(nil, logs, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 2, len(report.Rows))
 	assert.Equal(t, "big", report.Rows[0].Name)
@@ -202,7 +202,7 @@ func TestBuildReport_LastCheckoutCappedAtNow(t *testing.T) {
 
 	// "now" is Jan 2 at 13:00 — should only get 4h (9-13), not 8h (9-17)
 	now := time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC)
-	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, now, nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)
@@ -240,7 +240,7 @@ func TestBuildReport_ScheduleWindowsInterpretedInLocalTimezone(t *testing.T) {
 	// [23:00 UTC, 07:00 UTC] (= 00:00-08:00 UTC+1) = 7h55m (correct).
 	now := time.Date(2025, 1, 2, 7, 55, 0, 0, loc) // = 6:55 UTC
 
-	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, now, nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, "feature-x", report.Rows[0].Name)
@@ -276,7 +276,7 @@ func TestBuildDetailedReport_SingleCheckout(t *testing.T) {
 		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Previous: "main", Next: "feature-a"},
 	}
 
-	report := BuildDetailedReport(checkouts, nil, days, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(checkouts, nil, nil, days, from, to, afterMonth(year, month))
 
 	assert.Equal(t, 1, len(report.Rows))
 	row := findDetailedRow(report, "feature-a")
@@ -303,7 +303,7 @@ func TestBuildDetailedReport_LogEntries(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 60, Message: "more research", Task: "research"},
 	}
 
-	report := BuildDetailedReport(nil, logs, days, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(nil, logs, nil, days, from, to, afterMonth(year, month))
 
 	assert.Equal(t, 1, len(report.Rows))
 	row := findDetailedRow(report, "research")
@@ -333,7 +333,7 @@ func TestBuildDetailedReport_CheckoutDeductedByLogs(t *testing.T) {
 		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 120, Message: "research", Task: "research"},
 	}
 
-	report := BuildDetailedReport(checkouts, logs, days, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(checkouts, logs, nil, days, from, to, afterMonth(year, month))
 
 	rowCheckout := findDetailedRow(report, "feature-x")
 	rowLog := findDetailedRow(report, "research")
@@ -362,7 +362,7 @@ func TestBuildDetailedReport_PersistedCheckoutGeneratedSkipsInMemory(t *testing.
 			Message: "feature-x", Task: "feature-x", Source: "checkout-generated"},
 	}
 
-	report := BuildDetailedReport(checkouts, logs, days, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(checkouts, logs, nil, days, from, to, afterMonth(year, month))
 
 	row := findDetailedRow(report, "feature-x")
 	assert.NotNil(t, row)
@@ -381,7 +381,7 @@ func TestBuildDetailedReport_Empty(t *testing.T) {
 	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
 
-	report := BuildDetailedReport(nil, nil, nil, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(nil, nil, nil, nil, from, to, afterMonth(year, month))
 
 	assert.Equal(t, 0, len(report.Rows))
 	assert.Equal(t, 31, report.DaysInMonth)
@@ -399,7 +399,7 @@ func TestBuildDetailedReport_SortedByTotalDescending(t *testing.T) {
 		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 120, Message: "big", Task: "big"},
 	}
 
-	report := BuildDetailedReport(nil, logs, days, from, to, afterMonth(year, month))
+	report := BuildDetailedReport(nil, logs, nil, days, from, to, afterMonth(year, month))
 
 	assert.Equal(t, 2, len(report.Rows))
 	assert.Equal(t, "big", report.Rows[0].Name)
@@ -451,7 +451,7 @@ func TestBuildReport_RoundedCheckoutNeverExceedsSchedule(t *testing.T) {
 
 	// now with seconds past the schedule end — truncation to 17:00 aligns with window
 	now := time.Date(2025, 1, 2, 17, 0, 35, 0, time.UTC)
-	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, now, nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	// Should be exactly 480 (rounded), not 479 (truncated), and not >480
@@ -472,7 +472,7 @@ func TestBuildReport_CheckoutSecondsAreTruncated(t *testing.T) {
 	}
 
 	now := afterMonth(year, month)
-	report := BuildReport(checkouts, nil, days, year, month, now, nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, now, nil)
 
 	assert.Equal(t, 1, len(report.Rows))
 	assert.Equal(t, 480, report.Rows[0].Days[2], "checkout seconds should be truncated, giving exactly 8h")
@@ -493,7 +493,7 @@ func TestBuildReport_ConsecutiveSameBranchCheckoutsDeduped(t *testing.T) {
 		{ID: "c3", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Previous: "feature-a", Next: "feature-b"},
 	}
 
-	report := BuildReport(checkouts, nil, days, year, month, afterMonth(year, month), nil)
+	report := BuildReport(checkouts, nil, nil, days, year, month, afterMonth(year, month), nil)
 
 	rowA := findRow(report, "feature-a")
 	rowB := findRow(report, "feature-b")

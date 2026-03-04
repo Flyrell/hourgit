@@ -105,6 +105,24 @@ func runHistory(cmd *cobra.Command, homeDir, projectFlag string, limit int) erro
 				Detail:    e.Previous + " → " + e.Next,
 			})
 		}
+
+		commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+		if err != nil {
+			return err
+		}
+		for _, e := range commits {
+			detail := e.Message
+			if e.Branch != "" {
+				detail = "[" + e.Branch + "] " + detail
+			}
+			items = append(items, historyItem{
+				ID:        e.ID,
+				Timestamp: e.Timestamp,
+				Type:      "commit",
+				Project:   proj.Name,
+				Detail:    detail,
+			})
+		}
 	}
 
 	if len(items) == 0 {

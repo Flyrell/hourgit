@@ -321,3 +321,107 @@ func TestSyncRegisteredAsSubcommand(t *testing.T) {
 	}
 	assert.Contains(t, names, "sync")
 }
+
+func TestSyncCommitsBasic(t *testing.T) {
+	homeDir, repoDir, proj := setupSyncTest(t)
+
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s",
+		`abc1234 HEAD@{2025-06-15 14:30:00 +0000}: commit: add login form`,
+		`def5678 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to feature-x`,
+	)
+
+	stdout, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "1 checkout(s)")
+	assert.Contains(t, stdout, "1 commit(s)")
+
+	checkouts, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, checkouts, 1)
+
+	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, commits, 1)
+	assert.Equal(t, "add login form", commits[0].Message)
+	assert.Equal(t, "abc1234", commits[0].CommitRef)
+}
+
+func TestSyncCommitDeduplication(t *testing.T) {
+	homeDir, repoDir, _ := setupSyncTest(t)
+
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s",
+		`abc1234 HEAD@{2025-06-15 14:30:00 +0000}: commit: add login form`,
+		`def5678 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to feature-x`,
+	)
+
+	// First sync
+	_, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+	require.NoError(t, err)
+
+	// Second sync with same data
+	stdout, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "already up to date")
+}
+
+func TestSyncCommitBranchResolution(t *testing.T) {
+	homeDir, repoDir, proj := setupSyncTest(t)
+
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s",
+		`abc1234 HEAD@{2025-06-15 14:30:00 +0000}: commit: implement feature`,
+		`def5678 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to branch-a`,
+	)
+
+	_, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+	require.NoError(t, err)
+
+	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	require.Len(t, commits, 1)
+	assert.Equal(t, "branch-a", commits[0].Branch)
+}
+
+func TestSyncCommitRepoField(t *testing.T) {
+	homeDir, repoDir, proj := setupSyncTest(t)
+
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s",
+		`abc1234 HEAD@{2025-06-15 14:30:00 +0000}: commit: fix bug`,
+		`def5678 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to feature-x`,
+	)
+
+	_, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+	require.NoError(t, err)
+
+	checkouts, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	require.Len(t, checkouts, 1)
+	assert.Equal(t, repoDir, checkouts[0].Repo)
+
+	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	require.Len(t, commits, 1)
+	assert.Equal(t, repoDir, commits[0].Repo)
+}
+
+func TestSyncOutputIncludesCommitCount(t *testing.T) {
+	homeDir, repoDir, _ := setupSyncTest(t)
+
+	reflogOutput := fmt.Sprintf(
+		"%s\n%s\n%s\n%s",
+		`aaa1111 HEAD@{2025-06-15 16:00:00 +0000}: commit: third commit`,
+		`bbb2222 HEAD@{2025-06-15 15:30:00 +0000}: commit: second commit`,
+		`ccc3333 HEAD@{2025-06-15 15:00:00 +0000}: commit: first commit`,
+		`def5678 HEAD@{2025-06-15 14:00:00 +0000}: checkout: moving from main to feature-x`,
+	)
+
+	stdout, err := execSync(homeDir, repoDir, "", fakeReflog(reflogOutput))
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "1 checkout(s)")
+	assert.Contains(t, stdout, "3 commit(s)")
+}
