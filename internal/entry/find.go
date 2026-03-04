@@ -56,6 +56,11 @@ func FindEntryAcrossProjects(homeDir, id string) (*FoundEntry, error) {
 		if IsCheckoutEntry(homeDir, slug, id) {
 			return nil, fmt.Errorf("entry '%s' is a checkout entry and cannot be edited", id)
 		}
+
+		// Check if it's a commit entry
+		if IsCommitEntry(homeDir, slug, id) {
+			return nil, fmt.Errorf("entry '%s' is a commit entry and cannot be edited", id)
+		}
 	}
 
 	return nil, fmt.Errorf("entry '%s' not found", id)
@@ -97,6 +102,11 @@ func FindAnyEntryAcrossProjects(homeDir, id string) (*FoundAnyEntry, error) {
 			detail := fmt.Sprintf("%s → %s at %s",
 				ce.Previous, ce.Next, ce.Timestamp.Format("2006-01-02 15:04"))
 			return &FoundAnyEntry{ID: ce.ID, Type: TypeCheckout, Slug: slug, Detail: detail}, nil
+		}
+
+		// Try as commit entry
+		if IsCommitEntry(homeDir, slug, id) {
+			return &FoundAnyEntry{ID: id, Type: TypeCommit, Slug: slug, Detail: "commit entry"}, nil
 		}
 	}
 

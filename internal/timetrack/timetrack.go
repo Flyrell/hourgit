@@ -75,6 +75,7 @@ type DetailedReportData struct {
 func BuildReport(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,
+	commits []entry.CommitEntry,
 	daySchedules []schedule.DaySchedule,
 	year int, month time.Month,
 	now time.Time,
@@ -95,7 +96,15 @@ func BuildReport(
 
 	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
 	logBucket, logMinsByDay := buildLogBucket(logs, year, month)
-	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+
+	// Use segment-based approach when commits are available
+	var checkoutBucket map[string]map[int]int
+	if len(commits) > 0 {
+		segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
+	} else {
+		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	}
 
 	// Zero out checkout attribution for generated days
 	for day := range generatedSet {
@@ -346,11 +355,13 @@ func mergeAndSortRows(checkoutBucket map[string]map[int]int, logBucket map[strin
 // BuildDetailedReport computes an entry-level report for a date range.
 // Unlike BuildReport which aggregates into minutes-per-day, this preserves
 // individual entries so the interactive table can show and edit them.
+// Checkout time is split by commits into finer segments with commit messages.
 // Checkout time is generated in-memory (Persisted=false) unless a persisted
 // entry with source="checkout-generated" already covers that (branch, day).
 func BuildDetailedReport(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,
+	commits []entry.CommitEntry,
 	daySchedules []schedule.DaySchedule,
 	from, to time.Time,
 	now time.Time,
@@ -366,7 +377,12 @@ func BuildDetailedReport(
 		scheduledDays[day] = true
 	}
 
-	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	// Build segments (checkout sessions split by commits)
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+	loc := now.Location()
+
+	// Compute aggregated checkout bucket from segments (for schedule deduction)
+	checkoutBucket := buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, loc)
 
 	// Index persisted checkout-generated entries by (task, day) for deduplication
 	type taskDay struct {
@@ -428,53 +444,76 @@ func BuildDetailedReport(
 		logMinsByDay[day] += l.Minutes
 	}
 
-	// 2. Compute deducted checkout minutes (same deduction as BuildReport, but
-	//    without generatedDays since we handle dedup via persisted entries)
+	// 2. Compute deducted checkout minutes
 	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, nil)
 
-	// 3. Add checkout attribution as in-memory entries, skipping (branch, day)
-	//    pairs that already have persisted checkout-generated entries
-	for branch, dayMap := range checkoutBucket {
-		for day, mins := range dayMap {
-			if mins <= 0 {
-				continue
-			}
-			dayDate := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
-			if dayDate.Before(from) || dayDate.After(to) {
-				continue
-			}
+	// 3. Build segment cell entries for fine-grained in-memory entries
+	segEntries := buildSegmentCellEntries(segments, year, month, daysInMonth, scheduleWindows, loc)
 
-			// Skip if persisted checkout-generated entry exists for this (branch, day)
-			tdKey := taskDay{task: branch, day: day}
-			if _, exists := persistedCheckoutEntries[tdKey]; exists {
-				continue
-			}
+	// Compute total segment minutes per (branch, day) for proportional deduction
+	type branchDay struct {
+		branch string
+		day    int
+	}
+	rawSegMins := make(map[branchDay]int)
+	for _, se := range segEntries {
+		rawSegMins[branchDay{se.branch, se.day}] += se.minutes
+	}
 
-			row := rowMap[branch]
-			if row == nil {
-				row = &DetailedTaskRow{Name: branch, Days: make(map[int]*CellData)}
-				rowMap[branch] = row
-			}
-			cd := row.Days[day]
-			if cd == nil {
-				cd = &CellData{}
-				row.Days[day] = cd
-			}
-
-			ce := CellEntry{
-				ID:        "", // no ID for in-memory entries
-				Minutes:   mins,
-				Start:     time.Date(year, month, day, 9, 0, 0, 0, time.UTC),
-				Message:   cleanBranchName(branch),
-				Task:      cleanBranchName(branch),
-				Source:    "checkout",
-				Persisted: false,
-				Entry:     nil,
-			}
-			cd.Entries = append(cd.Entries, ce)
-			cd.TotalMinutes += mins
-			row.TotalMinutes += mins
+	// Add segment entries as in-memory entries, applying deduction ratio
+	for _, se := range segEntries {
+		dayDate := time.Date(year, month, se.day, 0, 0, 0, 0, time.UTC)
+		if dayDate.Before(from) || dayDate.After(to) {
+			continue
 		}
+
+		// Skip if persisted checkout-generated entry exists for this (branch, day)
+		tdKey := taskDay{task: se.branch, day: se.day}
+		if _, exists := persistedCheckoutEntries[tdKey]; exists {
+			continue
+		}
+
+		// Apply proportional deduction from schedule overrun
+		bdKey := branchDay{se.branch, se.day}
+		rawTotal := rawSegMins[bdKey]
+		deducted := checkoutBucket[se.branch][se.day]
+		mins := se.minutes
+		if rawTotal > 0 && deducted < rawTotal {
+			mins = int(float64(se.minutes) * float64(deducted) / float64(rawTotal))
+		}
+		if mins <= 0 {
+			continue
+		}
+
+		row := rowMap[se.branch]
+		if row == nil {
+			row = &DetailedTaskRow{Name: se.branch, Days: make(map[int]*CellData)}
+			rowMap[se.branch] = row
+		}
+		cd := row.Days[se.day]
+		if cd == nil {
+			cd = &CellData{}
+			row.Days[se.day] = cd
+		}
+
+		message := se.message
+		if message == "" {
+			message = cleanBranchName(se.branch)
+		}
+
+		ce := CellEntry{
+			ID:        "",
+			Minutes:   mins,
+			Start:     se.start,
+			Message:   message,
+			Task:      cleanBranchName(se.branch),
+			Source:    "checkout",
+			Persisted: false,
+			Entry:     nil,
+		}
+		cd.Entries = append(cd.Entries, ce)
+		cd.TotalMinutes += mins
+		row.TotalMinutes += mins
 	}
 
 	// Sort rows by total descending, then by name

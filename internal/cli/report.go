@@ -18,6 +18,7 @@ type reportInputs struct {
 	proj      *project.ProjectEntry
 	checkouts []entry.CheckoutEntry
 	logs      []entry.Entry
+	commits   []entry.CommitEntry
 	schedules []schedule.DaySchedule
 	submits   []entry.SubmitEntry
 	from      time.Time
@@ -77,7 +78,7 @@ func runReport(
 		}
 
 		exportData := timetrack.BuildExportData(
-			inputs.checkouts, inputs.logs, inputs.schedules,
+			inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules,
 			inputs.year, inputs.month, now, nil,
 			inputs.proj.Name,
 		)
@@ -104,7 +105,7 @@ func runReport(
 
 	// Interactive table path — use detailed report
 	data := timetrack.BuildDetailedReport(
-		inputs.checkouts, inputs.logs, inputs.schedules,
+		inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules,
 		inputs.from, inputs.to, now,
 	)
 
@@ -275,6 +276,11 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		return nil, err
 	}
 
+	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	if err != nil {
+		return nil, err
+	}
+
 	submits, err := entry.ReadAllSubmitEntries(homeDir, proj.Slug)
 	if err != nil {
 		return nil, err
@@ -290,6 +296,7 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		proj:      proj,
 		checkouts: checkouts,
 		logs:      logs,
+		commits:   commits,
 		schedules: daySchedules,
 		submits:   submits,
 		from:      from,

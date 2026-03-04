@@ -15,7 +15,8 @@ All Hourgit data is stored locally on your machine. There are no servers or clou
 Each entry is a JSON file identified by a 7-character hex hash (similar to git commit hashes). The `type` field distinguishes between:
 
 - **`log`** — manually logged time entry (duration, start time, message, task label)
-- **`checkout`** — branch checkout event recorded by the git hook (previous branch, next branch, timestamp)
+- **`checkout`** — branch checkout event recorded by the git hook (previous branch, next branch, timestamp, repo)
+- **`commit`** — git commit event from reflog (commit ref, timestamp, message, branch, repo); used to split checkout sessions into finer time blocks
 - **`submit`** — submission marker for a report period (date range, creation timestamp)
 
 ## Projects

@@ -44,6 +44,7 @@ type ExportData struct {
 func BuildExportData(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,
+	commits []entry.CommitEntry,
 	daySchedules []schedule.DaySchedule,
 	year int, month time.Month,
 	now time.Time,
@@ -64,7 +65,15 @@ func BuildExportData(
 	}
 
 	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
-	checkoutBucket := buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+
+	// Use segment-based approach when commits are available
+	var checkoutBucket map[string]map[int]int
+	if len(commits) > 0 {
+		segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
+	} else {
+		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	}
 
 	// Zero out checkout attribution for generated days
 	for day := range generatedSet {

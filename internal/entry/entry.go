@@ -6,6 +6,7 @@ const (
 	TypeLog      = "log"
 	TypeCheckout = "checkout"
 	TypeSubmit   = "submit"
+	TypeCommit   = "commit"
 )
 
 // Entry represents a single time log entry (a "time commit").

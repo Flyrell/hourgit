@@ -13,6 +13,12 @@ import (
 func (m reportModel) View() string {
 	tableStr := renderDetailedTable(m.data, m.scrollX, m.scrollY, m.visibleDays(), m.visibleRows(), m.cursorRow, m.cursorCol, m.submitted, m.footerMsg)
 
+	// Append detail panel below the table
+	detailStr := m.renderDetailPanel()
+	if detailStr != "" {
+		tableStr += detailStr
+	}
+
 	// If overlay is active, render it on top
 	if m.overlay != nil {
 		overlayStr := m.overlay.View()
@@ -22,6 +28,41 @@ func (m reportModel) View() string {
 	}
 
 	return tableStr
+}
+
+// renderDetailPanel renders a detail section showing entries for the currently selected cell.
+func (m reportModel) renderDetailPanel() string {
+	entries := m.currentCellEntries()
+	if len(entries) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(footerStyle.Render("─── Detail ───"))
+	b.WriteString("\n")
+
+	for i, ce := range entries {
+		marker := "  "
+		if i == m.selectedEntryIdx {
+			marker = "> "
+		}
+
+		durStr := entry.FormatMinutes(ce.Minutes)
+		msg := ce.Message
+		if msg == "" {
+			msg = "(no message)"
+		}
+
+		line := fmt.Sprintf("%s%s  %s", marker, padRight(durStr, 7), msg)
+		if i == m.selectedEntryIdx {
+			b.WriteString(headerStyle.Render(line))
+		} else {
+			b.WriteString(footerStyle.Render(line))
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
 }
 
 // isWeekend returns true if the given date falls on Saturday or Sunday.
@@ -191,7 +232,7 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 	// Footer
 	b.WriteString("\n")
 	footer := fmt.Sprintf(
-		"%s %d  |  ←/→/↑/↓ navigate  |  e edit  |  a add  |  r remove  |  s submit  |  q quit",
+		"%s %d  |  ←/→/↑/↓ navigate  |  tab cycle entries  |  e edit  |  a add  |  r remove  |  s submit  |  q quit",
 		data.Month, data.Year,
 	)
 	if footerMsg != "" {

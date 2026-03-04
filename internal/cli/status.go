@@ -117,7 +117,12 @@ func runStatus(
 		return err
 	}
 
-	report := timetrack.BuildReport(checkouts, logs, monthSchedules, now.Year(), now.Month(), now, nil)
+	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	if err != nil {
+		return err
+	}
+
+	report := timetrack.BuildReport(checkouts, logs, commits, monthSchedules, now.Year(), now.Month(), now, nil)
 
 	todayMinutes := 0
 	for _, row := range report.Rows {
