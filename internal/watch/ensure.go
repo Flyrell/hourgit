@@ -27,6 +27,10 @@ func EnsureWatcherService(homeDir, binPath string) error {
 		return sm.Start()
 	}
 
+	if anyPrecise && sm.IsInstalled() && !sm.IsRunning() {
+		return sm.Start()
+	}
+
 	if !anyPrecise && sm.IsInstalled() {
 		return sm.Remove()
 	}

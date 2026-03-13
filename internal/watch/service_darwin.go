@@ -25,10 +25,9 @@ type launchdManager struct {
 }
 
 func newLaunchdManager(homeDir string) *launchdManager {
-	home, _ := os.UserHomeDir()
 	return &launchdManager{
 		homeDir:   homeDir,
-		plistPath: filepath.Join(home, "Library", "LaunchAgents", launchdLabel+".plist"),
+		plistPath: filepath.Join(homeDir, "Library", "LaunchAgents", launchdLabel+".plist"),
 	}
 }
 
