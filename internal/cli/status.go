@@ -11,6 +11,7 @@ import (
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/Flyrell/hourgit/internal/timetrack"
+	"github.com/Flyrell/hourgit/internal/watch"
 	"github.com/spf13/cobra"
 )
 
@@ -169,6 +170,17 @@ func runStatus(
 		_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Tracking:"), Info("active (until "+untilStr+")"))
 	} else {
 		_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Tracking:"), Warning("inactive (no scheduled hours remaining)"))
+	}
+
+	// Watcher state (only when precise mode is enabled)
+	cfgEntry := project.FindProjectByID(cfg, proj.ID)
+	if cfgEntry != nil && cfgEntry.Precise {
+		daemonRunning, _, _ := watch.IsDaemonRunning(homeDir)
+		if daemonRunning {
+			_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Watcher:"), Info("active"))
+		} else {
+			_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Watcher:"), Warning("stopped (run hourgit to restart)"))
+		}
 	}
 
 	return nil

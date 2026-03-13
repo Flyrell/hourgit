@@ -7,12 +7,13 @@ Core commands for recording, viewing, and managing your time entries.
 Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit init [--project <name>] [--force] [--merge] [--yes]
+hourgit init [--project <name>] [--mode <mode>] [--force] [--merge] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
+| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 | `-f`, `--force` | `false` | Overwrite existing post-checkout hook |
 | `-m`, `--merge` | `false` | Append to existing post-checkout hook |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
@@ -184,3 +185,4 @@ hourgit status [--project <name>]
 - Time logged today and remaining scheduled hours
 - Today's schedule windows
 - Tracking state (active/inactive based on current time vs schedule)
+- Watcher state (when precise mode is enabled: active/stopped)

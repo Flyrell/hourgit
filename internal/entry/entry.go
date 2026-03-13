@@ -3,10 +3,12 @@ package entry
 import "time"
 
 const (
-	TypeLog      = "log"
-	TypeCheckout = "checkout"
-	TypeSubmit   = "submit"
-	TypeCommit   = "commit"
+	TypeLog           = "log"
+	TypeCheckout      = "checkout"
+	TypeSubmit        = "submit"
+	TypeCommit        = "commit"
+	TypeActivityStop  = "activity_stop"
+	TypeActivityStart = "activity_start"
 )
 
 // Entry represents a single time log entry (a "time commit").

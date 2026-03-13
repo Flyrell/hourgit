@@ -72,6 +72,12 @@ type DetailedReportData struct {
 // checkout ranges clipped to schedule windows. Days listed in generatedDays
 // (format "2006-01-02") are excluded from checkout attribution — they have
 // already been materialized as editable log entries by the generate command.
+// ActivityEntries holds optional activity entries for precise mode idle trimming.
+type ActivityEntries struct {
+	Stops  []entry.ActivityStopEntry
+	Starts []entry.ActivityStartEntry
+}
+
 func BuildReport(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,
@@ -80,6 +86,7 @@ func BuildReport(
 	year int, month time.Month,
 	now time.Time,
 	generatedDays []string,
+	activity ...ActivityEntries,
 ) ReportData {
 	daysInMonth := daysIn(year, month)
 
@@ -101,6 +108,10 @@ func BuildReport(
 	var checkoutBucket map[string]map[int]int
 	if len(commits) > 0 {
 		segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+		// Trim idle gaps if activity entries provided
+		if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
+			segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
+		}
 		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
 	} else {
 		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
@@ -365,6 +376,7 @@ func BuildDetailedReport(
 	daySchedules []schedule.DaySchedule,
 	from, to time.Time,
 	now time.Time,
+	activity ...ActivityEntries,
 ) DetailedReportData {
 	year := from.Year()
 	month := from.Month()
@@ -379,6 +391,10 @@ func BuildDetailedReport(
 
 	// Build segments (checkout sessions split by commits)
 	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+	// Trim idle gaps if activity entries provided
+	if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
+		segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
+	}
 	loc := now.Location()
 
 	// Compute aggregated checkout bucket from segments (for schedule deduction)

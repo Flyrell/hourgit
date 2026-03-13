@@ -30,6 +30,19 @@ hourgit config reset --project 'My Project'
 hourgit config report --project 'My Project' --month 3
 ```
 
+## Precise Mode
+
+By default, Hourgit attributes all time between branch checkouts (within your schedule) as work. **Precise mode** adds filesystem-level idle detection: a background daemon watches your repository for file changes and records when you stop and resume working. Idle gaps are automatically trimmed from checkout sessions at report time.
+
+Enable precise mode during init or project creation:
+
+```bash
+hourgit init --mode precise
+hourgit project add myproject --mode precise
+```
+
+The idle threshold defaults to 10 minutes — after 10 minutes of no file changes, the daemon records an idle stop. When precise mode is enabled, Hourgit auto-installs a user-level OS service to run the watcher daemon.
+
 ## Editing Defaults
 
 Changes to defaults only affect newly created projects. Existing projects keep their current schedule.

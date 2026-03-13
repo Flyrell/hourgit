@@ -40,11 +40,11 @@ func execInit(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func execInitDirect(dir, homeDir, projectName string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
+func execInitDirect(dir, homeDir, projectName, mode string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := initCmd
 	cmd.SetOut(stdout)
-	err := runInit(cmd, dir, homeDir, projectName, force, merge, binPath, confirm, selectFn)
+	err := runInit(cmd, dir, homeDir, projectName, mode, force, merge, binPath, confirm, selectFn)
 	return stdout.String(), err
 }
 
@@ -240,7 +240,7 @@ func TestInitWithProjectFlagDeclined(t *testing.T) {
 
 	decline := func(_ string) (bool, error) { return false, nil }
 	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
-	stdout, err := execInitDirect(dir, home, "My Project", false, false, "/usr/local/bin/hourgit", decline, skipSelect)
+	stdout, err := execInitDirect(dir, home, "My Project", "", false, false, "/usr/local/bin/hourgit", decline, skipSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project assignment skipped")
@@ -265,7 +265,7 @@ func TestInitPromptsForCompletion(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, installSelect)
+	stdout, err := execInitDirect(dir, home, "", "", false, false, "/usr/local/bin/hourgit", noConfirm, installSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -285,7 +285,7 @@ func TestInitCompletionSkipped(t *testing.T) {
 
 	noConfirm := func(_ string) (bool, error) { return true, nil }
 	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
-	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
+	stdout, err := execInitDirect(dir, home, "", "", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -308,7 +308,7 @@ func TestInitCompletionAlreadyInstalled(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
+	stdout, err := execInitDirect(dir, home, "", "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -330,7 +330,7 @@ func TestInitCompletionUnknownShell(t *testing.T) {
 		selectCalls++
 		return 0, nil
 	}
-	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
+	stdout, err := execInitDirect(dir, home, "", "", false, false, "/usr/local/bin/hourgit", noConfirm, trackSelect)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
@@ -348,12 +348,47 @@ func TestInitYesAutoInstallsCompletion(t *testing.T) {
 
 	noConfirm := func(_ string) (bool, error) { return true, nil }
 	autoInstall := func(_ string, _ []string) (int, error) { return 0, nil }
-	stdout, err := execInitDirect(dir, home, "", false, false, "/usr/local/bin/hourgit", noConfirm, autoInstall)
+	stdout, err := execInitDirect(dir, home, "", "", false, false, "/usr/local/bin/hourgit", noConfirm, autoInstall)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")
 	assert.Contains(t, stdout, "shell completions installed for")
 	assert.True(t, isCompletionInstalled("zsh", home))
+}
+
+func TestInitWithModePrecise(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	stdout, err := execInitDirect(dir, home, "My Project", "precise", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'My Project' created (")
+
+	cfg, err := project.ReadConfig(home)
+	require.NoError(t, err)
+	require.Len(t, cfg.Projects, 1)
+	assert.True(t, cfg.Projects[0].Precise)
+	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+}
+
+func TestInitWithModeInvalid(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	_, err := execInitDirect(dir, home, "", "foobar", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --mode value")
 }
 
 func TestInitCreateHooksDir(t *testing.T) {
@@ -377,7 +412,7 @@ func TestHookScript(t *testing.T) {
 	assert.Contains(t, script, "#!/bin/sh")
 	assert.Contains(t, script, project.HookMarker)
 	assert.Contains(t, script, "(version: 1.2.3)")
-	assert.Contains(t, script, `/usr/local/bin/hourgit sync --skip-updates`)
+	assert.Contains(t, script, `/usr/local/bin/hourgit sync --skip-updates --skip-watcher`)
 	assert.Contains(t, script, `[ "$3" = "0" ] && exit 0`)
 	assert.Contains(t, script, `[ "$1" = "$2" ] && exit 0`)
 	assert.NotContains(t, script, `checkout --prev`)

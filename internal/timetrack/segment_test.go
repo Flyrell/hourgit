@@ -212,3 +212,188 @@ func filterSegments(segments []sessionSegment, branch string) []sessionSegment {
 	}
 	return result
 }
+
+// --- Idle gap trimming tests ---
+
+func TestTrimSegmentsByIdleGaps_NoGaps(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t10am, message: "work"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, nil, nil)
+	assert.Equal(t, segments, result)
+}
+
+var (
+	t9am  = time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC)
+	t930  = time.Date(2025, 1, 2, 9, 30, 0, 0, time.UTC)
+	t10am = time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC)
+	t1030 = time.Date(2025, 1, 2, 10, 30, 0, 0, time.UTC)
+	t11am = time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC)
+	t12pm = time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC)
+)
+
+func TestTrimSegmentsByIdleGaps_GapInsideSegment(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t12pm, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 2)
+	// Before gap: 9:00 - 10:00
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t10am, result[0].to)
+	assert.Equal(t, "work", result[0].message)
+	// After gap: 11:00 - 12:00
+	assert.Equal(t, t11am, result[1].from)
+	assert.Equal(t, t12pm, result[1].to)
+	assert.Equal(t, "work", result[1].message)
+}
+
+func TestTrimSegmentsByIdleGaps_GapAtStart(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t12pm, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: time.Date(2025, 1, 2, 8, 30, 0, 0, time.UTC), Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t10am, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 1)
+	// Trimmed start: 10:00 - 12:00
+	assert.Equal(t, t10am, result[0].from)
+	assert.Equal(t, t12pm, result[0].to)
+}
+
+func TestTrimSegmentsByIdleGaps_GapAtEnd(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t12pm, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t11am, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 1)
+	// Trimmed end: 9:00 - 11:00
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t11am, result[0].to)
+}
+
+func TestTrimSegmentsByIdleGaps_GapFullyCoversSegment(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t10am, to: t11am, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t9am, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t12pm, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 0)
+}
+
+func TestTrimSegmentsByIdleGaps_MultipleGapsInOneSegment(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t12pm, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t930, Repo: "/repo"},
+		{ID: "s2", Timestamp: t1030, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t10am, Repo: "/repo"},
+		{ID: "a2", Timestamp: t11am, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	// Should be: [9:00-9:30], [10:00-10:30], [11:00-12:00]
+	assert.Len(t, result, 3)
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t930, result[0].to)
+	assert.Equal(t, t10am, result[1].from)
+	assert.Equal(t, t1030, result[1].to)
+	assert.Equal(t, t11am, result[2].from)
+	assert.Equal(t, t12pm, result[2].to)
+}
+
+func TestTrimSegmentsByIdleGaps_GapSpansMultipleSegments(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t10am, message: "commit-1"},
+		{branch: "main", from: t10am, to: t12pm, message: "commit-2"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t930, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	// First segment [9:00-10:00] trimmed to [9:00-9:30]
+	// Second segment [10:00-12:00] trimmed to [11:00-12:00]
+	assert.Len(t, result, 2)
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t930, result[0].to)
+	assert.Equal(t, "commit-1", result[0].message)
+	assert.Equal(t, t11am, result[1].from)
+	assert.Equal(t, t12pm, result[1].to)
+	assert.Equal(t, "commit-2", result[1].message)
+}
+
+func TestTrimSegmentsByIdleGaps_CommitMessagePreserved(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "feat", from: t9am, to: t12pm, message: "fix: important bug"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	for _, seg := range result {
+		assert.Equal(t, "fix: important bug", seg.message)
+		assert.Equal(t, "feat", seg.branch)
+	}
+}
+
+func TestTrimSegmentsByIdleGaps_NoOverlap(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", from: t9am, to: t10am, message: "work"},
+	}
+
+	// Gap is entirely after the segment
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t11am, Repo: "/repo"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t12pm, Repo: "/repo"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 1)
+	assert.Equal(t, segments[0], result[0])
+}
