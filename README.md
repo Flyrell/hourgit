@@ -542,6 +542,15 @@ hourgit watch
 
 No flags.
 
+### Global Flags
+
+These flags are available on all commands.
+
+| Flag | Description |
+|------|-------------|
+| `--skip-updates` | Skip the automatic update check |
+| `--skip-watcher` | Skip the file watcher health check |
+
 ## Precise Mode
 
 By default, Hourgit attributes all time between branch checkouts (within your schedule) as work. **Precise mode** adds filesystem-level idle detection: a background daemon watches your repository for file changes and records when you stop and resume working.

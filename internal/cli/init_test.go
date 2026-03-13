@@ -403,6 +403,20 @@ func TestInitWithModePreciseExistingProject(t *testing.T) {
 	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
 }
 
+func TestInitModePreciseRequiresProject(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	_, err := execInitDirect(dir, home, "", "precise", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "--mode precise requires --project")
+}
+
 func TestInitWithModeInvalid(t *testing.T) {
 	dir := t.TempDir()
 	home := t.TempDir()
