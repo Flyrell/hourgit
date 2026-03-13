@@ -31,6 +31,32 @@ func TestShouldIgnoreGitignorePatterns(t *testing.T) {
 	assert.False(t, ShouldIgnore(repo, filepath.Join(repo, "src", "main.go")))
 }
 
+func TestShouldIgnoreWithPatterns(t *testing.T) {
+	repo := t.TempDir()
+	patterns := []string{"node_modules", "*.log", "build"}
+
+	assert.True(t, ShouldIgnoreWithPatterns(repo, filepath.Join(repo, "node_modules", "pkg", "index.js"), patterns))
+	assert.True(t, ShouldIgnoreWithPatterns(repo, filepath.Join(repo, "app.log"), patterns))
+	assert.True(t, ShouldIgnoreWithPatterns(repo, filepath.Join(repo, "build", "output.js"), patterns))
+	assert.False(t, ShouldIgnoreWithPatterns(repo, filepath.Join(repo, "src", "main.go"), patterns))
+	// .git is always excluded regardless of patterns
+	assert.True(t, ShouldIgnoreWithPatterns(repo, filepath.Join(repo, ".git", "HEAD"), nil))
+}
+
+func TestLoadGitignorePatterns(t *testing.T) {
+	repo := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(repo, ".gitignore"), []byte("node_modules\n# comment\n\n*.log\n"), 0644))
+
+	patterns := LoadGitignorePatterns(repo)
+	assert.Equal(t, []string{"node_modules", "*.log"}, patterns)
+}
+
+func TestLoadGitignorePatternsNoFile(t *testing.T) {
+	repo := t.TempDir()
+	patterns := LoadGitignorePatterns(repo)
+	assert.Nil(t, patterns)
+}
+
 func TestMatchPatternWildcard(t *testing.T) {
 	assert.True(t, matchPattern("foo.log", "*.log"))
 	assert.False(t, matchPattern("foo.txt", "*.log"))

@@ -18,6 +18,7 @@ type watcherCheckDeps struct {
 	confirm     ConfirmFunc
 	binPath     func() (string, error)
 	ensureSvc   func(homeDir, binPath string) error
+	isTTY       func() bool
 }
 
 func defaultWatcherCheckDeps() watcherCheckDeps {
@@ -34,6 +35,7 @@ func defaultWatcherCheckDeps() watcherCheckDeps {
 			return filepath.EvalSymlinks(p)
 		},
 		ensureSvc: watch.EnsureWatcherService,
+		isTTY:     func() bool { return isatty.IsTerminal(os.Stdout.Fd()) },
 	}
 }
 
@@ -41,7 +43,7 @@ func defaultWatcherCheckDeps() watcherCheckDeps {
 // Called from PersistentPreRunE.
 func checkWatcherHealth(cmd *cobra.Command, deps watcherCheckDeps) {
 	// Skip in non-interactive contexts
-	if !isatty.IsTerminal(os.Stdout.Fd()) {
+	if !deps.isTTY() {
 		return
 	}
 

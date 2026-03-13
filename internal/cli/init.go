@@ -71,8 +71,8 @@ var initCmd = LeafCommand{
 }.Build()
 
 func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
-	if mode != "" && mode != "standard" && mode != "precise" {
-		return fmt.Errorf("invalid --mode value %q (supported: standard, precise)", mode)
+	if err := validateMode(mode); err != nil {
+		return err
 	}
 
 	gitDir := filepath.Join(dir, ".git")
@@ -140,15 +140,18 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, 
 
 		if result.Created {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(result.Entry.Name), Silent(result.Entry.ID))))
+		}
 
-			if mode == "precise" {
-				if err := project.SetPreciseMode(homeDir, result.Entry.ID, true); err != nil {
-					return err
-				}
-				if err := project.SetIdleThreshold(homeDir, result.Entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
-					return err
-				}
-				_ = watch.EnsureWatcherService(homeDir, binPath)
+		if mode == "precise" {
+			if err := project.SetPreciseMode(homeDir, result.Entry.ID, true); err != nil {
+				return err
+			}
+			if err := project.SetIdleThreshold(homeDir, result.Entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
+				return err
+			}
+			if err := watch.EnsureWatcherService(homeDir, binPath); err != nil {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s\n",
+					Warning(fmt.Sprintf("warning: could not configure watcher service: %s", err)))
 			}
 		}
 
