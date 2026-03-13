@@ -27,6 +27,21 @@ hourgit project assign <name> [--force] [--yes]
 | `-f`, `--force` | `false` | Reassign repository to a different project |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
+## `hourgit project edit`
+
+Edit an existing project's name or tracking mode. When edit flags are provided, only those changes are applied directly. Without flags, an interactive editor prompts for both name and mode.
+
+```bash
+hourgit project edit [PROJECT] [--name <new_name>] [--mode <mode>] [--project <name>] [--yes]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-n`, `--name` | — | New project name |
+| `-m`, `--mode` | — | New tracking mode: `standard` or `precise` |
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
+
 ## `hourgit project list`
 
 List all projects and their repositories.

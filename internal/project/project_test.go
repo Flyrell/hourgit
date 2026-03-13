@@ -471,6 +471,109 @@ func TestPreciseModeBackwardCompat(t *testing.T) {
 	assert.Equal(t, 0, loaded.Projects[0].IdleThresholdMinutes)
 }
 
+func TestRenameProjectHappyPath(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "Old Name")
+	require.NoError(t, err)
+
+	// Assign a repo
+	repo := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(repo, ".git"), 0755))
+	require.NoError(t, AssignProject(home, repo, entry))
+
+	renamed, err := RenameProject(home, entry.ID, "New Name")
+	require.NoError(t, err)
+	assert.Equal(t, "New Name", renamed.Name)
+	assert.Equal(t, "new-name", renamed.Slug)
+
+	// Verify config
+	cfg, err := ReadConfig(home)
+	require.NoError(t, err)
+	assert.Equal(t, "New Name", cfg.Projects[0].Name)
+	assert.Equal(t, "new-name", cfg.Projects[0].Slug)
+
+	// Verify directory renamed
+	_, err = os.Stat(LogDir(home, "new-name"))
+	assert.NoError(t, err)
+	_, err = os.Stat(LogDir(home, "old-name"))
+	assert.True(t, os.IsNotExist(err))
+
+	// Verify repo config updated
+	rc, err := ReadRepoConfig(repo)
+	require.NoError(t, err)
+	assert.Equal(t, "New Name", rc.Project)
+}
+
+func TestRenameProjectSameSlug(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "my-project")
+	require.NoError(t, err)
+
+	renamed, err := RenameProject(home, entry.ID, "My Project")
+	require.NoError(t, err)
+	assert.Equal(t, "My Project", renamed.Name)
+	assert.Equal(t, "my-project", renamed.Slug)
+
+	// Directory should still exist (no rename attempted)
+	_, err = os.Stat(LogDir(home, "my-project"))
+	assert.NoError(t, err)
+}
+
+func TestRenameProjectConflict(t *testing.T) {
+	home := t.TempDir()
+
+	entryA, err := CreateProject(home, "Project A")
+	require.NoError(t, err)
+	_, err = CreateProject(home, "Project B")
+	require.NoError(t, err)
+
+	_, err = RenameProject(home, entryA.ID, "Project B")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+func TestRenameProjectNotFound(t *testing.T) {
+	home := t.TempDir()
+
+	_, err := RenameProject(home, "nonexistent", "New Name")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestRenameProjectMissingOldDir(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	// Remove the log dir to simulate a missing directory
+	require.NoError(t, os.RemoveAll(LogDir(home, "my-project")))
+
+	renamed, err := RenameProject(home, entry.ID, "New Name")
+	require.NoError(t, err)
+	assert.Equal(t, "New Name", renamed.Name)
+	assert.Equal(t, "new-name", renamed.Slug)
+}
+
+func TestRenameProjectMissingRepoDir(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	// Manually add a non-existent repo
+	cfg, err := ReadConfig(home)
+	require.NoError(t, err)
+	cfg.Projects[0].Repos = []string{"/nonexistent/repo"}
+	require.NoError(t, WriteConfig(home, cfg))
+
+	renamed, err := RenameProject(home, entry.ID, "New Name")
+	require.NoError(t, err)
+	assert.Equal(t, "New Name", renamed.Name)
+}
+
 func TestFindProjectByID(t *testing.T) {
 	cfg := &Config{
 		Projects: []ProjectEntry{

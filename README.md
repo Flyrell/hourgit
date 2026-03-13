@@ -19,7 +19,7 @@ Manual logging is supported for non-code work (research, analysis, meetings) via
 - [Quick Start](#quick-start)
 - [Commands](#commands)
   - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history, status
-  - [Project Management](#project-management) — project add/assign/list/remove
+  - [Project Management](#project-management) — project add/assign/edit/list/remove
   - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
   - [Default Schedule](#default-schedule) — defaults get/set/reset/report
   - [Shell Completions](#shell-completions) — completion install/generate
@@ -308,7 +308,7 @@ hourgit status [--project <name>]
 
 Group repositories into projects for organized time tracking.
 
-Commands: `project add` · `project assign` · `project list` · `project remove`
+Commands: `project add` · `project assign` · `project edit` · `project list` · `project remove`
 
 #### `hourgit project add`
 
@@ -334,6 +334,32 @@ hourgit project assign <name> [--force] [--yes]
 |------|---------|-------------|
 | `-f`, `--force` | `false` | Reassign repository to a different project |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
+
+#### `hourgit project edit`
+
+Edit an existing project's name or tracking mode. When edit flags are provided, only those changes are applied directly. Without flags, an interactive editor prompts for both name and mode.
+
+```bash
+hourgit project edit [PROJECT] [--name <new_name>] [--mode <mode>] [--project <name>] [--yes]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-n`, `--name` | — | New project name |
+| `-m`, `--mode` | — | New tracking mode: `standard` or `precise` |
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
+| `-y`, `--yes` | `false` | Skip confirmation prompt |
+
+> `PROJECT` is an optional positional argument (project name or ID). Falls back to `--project` flag or the current repository's project.
+
+**Examples**
+
+```bash
+hourgit project edit myproject --name newname
+hourgit project edit myproject --mode precise
+hourgit project edit --name newname --project myproject
+hourgit project edit myproject              # interactive mode
+```
 
 #### `hourgit project list`
 
