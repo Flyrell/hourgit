@@ -10,22 +10,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execProjectAdd(homeDir string, name string, mode ...string) (string, error) {
+func execProjectAdd(homeDir string, name string, mode string) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := projectAddCmd
 	cmd.SetOut(stdout)
-	m := ""
-	if len(mode) > 0 {
-		m = mode[0]
-	}
-	err := runProjectAdd(cmd, homeDir, name, m, "/usr/local/bin/hourgit")
+	err := runProjectAdd(cmd, homeDir, name, mode, "/usr/local/bin/hourgit")
 	return stdout.String(), err
 }
 
 func TestProjectAddHappyPath(t *testing.T) {
 	home := t.TempDir()
 
-	stdout, err := execProjectAdd(home, "My Project")
+	stdout, err := execProjectAdd(home, "My Project", "")
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "project 'My Project' created (")
@@ -45,10 +41,10 @@ func TestProjectAddHappyPath(t *testing.T) {
 func TestProjectAddDuplicate(t *testing.T) {
 	home := t.TempDir()
 
-	_, err := execProjectAdd(home, "My Project")
+	_, err := execProjectAdd(home, "My Project", "")
 	require.NoError(t, err)
 
-	_, err = execProjectAdd(home, "My Project")
+	_, err = execProjectAdd(home, "My Project", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")

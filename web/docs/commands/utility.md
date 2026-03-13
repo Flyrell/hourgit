@@ -35,3 +35,12 @@ hourgit watch
 ```
 
 Normally the watcher is managed automatically as an OS service when precise mode is enabled. Use this command for debugging or manual operation.
+
+## Global Flags
+
+These flags are available on all commands.
+
+| Flag | Description |
+|------|-------------|
+| `--skip-updates` | Skip the automatic update check |
+| `--skip-watcher` | Skip the file watcher health check |

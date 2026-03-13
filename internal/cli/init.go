@@ -75,6 +75,10 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, 
 		return err
 	}
 
+	if mode == "precise" && projectName == "" {
+		return fmt.Errorf("--mode precise requires --project")
+	}
+
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository")

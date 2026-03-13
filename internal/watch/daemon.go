@@ -200,6 +200,8 @@ func (d *Daemon) addRepoWatcher(dc DaemonConfig) error {
 		return err
 	}
 
+	patterns := LoadGitignorePatterns(dc.Repo)
+
 	// Walk directory tree and add non-.git directories
 	err = filepath.WalkDir(dc.Repo, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
@@ -208,7 +210,7 @@ func (d *Daemon) addRepoWatcher(dc DaemonConfig) error {
 		if !info.IsDir() {
 			return nil
 		}
-		if ShouldIgnore(dc.Repo, path) {
+		if ShouldIgnoreWithPatterns(dc.Repo, path, patterns) {
 			return filepath.SkipDir
 		}
 		return watcher.Add(path)
@@ -217,8 +219,6 @@ func (d *Daemon) addRepoWatcher(dc DaemonConfig) error {
 		_ = watcher.Close()
 		return err
 	}
-
-	patterns := LoadGitignorePatterns(dc.Repo)
 	db := NewRepoDebouncer(dc.Repo, dc.Slug, d.homeDir, dc.Threshold, d.writer, d.state)
 	d.debouncers[dc.Repo] = db
 	d.watchers[dc.Repo] = watcher
@@ -325,7 +325,7 @@ func (d *Daemon) recoverFromCrash() {
 			}
 
 			_ = d.writer.WriteActivityStop(d.homeDir, p.Slug, entry.ActivityStopEntry{
-				ID:        hashutil.GenerateID(start.Repo + stopTime.String() + "recovery"),
+				ID:        hashutil.GenerateIDFromSeed(start.Repo + start.ID + stopTime.String() + "recovery"),
 				Timestamp: stopTime,
 				Repo:      start.Repo,
 			})

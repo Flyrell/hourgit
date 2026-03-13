@@ -100,6 +100,42 @@ func TestDaemonRecoverFromCrashNoState(t *testing.T) {
 	writer.mu.Unlock()
 }
 
+func TestDaemonRecoverFromCrashDistinctIDs(t *testing.T) {
+	home := setupDaemonTest(t)
+	writer := &mockEntryWriter{}
+
+	stopTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+
+	// Write two unpaired activity_starts for the same repo with different IDs
+	require.NoError(t, entry.WriteActivityStartEntry(home, "test", entry.ActivityStartEntry{
+		ID:        "aab1111",
+		Type:      entry.TypeActivityStart,
+		Timestamp: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC),
+		Repo:      "/some/repo",
+	}))
+	require.NoError(t, entry.WriteActivityStartEntry(home, "test", entry.ActivityStartEntry{
+		ID:        "aab2222",
+		Type:      entry.TypeActivityStart,
+		Timestamp: time.Date(2025, 6, 15, 10, 15, 0, 0, time.UTC),
+		Repo:      "/some/repo",
+	}))
+
+	// State returns the same stopTime for both
+	state := NewWatchState()
+	state.SetLastActivity("/some/repo", stopTime)
+
+	d := NewDaemon(home, writer)
+	d.state = state
+
+	d.recoverFromCrash()
+
+	// Should have written two stops with distinct IDs
+	assert.Equal(t, 2, writer.stopCount())
+	writer.mu.Lock()
+	assert.NotEqual(t, writer.stops[0].ID, writer.stops[1].ID)
+	writer.mu.Unlock()
+}
+
 func TestDaemonRecoverFromCrashPairedStart(t *testing.T) {
 	home := setupDaemonTest(t)
 	writer := &mockEntryWriter{}

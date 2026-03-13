@@ -67,17 +67,17 @@ type DetailedReportData struct {
 	ScheduledDays map[int]bool // day-of-month -> true if day has scheduled working hours
 }
 
-// BuildReport computes a monthly time report from checkout entries, manual log
-// entries, and expanded day schedules. Time is attributed to branches based on
-// checkout ranges clipped to schedule windows. Days listed in generatedDays
-// (format "2006-01-02") are excluded from checkout attribution — they have
-// already been materialized as editable log entries by the generate command.
 // ActivityEntries holds optional activity entries for precise mode idle trimming.
 type ActivityEntries struct {
 	Stops  []entry.ActivityStopEntry
 	Starts []entry.ActivityStartEntry
 }
 
+// BuildReport computes a monthly time report from checkout entries, manual log
+// entries, and expanded day schedules. Time is attributed to branches based on
+// checkout ranges clipped to schedule windows. Days listed in generatedDays
+// (format "2006-01-02") are excluded from checkout attribution — they have
+// already been materialized as editable log entries by the generate command.
 func BuildReport(
 	checkouts []entry.CheckoutEntry,
 	logs []entry.Entry,

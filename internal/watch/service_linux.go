@@ -23,10 +23,9 @@ type systemdManager struct {
 }
 
 func newSystemdManager(homeDir string) *systemdManager {
-	home, _ := os.UserHomeDir()
 	return &systemdManager{
 		homeDir:     homeDir,
-		servicePath: filepath.Join(home, ".config", "systemd", "user", systemdServiceName+".service"),
+		servicePath: filepath.Join(homeDir, ".config", "systemd", "user", systemdServiceName+".service"),
 	}
 }
 
