@@ -34,11 +34,13 @@ type RepoConfig struct {
 
 // ProjectEntry represents a single project in the global registry.
 type ProjectEntry struct {
-	ID        string                   `json:"id"`
-	Name      string                   `json:"name"`
-	Slug      string                   `json:"slug"`
-	Repos     []string                 `json:"repos"`
-	Schedules []schedule.ScheduleEntry `json:"schedules,omitempty"`
+	ID                   string                   `json:"id"`
+	Name                 string                   `json:"name"`
+	Slug                 string                   `json:"slug"`
+	Repos                []string                 `json:"repos"`
+	Schedules            []schedule.ScheduleEntry `json:"schedules,omitempty"`
+	Precise              bool                     `json:"precise,omitempty"`
+	IdleThresholdMinutes int                      `json:"idle_threshold_minutes,omitempty"`
 }
 
 // Config holds the global hourgit configuration including projects and defaults.
@@ -365,6 +367,66 @@ func ResetSchedules(homeDir, projectID string) error {
 	}
 	defaults := GetDefaults(cfg)
 	return SetSchedules(homeDir, projectID, defaults)
+}
+
+// DefaultIdleThresholdMinutes is the default idle threshold for precise mode.
+const DefaultIdleThresholdMinutes = 10
+
+// GetPreciseMode returns whether precise mode is enabled for a project.
+func GetPreciseMode(cfg *Config, projectID string) bool {
+	entry := FindProjectByID(cfg, projectID)
+	if entry == nil {
+		return false
+	}
+	return entry.Precise
+}
+
+// SetPreciseMode enables or disables precise mode for a project.
+func SetPreciseMode(homeDir, projectID string, precise bool) error {
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	entry := FindProjectByID(cfg, projectID)
+	if entry == nil {
+		return fmt.Errorf("project '%s' not found", projectID)
+	}
+	entry.Precise = precise
+	return WriteConfig(homeDir, cfg)
+}
+
+// GetIdleThreshold returns the idle threshold in minutes for a project.
+// Returns DefaultIdleThresholdMinutes if not set.
+func GetIdleThreshold(cfg *Config, projectID string) int {
+	entry := FindProjectByID(cfg, projectID)
+	if entry == nil || entry.IdleThresholdMinutes <= 0 {
+		return DefaultIdleThresholdMinutes
+	}
+	return entry.IdleThresholdMinutes
+}
+
+// SetIdleThreshold sets the idle threshold in minutes for a project.
+func SetIdleThreshold(homeDir, projectID string, minutes int) error {
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	entry := FindProjectByID(cfg, projectID)
+	if entry == nil {
+		return fmt.Errorf("project '%s' not found", projectID)
+	}
+	entry.IdleThresholdMinutes = minutes
+	return WriteConfig(homeDir, cfg)
+}
+
+// AnyPreciseProject checks if any project in the config has precise mode enabled.
+func AnyPreciseProject(cfg *Config) bool {
+	for _, p := range cfg.Projects {
+		if p.Precise {
+			return true
+		}
+	}
+	return false
 }
 
 // RemoveHookFromRepo removes the hourgit section from the post-checkout hook.

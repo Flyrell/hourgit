@@ -15,17 +15,19 @@ import (
 // reportInputs holds the raw data loaded from storage, shared between
 // the interactive report and the PDF export paths.
 type reportInputs struct {
-	proj      *project.ProjectEntry
-	checkouts []entry.CheckoutEntry
-	logs      []entry.Entry
-	commits   []entry.CommitEntry
-	schedules []schedule.DaySchedule
-	submits   []entry.SubmitEntry
-	from      time.Time
-	to        time.Time
-	year      int
-	month     time.Month
-	weekNum   int // >0 when using --week view
+	proj           *project.ProjectEntry
+	checkouts      []entry.CheckoutEntry
+	logs           []entry.Entry
+	commits        []entry.CommitEntry
+	schedules      []schedule.DaySchedule
+	submits        []entry.SubmitEntry
+	activityStops  []entry.ActivityStopEntry
+	activityStarts []entry.ActivityStartEntry
+	from           time.Time
+	to             time.Time
+	year           int
+	month          time.Month
+	weekNum        int // >0 when using --week view
 }
 
 var reportCmd = LeafCommand{
@@ -88,6 +90,7 @@ func runReport(
 			inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules,
 			inputs.year, inputs.month, now, nil,
 			inputs.proj.Name, detailFlag,
+			timetrack.ActivityEntries{Stops: inputs.activityStops, Starts: inputs.activityStarts},
 		)
 
 		if len(exportData.Days) == 0 {
@@ -114,6 +117,7 @@ func runReport(
 	data := timetrack.BuildDetailedReport(
 		inputs.checkouts, inputs.logs, inputs.commits, inputs.schedules,
 		inputs.from, inputs.to, now,
+		timetrack.ActivityEntries{Stops: inputs.activityStops, Starts: inputs.activityStarts},
 	)
 
 	if len(data.Rows) == 0 {
@@ -293,6 +297,16 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		return nil, err
 	}
 
+	activityStops, err := entry.ReadAllActivityStopEntries(homeDir, proj.Slug)
+	if err != nil {
+		return nil, err
+	}
+
+	activityStarts, err := entry.ReadAllActivityStartEntries(homeDir, proj.Slug)
+	if err != nil {
+		return nil, err
+	}
+
 	var weekNum int
 	if weekChanged {
 		// Derive week number from the resolved Monday date
@@ -300,16 +314,18 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 	}
 
 	return &reportInputs{
-		proj:      proj,
-		checkouts: checkouts,
-		logs:      logs,
-		commits:   commits,
-		schedules: daySchedules,
-		submits:   submits,
-		from:      from,
-		to:        to,
-		year:      year,
-		month:     month,
-		weekNum:   weekNum,
+		proj:           proj,
+		checkouts:      checkouts,
+		logs:           logs,
+		commits:        commits,
+		schedules:      daySchedules,
+		submits:        submits,
+		activityStops:  activityStops,
+		activityStarts: activityStarts,
+		from:           from,
+		to:             to,
+		year:           year,
+		month:          month,
+		weekNum:        weekNum,
 	}, nil
 }

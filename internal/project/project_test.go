@@ -347,6 +347,130 @@ func TestRemoveHookFromRepoMissing(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPreciseModeGetSet(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	cfg, err := ReadConfig(home)
+	require.NoError(t, err)
+
+	// Default is false
+	assert.False(t, GetPreciseMode(cfg, entry.ID))
+
+	// Set to true
+	require.NoError(t, SetPreciseMode(home, entry.ID, true))
+
+	cfg, err = ReadConfig(home)
+	require.NoError(t, err)
+	assert.True(t, GetPreciseMode(cfg, entry.ID))
+
+	// Set back to false
+	require.NoError(t, SetPreciseMode(home, entry.ID, false))
+
+	cfg, err = ReadConfig(home)
+	require.NoError(t, err)
+	assert.False(t, GetPreciseMode(cfg, entry.ID))
+}
+
+func TestIdleThresholdGetSet(t *testing.T) {
+	home := t.TempDir()
+
+	entry, err := CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	cfg, err := ReadConfig(home)
+	require.NoError(t, err)
+
+	// Default returns DefaultIdleThresholdMinutes
+	assert.Equal(t, DefaultIdleThresholdMinutes, GetIdleThreshold(cfg, entry.ID))
+
+	// Set custom value
+	require.NoError(t, SetIdleThreshold(home, entry.ID, 15))
+
+	cfg, err = ReadConfig(home)
+	require.NoError(t, err)
+	assert.Equal(t, 15, GetIdleThreshold(cfg, entry.ID))
+}
+
+func TestPreciseModeSetNotFound(t *testing.T) {
+	home := t.TempDir()
+
+	err := SetPreciseMode(home, "nonexistent", true)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestIdleThresholdSetNotFound(t *testing.T) {
+	home := t.TempDir()
+
+	err := SetIdleThreshold(home, "nonexistent", 10)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestGetPreciseModeNotFound(t *testing.T) {
+	cfg := &Config{}
+	assert.False(t, GetPreciseMode(cfg, "nonexistent"))
+}
+
+func TestGetIdleThresholdNotFound(t *testing.T) {
+	cfg := &Config{}
+	assert.Equal(t, DefaultIdleThresholdMinutes, GetIdleThreshold(cfg, "nonexistent"))
+}
+
+func TestAnyPreciseProject(t *testing.T) {
+	cfg := &Config{
+		Projects: []ProjectEntry{
+			{ID: "aaa1111", Name: "Alpha", Precise: false},
+			{ID: "bbb2222", Name: "Beta", Precise: false},
+		},
+	}
+	assert.False(t, AnyPreciseProject(cfg))
+
+	cfg.Projects[1].Precise = true
+	assert.True(t, AnyPreciseProject(cfg))
+}
+
+func TestPreciseModeJSONRoundTrip(t *testing.T) {
+	home := t.TempDir()
+
+	original := &Config{
+		Defaults: schedule.DefaultSchedules(),
+		Projects: []ProjectEntry{
+			{ID: "abc1234", Name: "Test", Slug: "test", Repos: []string{}, Precise: true, IdleThresholdMinutes: 15},
+		},
+	}
+
+	require.NoError(t, WriteConfig(home, original))
+
+	loaded, err := ReadConfig(home)
+	require.NoError(t, err)
+	assert.True(t, loaded.Projects[0].Precise)
+	assert.Equal(t, 15, loaded.Projects[0].IdleThresholdMinutes)
+}
+
+func TestPreciseModeBackwardCompat(t *testing.T) {
+	home := t.TempDir()
+
+	// Write config without precise fields (old format)
+	original := &Config{
+		Defaults: schedule.DefaultSchedules(),
+		Projects: []ProjectEntry{
+			{ID: "abc1234", Name: "Test", Slug: "test", Repos: []string{}},
+		},
+	}
+
+	require.NoError(t, WriteConfig(home, original))
+
+	loaded, err := ReadConfig(home)
+	require.NoError(t, err)
+	// Defaults should be fine
+	assert.False(t, loaded.Projects[0].Precise)
+	assert.Equal(t, 0, loaded.Projects[0].IdleThresholdMinutes)
+}
+
 func TestFindProjectByID(t *testing.T) {
 	cfg := &Config{
 		Projects: []ProjectEntry{

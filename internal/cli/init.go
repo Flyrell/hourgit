@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Flyrell/hourgit/internal/project"
+	"github.com/Flyrell/hourgit/internal/watch"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +21,7 @@ func hookScript(binPath, version string) string {
 # Skip if old and new HEAD are the same SHA (e.g. pull, fetch)
 [ "$1" = "$2" ] && exit 0
 
-%s sync --skip-updates 2>/dev/null || true
+%s sync --skip-updates --skip-watcher 2>/dev/null || true
 `, project.HookMarker, version, binPath)
 }
 
@@ -29,6 +30,7 @@ var initCmd = LeafCommand{
 	Short: "Initialize hourgit in a git repository",
 	StrFlags: []StringFlag{
 		{Name: "project", Shorthand: "p", Usage: "assign repository to a project by name or ID (creates if needed)"},
+		{Name: "mode", Usage: "tracking mode: standard or precise (default: standard)"},
 	},
 	BoolFlags: []BoolFlag{
 		{Name: "force", Shorthand: "f", Usage: "overwrite existing post-checkout hook"},
@@ -42,6 +44,7 @@ var initCmd = LeafCommand{
 		}
 
 		projectName, _ := cmd.Flags().GetString("project")
+		modeFlag, _ := cmd.Flags().GetString("mode")
 		force, _ := cmd.Flags().GetBool("force")
 		merge, _ := cmd.Flags().GetBool("merge")
 		yes, _ := cmd.Flags().GetBool("yes")
@@ -63,11 +66,15 @@ var initCmd = LeafCommand{
 		confirm := ResolveConfirmFunc(yes)
 		selectFn := ResolveSelectFunc(yes)
 
-		return runInit(cmd, dir, homeDir, projectName, force, merge, binPath, confirm, selectFn)
+		return runInit(cmd, dir, homeDir, projectName, modeFlag, force, merge, binPath, confirm, selectFn)
 	},
 }.Build()
 
-func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
+	if mode != "" && mode != "standard" && mode != "precise" {
+		return fmt.Errorf("invalid --mode value %q (supported: standard, precise)", mode)
+	}
+
 	gitDir := filepath.Join(dir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		return fmt.Errorf("not a git repository")
@@ -133,6 +140,16 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName string, force, merge 
 
 		if result.Created {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(result.Entry.Name), Silent(result.Entry.ID))))
+
+			if mode == "precise" {
+				if err := project.SetPreciseMode(homeDir, result.Entry.ID, true); err != nil {
+					return err
+				}
+				if err := project.SetIdleThreshold(homeDir, result.Entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
+					return err
+				}
+				_ = watch.EnsureWatcherService(homeDir, binPath)
+			}
 		}
 
 		if err := project.AssignProject(homeDir, dir, result.Entry); err != nil {

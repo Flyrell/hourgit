@@ -23,7 +23,8 @@ Manual logging is supported for non-code work (research, analysis, meetings) via
   - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
   - [Default Schedule](#default-schedule) — defaults get/set/reset/report
   - [Shell Completions](#shell-completions) — completion install/generate
-  - [Other](#other) — version
+  - [Other](#other) — version, watch
+- [Precise Mode](#precise-mode)
 - [Configuration](#configuration)
 - [Data Storage](#data-storage)
 - [Roadmap](#roadmap)
@@ -117,12 +118,13 @@ Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `histor
 Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit init [--project <name>] [--force] [--merge] [--yes]
+hourgit init [--project <name>] [--mode <mode>] [--force] [--merge] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
+| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 | `-f`, `--force` | `false` | Overwrite existing post-checkout hook |
 | `-m`, `--merge` | `false` | Append to existing post-checkout hook |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
@@ -300,6 +302,7 @@ hourgit status [--project <name>]
 - Time logged today and remaining scheduled hours
 - Today's schedule windows
 - Tracking state (active/inactive based on current time vs schedule)
+- Watcher state (when precise mode is enabled: active/stopped)
 
 ### Project Management
 
@@ -312,10 +315,12 @@ Commands: `project add` · `project assign` · `project list` · `project remove
 Create a new project.
 
 ```bash
-hourgit project add <name>
+hourgit project add <name> [--mode <mode>]
 ```
 
-No flags.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 
 #### `hourgit project assign`
 
@@ -505,7 +510,7 @@ hourgit completion generate fish | source
 
 ### Other
 
-Commands: `version` · `update`
+Commands: `version` · `update` · `watch`
 
 #### `hourgit version`
 
@@ -526,6 +531,43 @@ hourgit update
 ```
 
 No flags.
+
+#### `hourgit watch`
+
+Run the filesystem watcher daemon in the foreground. The daemon monitors file changes in repositories with precise mode enabled and writes activity entries to detect idle gaps. Normally managed automatically as an OS service — use this command for debugging or manual operation.
+
+```bash
+hourgit watch
+```
+
+No flags.
+
+## Precise Mode
+
+By default, Hourgit attributes all time between branch checkouts (within your schedule) as work. **Precise mode** adds filesystem-level idle detection: a background daemon watches your repository for file changes and records when you stop and resume working.
+
+### How it works
+
+1. A background daemon watches file changes in your repository (excluding `.git/` and `.gitignore` patterns).
+2. After a configurable idle threshold (default: 10 minutes) with no file changes, the daemon records an `activity_stop` entry.
+3. When file changes resume, the daemon records an `activity_start` entry.
+4. At report time, these idle gaps are trimmed from checkout sessions, giving you more accurate time attribution.
+
+### Enabling precise mode
+
+```bash
+# During init
+hourgit init --mode precise
+
+# When adding a project
+hourgit project add myproject --mode precise
+```
+
+When precise mode is enabled, Hourgit automatically installs a user-level OS service (launchd on macOS, systemd on Linux, Task Scheduler on Windows) to run the watcher daemon. No `sudo` required.
+
+### Health checks
+
+Hourgit checks whether the watcher daemon is running on every command. If it's stopped, you'll be prompted to restart it. The `status` command shows the current watcher state when precise mode is enabled.
 
 ## Configuration
 
@@ -551,7 +593,9 @@ Every project starts with a copy of the defaults. You can then customize a proje
 |------|---------|
 | `~/.hourgit/config.json` | Global config — defaults, projects (id, name, slug, repos, schedules) |
 | `REPO/.git/.hourgit` | Per-repo project assignment (project name + project ID) |
-| `~/.hourgit/<slug>/<hash>` | Per-project entries (one JSON file per entry — log, checkout, or submit marker) |
+| `~/.hourgit/<slug>/<hash>` | Per-project entries (one JSON file per entry — log, checkout, commit, submit, activity_stop, activity_start) |
+| `~/.hourgit/watch.pid` | PID file for the filesystem watcher daemon (precise mode) |
+| `~/.hourgit/watch.state` | Watcher state file — last activity timestamps per repo (precise mode) |
 
 ## Roadmap
 

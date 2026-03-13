@@ -51,6 +51,7 @@ func BuildExportData(
 	generatedDays []string,
 	projectName string,
 	detail string,
+	activity ...ActivityEntries,
 ) ExportData {
 	daysInMonth := daysIn(year, month)
 
@@ -72,6 +73,9 @@ func BuildExportData(
 	var checkoutBucket map[string]map[int]int
 	if len(commits) > 0 {
 		segments = buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+		if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
+			segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
+		}
 		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
 	} else {
 		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)

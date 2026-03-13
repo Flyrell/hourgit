@@ -27,6 +27,7 @@ func newRootCmd() *cobra.Command {
 			defaultsCmd,
 			completionCmd,
 			updateCmd,
+			watchCmd,
 		},
 	}.Build()
 	cmd.SilenceUsage = true
@@ -34,8 +35,10 @@ func newRootCmd() *cobra.Command {
 	cmd.CompletionOptions.DisableDefaultCmd = true
 	cmd.SetHelpFunc(colorizedHelpFunc())
 	cmd.PersistentFlags().Bool("skip-updates", false, "skip the automatic update check")
+	cmd.PersistentFlags().Bool("skip-watcher", false, "skip the file watcher health check")
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		checkForUpdate(cmd, defaultUpdateDeps())
+		checkWatcherHealth(cmd, defaultWatcherCheckDeps())
 		return nil
 	}
 	return cmd

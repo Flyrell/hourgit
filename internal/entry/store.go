@@ -244,3 +244,25 @@ func WriteCommitEntry(homeDir, slug string, e CommitEntry) error {
 func ReadAllCommitEntries(homeDir, slug string) ([]CommitEntry, error) {
 	return readAllOfType[CommitEntry](homeDir, slug, TypeCommit)
 }
+
+// WriteActivityStopEntry writes an activity stop entry to the project's log directory.
+func WriteActivityStopEntry(homeDir, slug string, e ActivityStopEntry) error {
+	e.Type = TypeActivityStop
+	return writeTypedEntry(homeDir, slug, e.ID, e)
+}
+
+// WriteActivityStartEntry writes an activity start entry to the project's log directory.
+func WriteActivityStartEntry(homeDir, slug string, e ActivityStartEntry) error {
+	e.Type = TypeActivityStart
+	return writeTypedEntry(homeDir, slug, e.ID, e)
+}
+
+// ReadAllActivityStopEntries reads all activity stop entries from a project's log directory.
+func ReadAllActivityStopEntries(homeDir, slug string) ([]ActivityStopEntry, error) {
+	return readAllOfType[ActivityStopEntry](homeDir, slug, TypeActivityStop)
+}
+
+// ReadAllActivityStartEntries reads all activity start entries from a project's log directory.
+func ReadAllActivityStartEntries(homeDir, slug string) ([]ActivityStartEntry, error) {
+	return readAllOfType[ActivityStartEntry](homeDir, slug, TypeActivityStart)
+}
