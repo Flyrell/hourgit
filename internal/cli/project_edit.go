@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/Flyrell/hourgit/internal/watch"
@@ -21,6 +22,7 @@ var projectEditCmd = LeafCommand{
 		{Name: "project", Shorthand: "p", Usage: "project name or ID"},
 		{Name: "name", Shorthand: "n", Usage: "new project name"},
 		{Name: "mode", Shorthand: "m", Usage: "tracking mode: standard or precise"},
+		{Name: "idle-threshold", Shorthand: "t", Usage: "idle threshold in minutes (precise mode only)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
@@ -41,7 +43,20 @@ var projectEditCmd = LeafCommand{
 		projectFlag, _ := cmd.Flags().GetString("project")
 		nameFlag, _ := cmd.Flags().GetString("name")
 		modeFlag, _ := cmd.Flags().GetString("mode")
+		idleThresholdFlag, _ := cmd.Flags().GetString("idle-threshold")
 		yes, _ := cmd.Flags().GetBool("yes")
+
+		var idleThreshold int
+		if idleThresholdFlag != "" {
+			v, err := strconv.Atoi(idleThresholdFlag)
+			if err != nil {
+				return fmt.Errorf("invalid --idle-threshold value %q: must be a number", idleThresholdFlag)
+			}
+			if v <= 0 {
+				return fmt.Errorf("invalid --idle-threshold value %q: must be greater than 0", idleThresholdFlag)
+			}
+			idleThreshold = v
+		}
 
 		// Resolve project identifier: positional arg > --project flag > repo config
 		var identifier string
@@ -57,11 +72,11 @@ var projectEditCmd = LeafCommand{
 			Confirm:           ResolveConfirmFunc(yes),
 		}
 
-		return runProjectEdit(cmd, homeDir, repoDir, identifier, nameFlag, modeFlag, binPath, pk)
+		return runProjectEdit(cmd, homeDir, repoDir, identifier, nameFlag, modeFlag, idleThreshold, binPath, pk)
 	},
 }.Build()
 
-func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, modeFlag, binPath string, pk PromptKit) error {
+func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, modeFlag string, idleThreshold int, binPath string, pk PromptKit) error {
 	if err := validateMode(modeFlag); err != nil {
 		return err
 	}
@@ -74,10 +89,11 @@ func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, 
 
 	newName := nameFlag
 	newMode := modeFlag
+	newIdleThreshold := idleThreshold
 
 	// Interactive mode: prompt for values if no flags provided
-	if nameFlag == "" && modeFlag == "" {
-		newName, newMode, err = promptProjectEdit(entry, pk)
+	if nameFlag == "" && modeFlag == "" && idleThreshold == 0 {
+		newName, newMode, newIdleThreshold, err = promptProjectEdit(entry, pk)
 		if err != nil {
 			return err
 		}
@@ -91,7 +107,25 @@ func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, 
 	}
 	modeChanged := newMode != "" && newMode != currentMode
 
-	if !nameChanged && !modeChanged {
+	// Determine effective mode after changes
+	effectiveMode := currentMode
+	if modeChanged {
+		effectiveMode = newMode
+	}
+
+	// Idle threshold is only valid for precise mode
+	if newIdleThreshold > 0 && effectiveMode != "precise" {
+		return fmt.Errorf("--idle-threshold is only valid for precise mode")
+	}
+
+	cfg, err := project.ReadConfig(homeDir)
+	if err != nil {
+		return err
+	}
+	currentThreshold := project.GetIdleThreshold(cfg, entry.ID)
+	thresholdChanged := newIdleThreshold > 0 && newIdleThreshold != currentThreshold
+
+	if !nameChanged && !modeChanged && !thresholdChanged {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), Text("no changes"))
 		return nil
 	}
@@ -131,6 +165,15 @@ func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, 
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("mode: %s → %s", Silent(currentMode), Primary(newMode))))
 	}
 
+	// Apply idle threshold change
+	if thresholdChanged {
+		if err := project.SetIdleThreshold(homeDir, entry.ID, newIdleThreshold); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("idle threshold: %s → %s",
+			Silent(fmt.Sprintf("%dm", currentThreshold)), Primary(fmt.Sprintf("%dm", newIdleThreshold)))))
+	}
+
 	return nil
 }
 
@@ -165,10 +208,10 @@ func resolveEditProject(homeDir, repoDir, identifier string) (*project.ProjectEn
 	return nil, fmt.Errorf("no project specified (use positional arg, --project flag, or run from an assigned repo)")
 }
 
-func promptProjectEdit(entry *project.ProjectEntry, pk PromptKit) (name, mode string, err error) {
+func promptProjectEdit(entry *project.ProjectEntry, pk PromptKit) (name, mode string, idleThreshold int, err error) {
 	name, err = pk.PromptWithDefault("Project name", entry.Name)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 
 	currentMode := 0
@@ -182,9 +225,26 @@ func promptProjectEdit(entry *project.ProjectEntry, pk PromptKit) (name, mode st
 	}
 	idx, err := pk.Select("Tracking mode", modes)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	mode = modes[idx]
 
-	return name, mode, nil
+	// Prompt for idle threshold if mode is/becomes precise
+	if mode == "precise" {
+		currentThreshold := entry.IdleThresholdMinutes
+		if currentThreshold <= 0 {
+			currentThreshold = project.DefaultIdleThresholdMinutes
+		}
+		thresholdStr, err := pk.PromptWithDefault("Idle threshold (minutes)", strconv.Itoa(currentThreshold))
+		if err != nil {
+			return "", "", 0, err
+		}
+		v, err := strconv.Atoi(thresholdStr)
+		if err != nil || v <= 0 {
+			return "", "", 0, fmt.Errorf("invalid idle threshold %q: must be a positive number", thresholdStr)
+		}
+		idleThreshold = v
+	}
+
+	return name, mode, idleThreshold, nil
 }

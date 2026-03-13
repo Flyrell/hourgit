@@ -340,13 +340,14 @@ hourgit project assign <name> [--force] [--yes]
 Edit an existing project's name or tracking mode. When edit flags are provided, only those changes are applied directly. Without flags, an interactive editor prompts for both name and mode.
 
 ```bash
-hourgit project edit [PROJECT] [--name <new_name>] [--mode <mode>] [--project <name>] [--yes]
+hourgit project edit [PROJECT] [--name <new_name>] [--mode <mode>] [--idle-threshold <minutes>] [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-n`, `--name` | — | New project name |
 | `-m`, `--mode` | — | New tracking mode: `standard` or `precise` |
+| `-t`, `--idle-threshold` | — | Idle threshold in minutes (precise mode only) |
 | `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
@@ -357,6 +358,7 @@ hourgit project edit [PROJECT] [--name <new_name>] [--mode <mode>] [--project <n
 ```bash
 hourgit project edit myproject --name newname
 hourgit project edit myproject --mode precise
+hourgit project edit myproject --idle-threshold 15
 hourgit project edit --name newname --project myproject
 hourgit project edit myproject              # interactive mode
 ```
