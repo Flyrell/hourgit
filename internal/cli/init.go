@@ -30,11 +30,11 @@ var initCmd = LeafCommand{
 	Short: "Initialize hourgit in a git repository",
 	StrFlags: []StringFlag{
 		{Name: "project", Shorthand: "p", Usage: "assign repository to a project by name or ID (creates if needed)"},
-		{Name: "mode", Usage: "tracking mode: standard or precise (default: standard)"},
+		{Name: "mode", Shorthand: "m", Usage: "tracking mode: standard or precise (default: standard)"},
 	},
 	BoolFlags: []BoolFlag{
 		{Name: "force", Shorthand: "f", Usage: "overwrite existing post-checkout hook"},
-		{Name: "merge", Shorthand: "m", Usage: "append to existing post-checkout hook"},
+		{Name: "append", Shorthand: "a", Usage: "append to existing post-checkout hook"},
 		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +46,7 @@ var initCmd = LeafCommand{
 		projectName, _ := cmd.Flags().GetString("project")
 		modeFlag, _ := cmd.Flags().GetString("mode")
 		force, _ := cmd.Flags().GetBool("force")
-		merge, _ := cmd.Flags().GetBool("merge")
+		appendHook, _ := cmd.Flags().GetBool("append")
 		yes, _ := cmd.Flags().GetBool("yes")
 
 		homeDir, err := os.UserHomeDir()
@@ -66,11 +66,11 @@ var initCmd = LeafCommand{
 		confirm := ResolveConfirmFunc(yes)
 		selectFn := ResolveSelectFunc(yes)
 
-		return runInit(cmd, dir, homeDir, projectName, modeFlag, force, merge, binPath, confirm, selectFn)
+		return runInit(cmd, dir, homeDir, projectName, modeFlag, force, appendHook, binPath, confirm, selectFn)
 	},
 }.Build()
 
-func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
+func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, appendHook bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) error {
 	if err := validateMode(mode); err != nil {
 		return err
 	}
@@ -91,11 +91,11 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, 
 			return fmt.Errorf("hourgit is already initialized")
 		}
 
-		if !force && !merge {
-			return fmt.Errorf("post-checkout hook already exists (use --force to overwrite or --merge to append)")
+		if !force && !appendHook {
+			return fmt.Errorf("post-checkout hook already exists (use --force to overwrite or --append to append)")
 		}
 
-		if merge {
+		if appendHook {
 			merged := content + "\n" + hook
 			if err := os.WriteFile(hookPath, []byte(merged), 0755); err != nil {
 				return err
