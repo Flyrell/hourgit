@@ -8,6 +8,7 @@ var projectCmd = GroupCommand{
 	Subcommands: []*cobra.Command{
 		projectAddCmd,
 		projectAssignCmd,
+		projectEditCmd,
 		projectListCmd,
 		projectRemoveCmd,
 	},
