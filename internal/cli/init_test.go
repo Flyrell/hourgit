@@ -40,11 +40,11 @@ func execInit(args ...string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-func execInitDirect(dir, homeDir, projectName, mode string, force, merge bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
+func execInitDirect(dir, homeDir, projectName, mode string, force, appendHook bool, binPath string, confirm ConfirmFunc, selectFn SelectFunc) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := initCmd
 	cmd.SetOut(stdout)
-	err := runInit(cmd, dir, homeDir, projectName, mode, force, merge, binPath, confirm, selectFn)
+	err := runInit(cmd, dir, homeDir, projectName, mode, force, appendHook, binPath, confirm, selectFn)
 	return stdout.String(), err
 }
 
@@ -108,7 +108,7 @@ func TestInitHookExistsNoFlag(t *testing.T) {
 	_, stderr, err := execInit()
 
 	assert.Error(t, err)
-	assert.Contains(t, stderr, "post-checkout hook already exists (use --force to overwrite or --merge to append)")
+	assert.Contains(t, stderr, "post-checkout hook already exists (use --force to overwrite or --append to append)")
 }
 
 func TestInitHookExistsForce(t *testing.T) {
@@ -131,7 +131,7 @@ func TestInitHookExistsForce(t *testing.T) {
 	assert.NotContains(t, string(content), "echo existing")
 }
 
-func TestInitHookExistsMerge(t *testing.T) {
+func TestInitHookExistsAppend(t *testing.T) {
 	dir, cleanup := setupInitTest(t)
 	defer cleanup()
 	t.Setenv("SHELL", "")
@@ -140,7 +140,7 @@ func TestInitHookExistsMerge(t *testing.T) {
 	require.NoError(t, os.MkdirAll(hooksDir, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(hooksDir, "post-checkout"), []byte("#!/bin/sh\necho existing"), 0755))
 
-	stdout, _, err := execInit("--merge")
+	stdout, _, err := execInit("--append")
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "hourgit initialized successfully")

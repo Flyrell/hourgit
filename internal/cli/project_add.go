@@ -15,7 +15,7 @@ var projectAddCmd = LeafCommand{
 	Short: "Create a new project",
 	Args:  cobra.ExactArgs(1),
 	StrFlags: []StringFlag{
-		{Name: "mode", Usage: "tracking mode: standard or precise (default: standard)"},
+		{Name: "mode", Shorthand: "m", Usage: "tracking mode: standard or precise (default: standard)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()

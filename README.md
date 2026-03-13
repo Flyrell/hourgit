@@ -118,15 +118,15 @@ Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `histor
 Initialize Hourgit in the current git repository by installing a post-checkout hook.
 
 ```bash
-hourgit init [--project <name>] [--mode <mode>] [--force] [--merge] [--yes]
+hourgit init [--project <name>] [--mode <mode>] [--force] [--append] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Assign repository to a project by name or ID (creates if needed) |
-| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
+| `-m`, `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 | `-f`, `--force` | `false` | Overwrite existing post-checkout hook |
-| `-m`, `--merge` | `false` | Append to existing post-checkout hook |
+| `-a`, `--append` | `false` | Append to existing post-checkout hook |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 #### `hourgit log`
@@ -320,7 +320,7 @@ hourgit project add <name> [--mode <mode>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
+| `-m`, `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 
 #### `hourgit project assign`
 
