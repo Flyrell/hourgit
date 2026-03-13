@@ -429,6 +429,60 @@ func AnyPreciseProject(cfg *Config) bool {
 	return false
 }
 
+// RenameProject renames a project by ID, updating the config, data directory, and repo configs.
+// Returns the updated ProjectEntry or an error if the new name conflicts.
+func RenameProject(homeDir, projectID, newName string) (*ProjectEntry, error) {
+	cfg, err := ReadConfig(homeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	entry := FindProjectByID(cfg, projectID)
+	if entry == nil {
+		return nil, fmt.Errorf("project '%s' not found", projectID)
+	}
+
+	// Check for name conflict
+	if existing := FindProject(cfg, newName); existing != nil && existing.ID != projectID {
+		return nil, fmt.Errorf("project '%s' already exists (%s)", newName, existing.ID)
+	}
+
+	oldSlug := entry.Slug
+	newSlug := stringutil.Slugify(newName)
+
+	// Rename data directory if slug changed
+	if newSlug != oldSlug {
+		oldDir := LogDir(homeDir, oldSlug)
+		newDir := LogDir(homeDir, newSlug)
+		if _, err := os.Stat(oldDir); err == nil {
+			if err := os.Rename(oldDir, newDir); err != nil {
+				return nil, fmt.Errorf("could not rename data directory: %w", err)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+	}
+
+	entry.Name = newName
+	entry.Slug = newSlug
+
+	if err := WriteConfig(homeDir, cfg); err != nil {
+		return nil, err
+	}
+
+	// Best-effort update repo configs
+	for _, repoDir := range entry.Repos {
+		rc, err := ReadRepoConfig(repoDir)
+		if err != nil || rc == nil {
+			continue
+		}
+		rc.Project = newName
+		_ = WriteRepoConfig(repoDir, rc)
+	}
+
+	return entry, nil
+}
+
 // RemoveHookFromRepo removes the hourgit section from the post-checkout hook.
 // If the hook becomes empty after removal, it is deleted.
 func RemoveHookFromRepo(repoDir string) error {
