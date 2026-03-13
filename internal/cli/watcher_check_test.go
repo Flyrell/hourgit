@@ -6,6 +6,7 @@ import (
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,6 +19,10 @@ func newTestCmd() *cobra.Command {
 func setupWatcherCheckTest(t *testing.T, precise bool) (string, watcherCheckDeps) {
 	t.Helper()
 	home := t.TempDir()
+
+	// Set non-dev version so the dev guard doesn't skip
+	SetVersionInfo("1.0.0")
+	t.Cleanup(func() { SetVersionInfo("dev") })
 
 	cfg := &project.Config{
 		Defaults: schedule.DefaultSchedules(),
@@ -48,6 +53,7 @@ func setupWatcherCheckTest(t *testing.T, precise bool) (string, watcherCheckDeps
 		ensureSvc: func(_, _ string) error {
 			return nil
 		},
+		isTTY: func() bool { return true },
 	}
 
 	return home, deps
@@ -64,8 +70,7 @@ func TestWatcherCheckNoPreciseProjects(t *testing.T) {
 
 	cmd := newTestCmd()
 	checkWatcherHealth(cmd, deps)
-	// In non-TTY test context, it will skip early due to isatty check
-	_ = confirmCalled
+	assert.False(t, confirmCalled, "should not prompt when no precise projects")
 }
 
 func TestWatcherCheckDaemonRunning(t *testing.T) {
@@ -83,7 +88,7 @@ func TestWatcherCheckDaemonRunning(t *testing.T) {
 
 	cmd := newTestCmd()
 	checkWatcherHealth(cmd, deps)
-	_ = confirmCalled
+	assert.False(t, confirmCalled, "should not prompt when daemon is running")
 }
 
 func TestWatcherCheckSkipFlag(t *testing.T) {
@@ -98,5 +103,37 @@ func TestWatcherCheckSkipFlag(t *testing.T) {
 	cmd := newTestCmd()
 	_ = cmd.Flags().Set("skip-watcher", "true")
 	checkWatcherHealth(cmd, deps)
-	_ = confirmCalled
+	assert.False(t, confirmCalled, "should not prompt when skip-watcher flag is set")
+}
+
+func TestWatcherCheckPromptRestart(t *testing.T) {
+	_, deps := setupWatcherCheckTest(t, true)
+
+	ensureCalled := false
+	deps.confirm = func(_ string) (bool, error) {
+		return true, nil
+	}
+	deps.ensureSvc = func(_, _ string) error {
+		ensureCalled = true
+		return nil
+	}
+
+	cmd := newTestCmd()
+	checkWatcherHealth(cmd, deps)
+	assert.True(t, ensureCalled, "should call ensureSvc when user confirms restart")
+}
+
+func TestWatcherCheckNonTTY(t *testing.T) {
+	_, deps := setupWatcherCheckTest(t, true)
+	deps.isTTY = func() bool { return false }
+
+	confirmCalled := false
+	deps.confirm = func(_ string) (bool, error) {
+		confirmCalled = true
+		return false, nil
+	}
+
+	cmd := newTestCmd()
+	checkWatcherHealth(cmd, deps)
+	assert.False(t, confirmCalled, "should not prompt in non-TTY context")
 }

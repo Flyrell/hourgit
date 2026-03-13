@@ -18,7 +18,7 @@ func execProjectAdd(homeDir string, name string, mode ...string) (string, error)
 	if len(mode) > 0 {
 		m = mode[0]
 	}
-	err := runProjectAdd(cmd, homeDir, name, m)
+	err := runProjectAdd(cmd, homeDir, name, m, "/usr/local/bin/hourgit")
 	return stdout.String(), err
 }
 

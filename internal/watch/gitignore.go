@@ -8,8 +8,17 @@ import (
 )
 
 // ShouldIgnore checks if a file path should be ignored based on the repo's
-// .gitignore patterns and built-in exclusions.
+// .gitignore patterns and built-in exclusions. Reads .gitignore from disk
+// on each call — use ShouldIgnoreWithPatterns for the hot path.
 func ShouldIgnore(repoDir, filePath string) bool {
+	patterns := LoadGitignorePatterns(repoDir)
+	return ShouldIgnoreWithPatterns(repoDir, filePath, patterns)
+}
+
+// ShouldIgnoreWithPatterns checks if a file path should be ignored using
+// pre-loaded gitignore patterns. Use this on the hot path to avoid re-reading
+// .gitignore from disk on every event.
+func ShouldIgnoreWithPatterns(repoDir, filePath string, patterns []string) bool {
 	// Always exclude .git directory
 	rel, err := filepath.Rel(repoDir, filePath)
 	if err != nil {
@@ -22,12 +31,11 @@ func ShouldIgnore(repoDir, filePath string) bool {
 		}
 	}
 
-	patterns := loadGitignorePatterns(repoDir)
 	return matchesAnyPattern(rel, patterns)
 }
 
-// loadGitignorePatterns reads .gitignore from the repo root and returns patterns.
-func loadGitignorePatterns(repoDir string) []string {
+// LoadGitignorePatterns reads .gitignore from the repo root and returns patterns.
+func LoadGitignorePatterns(repoDir string) []string {
 	path := filepath.Join(repoDir, ".gitignore")
 	f, err := os.Open(path)
 	if err != nil {
@@ -66,7 +74,6 @@ func matchPattern(relPath, pattern string) bool {
 	}
 
 	// Strip trailing slash (directory marker)
-	dirOnly := strings.HasSuffix(pattern, "/")
 	pattern = strings.TrimSuffix(pattern, "/")
 
 	// Check each path component for basename match
@@ -79,16 +86,9 @@ func matchPattern(relPath, pattern string) bool {
 	}
 
 	// Otherwise, match against any path component
-	for i, part := range parts {
+	for _, part := range parts {
 		matched, _ := filepath.Match(pattern, part)
 		if matched {
-			// If dirOnly, only match directories (not the last component unless it's a prefix)
-			if dirOnly && i == len(parts)-1 {
-				// We can't tell if the last component is a dir from the path alone,
-				// but for gitignore purposes, if it matched a dir pattern mid-path, that's fine.
-				// For the leaf, we still match since fsnotify won't send events for dirs themselves.
-				return true
-			}
 			return true
 		}
 	}

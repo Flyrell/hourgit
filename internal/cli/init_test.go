@@ -377,6 +377,32 @@ func TestInitWithModePrecise(t *testing.T) {
 	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
 }
 
+func TestInitWithModePreciseExistingProject(t *testing.T) {
+	dir := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("SHELL", "")
+
+	require.NoError(t, os.Mkdir(filepath.Join(dir, ".git"), 0755))
+
+	// Pre-create the project without precise mode
+	_, err := project.CreateProject(home, "My Project")
+	require.NoError(t, err)
+
+	noConfirm := func(_ string) (bool, error) { return true, nil }
+	skipSelect := func(_ string, _ []string) (int, error) { return 1, nil }
+	stdout, err := execInitDirect(dir, home, "My Project", "precise", false, false, "/usr/local/bin/hourgit", noConfirm, skipSelect)
+
+	assert.NoError(t, err)
+	assert.NotContains(t, stdout, "created")
+	assert.Contains(t, stdout, "repository assigned to project 'My Project'")
+
+	cfg, err := project.ReadConfig(home)
+	require.NoError(t, err)
+	require.Len(t, cfg.Projects, 1)
+	assert.True(t, cfg.Projects[0].Precise)
+	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+}
+
 func TestInitWithModeInvalid(t *testing.T) {
 	dir := t.TempDir()
 	home := t.TempDir()

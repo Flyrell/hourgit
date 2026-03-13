@@ -33,6 +33,7 @@ type Daemon struct {
 	mu         sync.Mutex
 	debouncers map[string]*RepoDebouncer // repo path -> debouncer
 	watchers   map[string]*fsnotify.Watcher
+	patterns   map[string][]string // repo path -> cached gitignore patterns
 	cancel     context.CancelFunc
 }
 
@@ -43,6 +44,7 @@ func NewDaemon(homeDir string, writer EntryWriter) *Daemon {
 		writer:     writer,
 		debouncers: make(map[string]*RepoDebouncer),
 		watchers:   make(map[string]*fsnotify.Watcher),
+		patterns:   make(map[string][]string),
 	}
 }
 
@@ -174,6 +176,7 @@ func (d *Daemon) reloadConfig() error {
 			}
 			delete(d.debouncers, repo)
 			delete(d.watchers, repo)
+			delete(d.patterns, repo)
 		}
 	}
 
@@ -215,16 +218,18 @@ func (d *Daemon) addRepoWatcher(dc DaemonConfig) error {
 		return err
 	}
 
+	patterns := LoadGitignorePatterns(dc.Repo)
 	db := NewRepoDebouncer(dc.Repo, dc.Slug, d.homeDir, dc.Threshold, d.writer, d.state)
 	d.debouncers[dc.Repo] = db
 	d.watchers[dc.Repo] = watcher
+	d.patterns[dc.Repo] = patterns
 
-	go d.watchRepo(watcher, db, dc.Repo)
+	go d.watchRepo(watcher, db, dc.Repo, patterns)
 	return nil
 }
 
 // watchRepo processes fsnotify events for a single repo.
-func (d *Daemon) watchRepo(watcher *fsnotify.Watcher, db *RepoDebouncer, repoDir string) {
+func (d *Daemon) watchRepo(watcher *fsnotify.Watcher, db *RepoDebouncer, repoDir string, patterns []string) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -235,7 +240,7 @@ func (d *Daemon) watchRepo(watcher *fsnotify.Watcher, db *RepoDebouncer, repoDir
 			if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {
 				continue
 			}
-			if ShouldIgnore(repoDir, event.Name) {
+			if ShouldIgnoreWithPatterns(repoDir, event.Name, patterns) {
 				continue
 			}
 			db.OnFileEvent(time.Now())
@@ -296,12 +301,6 @@ func (d *Daemon) recoverFromCrash() {
 		stops, err := entry.ReadAllActivityStopEntries(d.homeDir, p.Slug)
 		if err != nil {
 			continue
-		}
-
-		// Build set of stop timestamps to find unpaired starts
-		stopTimes := make(map[string]bool)
-		for _, s := range stops {
-			stopTimes[s.Repo+s.Timestamp.Format(time.RFC3339)] = true
 		}
 
 		// Find the latest stop per repo

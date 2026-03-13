@@ -23,13 +23,23 @@ var projectAddCmd = LeafCommand{
 			return err
 		}
 		modeFlag, _ := cmd.Flags().GetString("mode")
-		return runProjectAdd(cmd, homeDir, args[0], modeFlag)
+
+		binPath, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("could not resolve binary path: %w", err)
+		}
+		binPath, err = filepath.EvalSymlinks(binPath)
+		if err != nil {
+			return fmt.Errorf("could not resolve binary path: %w", err)
+		}
+
+		return runProjectAdd(cmd, homeDir, args[0], modeFlag, binPath)
 	},
 }.Build()
 
-func runProjectAdd(cmd *cobra.Command, homeDir, name, mode string) error {
-	if mode != "" && mode != "standard" && mode != "precise" {
-		return fmt.Errorf("invalid --mode value %q (supported: standard, precise)", mode)
+func runProjectAdd(cmd *cobra.Command, homeDir, name, mode, binPath string) error {
+	if err := validateMode(mode); err != nil {
+		return err
 	}
 
 	entry, err := project.CreateProject(homeDir, name)
@@ -44,9 +54,10 @@ func runProjectAdd(cmd *cobra.Command, homeDir, name, mode string) error {
 		if err := project.SetIdleThreshold(homeDir, entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
 			return err
 		}
-		binPath, _ := os.Executable()
-		binPath, _ = filepath.EvalSymlinks(binPath)
-		_ = watch.EnsureWatcherService(homeDir, binPath)
+		if err := watch.EnsureWatcherService(homeDir, binPath); err != nil {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s\n",
+				Warning(fmt.Sprintf("warning: could not configure watcher service: %s", err)))
+		}
 	}
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' created (%s)", Primary(entry.Name), Silent(entry.ID))))

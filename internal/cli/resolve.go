@@ -13,7 +13,10 @@ func getContextPaths() (homeDir, repoDir string, err error) {
 	if err != nil {
 		return "", "", err
 	}
-	repoDir, _ = os.Getwd()
+	repoDir, err = os.Getwd()
+	if err != nil {
+		return "", "", fmt.Errorf("could not determine working directory: %w", err)
+	}
 	return homeDir, repoDir, nil
 }
 
