@@ -8,6 +8,123 @@ import (
 	"github.com/Flyrell/hourgit/internal/schedule"
 )
 
+// idleGap represents a paired [stop, start] idle period.
+type idleGap struct {
+	stop  time.Time // activity_stop timestamp (last file change before idle)
+	start time.Time // activity_start timestamp (first file change after idle)
+}
+
+// buildIdleGaps pairs activity_stop and activity_start entries into idle gaps.
+// Gaps are sorted chronologically by stop time.
+func buildIdleGaps(stops []entry.ActivityStopEntry, starts []entry.ActivityStartEntry) []idleGap {
+	// Sort stops and starts by timestamp
+	sortedStops := make([]entry.ActivityStopEntry, len(stops))
+	copy(sortedStops, stops)
+	sort.Slice(sortedStops, func(i, j int) bool {
+		return sortedStops[i].Timestamp.Before(sortedStops[j].Timestamp)
+	})
+
+	sortedStarts := make([]entry.ActivityStartEntry, len(starts))
+	copy(sortedStarts, starts)
+	sort.Slice(sortedStarts, func(i, j int) bool {
+		return sortedStarts[i].Timestamp.Before(sortedStarts[j].Timestamp)
+	})
+
+	// Pair each stop with the next start that comes after it
+	var gaps []idleGap
+	startIdx := 0
+	for _, stop := range sortedStops {
+		// Find the first start after this stop
+		for startIdx < len(sortedStarts) && !sortedStarts[startIdx].Timestamp.After(stop.Timestamp) {
+			startIdx++
+		}
+		if startIdx < len(sortedStarts) {
+			gaps = append(gaps, idleGap{
+				stop:  stop.Timestamp,
+				start: sortedStarts[startIdx].Timestamp,
+			})
+			startIdx++
+		}
+	}
+	return gaps
+}
+
+// trimSegmentsByIdleGaps removes idle periods from checkout segments.
+// For each segment, idle gaps that overlap are used to split or trim the segment.
+func trimSegmentsByIdleGaps(segments []sessionSegment, stops []entry.ActivityStopEntry, starts []entry.ActivityStartEntry) []sessionSegment {
+	if len(stops) == 0 || len(starts) == 0 {
+		return segments
+	}
+
+	gaps := buildIdleGaps(stops, starts)
+	if len(gaps) == 0 {
+		return segments
+	}
+
+	var result []sessionSegment
+	for _, seg := range segments {
+		trimmed := applyGapsToSegment(seg, gaps)
+		result = append(result, trimmed...)
+	}
+	return result
+}
+
+// applyGapsToSegment applies all overlapping idle gaps to a single segment,
+// potentially splitting it into multiple sub-segments.
+func applyGapsToSegment(seg sessionSegment, gaps []idleGap) []sessionSegment {
+	current := []sessionSegment{seg}
+
+	for _, gap := range gaps {
+		var next []sessionSegment
+		for _, s := range current {
+			split := splitSegmentByGap(s, gap)
+			next = append(next, split...)
+		}
+		current = next
+	}
+
+	return current
+}
+
+// splitSegmentByGap handles the intersection of a single segment with a single gap.
+// Gap interval is [gap.stop, gap.start) — the time between last activity and resume.
+func splitSegmentByGap(seg sessionSegment, gap idleGap) []sessionSegment {
+	gapFrom := gap.stop
+	gapTo := gap.start
+
+	// No overlap: gap is entirely before or after segment
+	if !gapTo.After(seg.from) || !gapFrom.Before(seg.to) {
+		return []sessionSegment{seg}
+	}
+
+	// Gap fully contains segment
+	if !gapFrom.After(seg.from) && !gapTo.Before(seg.to) {
+		return nil
+	}
+
+	// Gap overlaps start only
+	if !gapFrom.After(seg.from) && gapTo.Before(seg.to) {
+		return []sessionSegment{{
+			branch: seg.branch, repo: seg.repo,
+			from: gapTo, to: seg.to, message: seg.message,
+		}}
+	}
+
+	// Gap overlaps end only
+	if gapFrom.After(seg.from) && !gapTo.Before(seg.to) {
+		return []sessionSegment{{
+			branch: seg.branch, repo: seg.repo,
+			from: seg.from, to: gapFrom, message: seg.message,
+		}}
+	}
+
+	// Gap is strictly inside segment — split into two
+	return []sessionSegment{
+		{branch: seg.branch, repo: seg.repo, from: seg.from, to: gapFrom, message: seg.message},
+		{branch: seg.branch, repo: seg.repo, from: gapTo, to: seg.to, message: seg.message},
+	}
+}
+
 // sessionSegment represents a sub-block of a checkout session, split by commits.
 type sessionSegment struct {
 	branch  string

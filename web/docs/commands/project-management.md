@@ -7,8 +7,12 @@ Group repositories into projects for organized time tracking.
 Create a new project.
 
 ```bash
-hourgit project add <name>
+hourgit project add <name> [--mode <mode>]
 ```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 
 ## `hourgit project assign`
 

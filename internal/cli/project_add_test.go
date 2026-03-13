@@ -10,11 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execProjectAdd(homeDir string, name string) (string, error) {
+func execProjectAdd(homeDir string, name string, mode ...string) (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := projectAddCmd
 	cmd.SetOut(stdout)
-	err := runProjectAdd(cmd, homeDir, name)
+	m := ""
+	if len(mode) > 0 {
+		m = mode[0]
+	}
+	err := runProjectAdd(cmd, homeDir, name, m)
 	return stdout.String(), err
 }
 
@@ -48,6 +52,45 @@ func TestProjectAddDuplicate(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
+}
+
+func TestProjectAddModePrecise(t *testing.T) {
+	home := t.TempDir()
+
+	stdout, err := execProjectAdd(home, "Precise Project", "precise")
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'Precise Project' created (")
+
+	cfg, err := project.ReadConfig(home)
+	require.NoError(t, err)
+	require.Len(t, cfg.Projects, 1)
+	assert.True(t, cfg.Projects[0].Precise)
+	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+}
+
+func TestProjectAddModeStandard(t *testing.T) {
+	home := t.TempDir()
+
+	stdout, err := execProjectAdd(home, "Standard Project", "standard")
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'Standard Project' created (")
+
+	cfg, err := project.ReadConfig(home)
+	require.NoError(t, err)
+	require.Len(t, cfg.Projects, 1)
+	assert.False(t, cfg.Projects[0].Precise)
+	assert.Equal(t, 0, cfg.Projects[0].IdleThresholdMinutes)
+}
+
+func TestProjectAddModeInvalid(t *testing.T) {
+	home := t.TempDir()
+
+	_, err := execProjectAdd(home, "Bad Mode", "foobar")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --mode value")
 }
 
 func TestProjectAddRegisteredAsSubcommand(t *testing.T) {
