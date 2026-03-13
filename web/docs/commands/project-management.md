@@ -12,7 +12,7 @@ hourgit project add <name> [--mode <mode>]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
+| `-m`, `--mode` | `standard` | Tracking mode: `standard` or `precise` (enables filesystem watcher for idle detection) |
 
 ## `hourgit project assign`
 
