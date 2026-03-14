@@ -9,6 +9,7 @@ import (
 	"github.com/Flyrell/hourgit/internal/hashutil"
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/Flyrell/hourgit/internal/schedule"
+	"github.com/Flyrell/hourgit/internal/timetrack"
 	"github.com/spf13/cobra"
 )
 
@@ -218,7 +219,7 @@ func checkScheduleWarnings(
 		return true, nil
 	}
 
-	windows, scheduledMinutes, err := getDayScheduleWindows(homeDir, proj, entryStart)
+	windows, scheduledMinutes, daySchedules, err := getDayScheduleWindows(homeDir, proj, entryStart)
 	if err != nil {
 		return false, err
 	}
@@ -245,15 +246,15 @@ func checkScheduleWarnings(
 	}
 
 	// 3. Check budget overrun
-	return checkBudgetWarning(cmd, confirm, homeDir, proj, entryStart, minutes, scheduledMinutes, excludeID)
+	return checkBudgetWarning(cmd, confirm, homeDir, proj, entryStart, minutes, daySchedules, excludeID)
 }
 
-// getDayScheduleWindows returns the schedule windows and total scheduled minutes
-// for the day containing entryStart.
-func getDayScheduleWindows(homeDir string, proj *project.ProjectEntry, entryStart time.Time) ([]schedule.TimeWindow, int, error) {
+// getDayScheduleWindows returns the schedule windows, total scheduled minutes,
+// and expanded day schedules for the day containing entryStart.
+func getDayScheduleWindows(homeDir string, proj *project.ProjectEntry, entryStart time.Time) ([]schedule.TimeWindow, int, []schedule.DaySchedule, error) {
 	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
 	schedules := project.GetSchedules(cfg, proj.ID)
@@ -264,7 +265,7 @@ func getDayScheduleWindows(homeDir string, proj *project.ProjectEntry, entryStar
 
 	daySchedules, err := schedule.ExpandSchedules(schedules, dayStart, dayEnd)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
 	var dayWindows []schedule.TimeWindow
@@ -283,7 +284,7 @@ func getDayScheduleWindows(homeDir string, proj *project.ProjectEntry, entryStar
 		scheduledMinutes += toMins - fromMins
 	}
 
-	return dayWindows, scheduledMinutes, nil
+	return dayWindows, scheduledMinutes, daySchedules, nil
 }
 
 // checkBoundsWarning warns if the entry falls fully or partially outside
@@ -339,41 +340,31 @@ func checkBudgetWarning(
 	homeDir string,
 	proj *project.ProjectEntry,
 	entryStart time.Time,
-	minutes, scheduledMinutes int,
+	minutes int,
+	daySchedules []schedule.DaySchedule,
 	excludeID string,
 ) (bool, error) {
-	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
 	if err != nil {
 		return false, err
 	}
 
-	y, m, d := entryStart.Date()
-	loggedMinutes := 0
-	for _, e := range entries {
-		if excludeID != "" && e.ID == excludeID {
-			continue
-		}
-		ey, em, ed := e.Start.Date()
-		if ey == y && em == m && ed == d {
-			loggedMinutes += e.Minutes
-		}
-	}
+	budget := timetrack.ComputeManualLogBudget(logs, daySchedules, entryStart, excludeID)
 
-	remaining := scheduledMinutes - loggedMinutes
-	if minutes > remaining {
-		if remaining <= 0 {
+	if minutes > budget.RemainingMinutes {
+		if budget.RemainingMinutes <= 0 {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you have already logged your full schedule for this day (%s scheduled, %s logged).\n",
 				Warning("Warning:"),
-				Primary(entry.FormatMinutes(scheduledMinutes)),
-				Primary(entry.FormatMinutes(loggedMinutes)),
+				Primary(entry.FormatMinutes(budget.ScheduledMinutes)),
+				Primary(entry.FormatMinutes(budget.LoggedMinutes)),
 			)
 		} else {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you are about to log %s, but only %s remains in today's schedule (%s scheduled, %s already logged).\n",
 				Warning("Warning:"),
 				Primary(entry.FormatMinutes(minutes)),
-				Primary(entry.FormatMinutes(remaining)),
-				Primary(entry.FormatMinutes(scheduledMinutes)),
-				Primary(entry.FormatMinutes(loggedMinutes)),
+				Primary(entry.FormatMinutes(budget.RemainingMinutes)),
+				Primary(entry.FormatMinutes(budget.ScheduledMinutes)),
+				Primary(entry.FormatMinutes(budget.LoggedMinutes)),
 			)
 		}
 
