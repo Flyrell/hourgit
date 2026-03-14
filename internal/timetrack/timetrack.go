@@ -101,21 +101,18 @@ func BuildReport(
 		}
 	}
 
-	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
-	logBucket, logMinsByDay := buildLogBucket(logs, year, month)
+	scheduleWindows, _ := buildScheduleLookup(daySchedules, year, month)
+	logBucket, _ := buildLogBucket(logs, year, month)
 
-	// Use segment-based approach when commits are available
-	var checkoutBucket map[string]map[int]int
-	if len(commits) > 0 {
-		segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
-		// Trim idle gaps if activity entries provided
-		if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
-			segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
-		}
-		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
-	} else {
-		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	loc := now.Location()
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+	// Trim idle gaps if activity entries provided
+	if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
+		segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
 	}
+	// Trim manual log time ranges from checkout segments
+	segments = deductLogOverlaps(segments, logs, year, month, loc)
+	checkoutBucket := buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, loc)
 
 	// Zero out checkout attribution for generated days
 	for day := range generatedSet {
@@ -123,8 +120,6 @@ func BuildReport(
 			delete(checkoutBucket[branch], day)
 		}
 	}
-
-	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, generatedSet)
 	rows := mergeAndSortRows(checkoutBucket, logBucket)
 
 	return ReportData{
@@ -278,50 +273,6 @@ func buildCheckoutBucket(
 	return checkoutBucket
 }
 
-// deductScheduleOverrun reduces checkout minutes proportionally when
-// checkoutMins + logMins exceed the scheduled minutes for a day.
-func deductScheduleOverrun(checkoutBucket map[string]map[int]int, logMinsByDay, scheduledMins map[int]int, daysInMonth int, generatedDays map[int]bool) {
-	for day := 1; day <= daysInMonth; day++ {
-		if generatedDays[day] {
-			continue
-		}
-		maxMins := scheduledMins[day]
-		if maxMins <= 0 {
-			continue
-		}
-		logMins := logMinsByDay[day]
-		availableForCheckouts := maxMins - logMins
-		if availableForCheckouts < 0 {
-			availableForCheckouts = 0
-		}
-
-		totalCheckoutMins := 0
-		for _, dayMap := range checkoutBucket {
-			totalCheckoutMins += dayMap[day]
-		}
-
-		if totalCheckoutMins > availableForCheckouts && totalCheckoutMins > 0 {
-			ratio := float64(availableForCheckouts) / float64(totalCheckoutMins)
-			roundedSum := 0
-			largestBranch := ""
-			largestMins := 0
-			for branch, dayMap := range checkoutBucket {
-				dayMap[day] = int(math.Round(float64(dayMap[day]) * ratio))
-				roundedSum += dayMap[day]
-				if dayMap[day] > largestMins {
-					largestMins = dayMap[day]
-					largestBranch = branch
-				}
-				checkoutBucket[branch] = dayMap
-			}
-			// Clamp: if rounding pushed the total over available, subtract excess from the largest branch
-			if excess := roundedSum - availableForCheckouts; excess > 0 && largestBranch != "" {
-				checkoutBucket[largestBranch][day] -= excess
-			}
-		}
-	}
-}
-
 // mergeAndSortRows merges checkout and log buckets into sorted TaskRows.
 func mergeAndSortRows(checkoutBucket map[string]map[int]int, logBucket map[string]map[int]int) []TaskRow {
 	rowMap := make(map[string]*TaskRow)
@@ -396,9 +347,8 @@ func BuildDetailedReport(
 		segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
 	}
 	loc := now.Location()
-
-	// Compute aggregated checkout bucket from segments (for schedule deduction)
-	checkoutBucket := buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, loc)
+	// Trim manual log time ranges from checkout segments
+	segments = deductLogOverlaps(segments, logs, year, month, loc)
 
 	// Index persisted checkout-generated entries by (task, day) for deduplication
 	type taskDay struct {
@@ -421,7 +371,6 @@ func BuildDetailedReport(
 	rowMap := make(map[string]*DetailedTaskRow)
 
 	// 1. Add log entries (both manual and checkout-generated)
-	logMinsByDay := make(map[int]int)
 	for i, l := range logs {
 		if l.Start.Year() != year || l.Start.Month() != month {
 			continue
@@ -457,26 +406,12 @@ func BuildDetailedReport(
 		cd.Entries = append(cd.Entries, ce)
 		cd.TotalMinutes += l.Minutes
 		row.TotalMinutes += l.Minutes
-		logMinsByDay[day] += l.Minutes
 	}
 
-	// 2. Compute deducted checkout minutes
-	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, nil)
-
-	// 3. Build segment cell entries for fine-grained in-memory entries
+	// 2. Build segment cell entries for fine-grained in-memory entries
 	segEntries := buildSegmentCellEntries(segments, year, month, daysInMonth, scheduleWindows, loc)
 
-	// Compute total segment minutes per (branch, day) for proportional deduction
-	type branchDay struct {
-		branch string
-		day    int
-	}
-	rawSegMins := make(map[branchDay]int)
-	for _, se := range segEntries {
-		rawSegMins[branchDay{se.branch, se.day}] += se.minutes
-	}
-
-	// Add segment entries as in-memory entries, applying deduction ratio
+	// Add segment entries as in-memory entries (already trimmed by log overlaps)
 	for _, se := range segEntries {
 		dayDate := time.Date(year, month, se.day, 0, 0, 0, 0, time.UTC)
 		if dayDate.Before(from) || dayDate.After(to) {
@@ -489,14 +424,7 @@ func BuildDetailedReport(
 			continue
 		}
 
-		// Apply proportional deduction from schedule overrun
-		bdKey := branchDay{se.branch, se.day}
-		rawTotal := rawSegMins[bdKey]
-		deducted := checkoutBucket[se.branch][se.day]
 		mins := se.minutes
-		if rawTotal > 0 && deducted < rawTotal {
-			mins = int(float64(se.minutes) * float64(deducted) / float64(rawTotal))
-		}
 		if mins <= 0 {
 			continue
 		}

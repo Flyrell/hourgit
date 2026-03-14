@@ -444,10 +444,31 @@ func TestLogDurationModeWithDate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, entries, 1)
 	assert.Equal(t, 180, entries[0].Minutes)
-	// fixedNow is 2025-06-15 14:00 UTC, so start = 2025-01-10 at 14:00 - 3h = 11:00
+	// Duration-only log is placed at the first available schedule slot (9:00)
 	assert.Equal(t, 2025, entries[0].Start.Year())
 	assert.Equal(t, time.January, entries[0].Start.Month())
 	assert.Equal(t, 10, entries[0].Start.Day())
+	assert.Equal(t, 9, entries[0].Start.Hour())
+}
+
+func TestLogDurationModeUnscheduledDayFallback(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// 2025-01-11 is a Saturday — no schedule, so findDurationSlot fails
+	// and falls back to now - duration (fixedNow is 14:00, so 14:00 - 3h = 11:00)
+	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "2025-01-11", "", "weekend work")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "logged")
+	assert.Contains(t, stdout, "3h")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, 180, entries[0].Minutes)
+	assert.Equal(t, 2025, entries[0].Start.Year())
+	assert.Equal(t, time.January, entries[0].Start.Month())
+	assert.Equal(t, 11, entries[0].Start.Day())
 	assert.Equal(t, 11, entries[0].Start.Hour())
 }
 

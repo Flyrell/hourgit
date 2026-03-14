@@ -115,9 +115,14 @@ func runLog(
 		if err != nil {
 			return err
 		}
-		y, m, d := baseDate.Date()
-		start = time.Date(y, m, d, now.Hour(), now.Minute(), 0, 0, now.Location()).
-			Add(-time.Duration(minutes) * time.Minute)
+		// Try to place at the first available schedule slot
+		start, err = findDurationSlot(homeDir, proj, baseDate, minutes, now)
+		if err != nil {
+			// Fall back to now - minutes if no schedule/slot available
+			y, m, d := baseDate.Date()
+			start = time.Date(y, m, d, now.Hour(), now.Minute(), 0, 0, now.Location()).
+				Add(-time.Duration(minutes) * time.Minute)
+		}
 	} else {
 		if fromFlag == "" {
 			fromFlag, err = pk.Prompt("From (e.g. 9am, 14:00)")
@@ -376,6 +381,26 @@ func checkBudgetWarning(
 	}
 
 	return true, nil
+}
+
+// findDurationSlot attempts to find the first available schedule slot for a
+// duration-only log entry. Returns an error if no schedule is configured or
+// no slot is available.
+func findDurationSlot(homeDir string, proj *project.ProjectEntry, baseDate time.Time, minutes int, now time.Time) (time.Time, error) {
+	windows, _, _, err := getDayScheduleWindows(homeDir, proj, baseDate)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if len(windows) == 0 {
+		return time.Time{}, fmt.Errorf("no schedule windows")
+	}
+
+	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return timetrack.FindAvailableSlot(logs, windows, baseDate, minutes, now.Location())
 }
 
 // formatWindowsSummary formats schedule windows as a comma-separated summary.
