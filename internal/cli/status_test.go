@@ -36,7 +36,7 @@ func setupStatusTest(t *testing.T) (homeDir string, proj *project.ProjectEntry) 
 
 func execStatus(
 	homeDir, repoDir, projectFlag string,
-	gitBranch func() (string, error),
+	gitBranch func(string) (string, error),
 	now func() time.Time,
 ) (string, error) {
 	stdout := new(bytes.Buffer)
@@ -47,12 +47,12 @@ func execStatus(
 	return stdout.String(), err
 }
 
-func mockGitBranch(name string) func() (string, error) {
-	return func() (string, error) { return name, nil }
+func mockGitBranch(name string) func(string) (string, error) {
+	return func(string) (string, error) { return name, nil }
 }
 
-func mockGitBranchErr() func() (string, error) {
-	return func() (string, error) { return "", errors.New("not a git repo") }
+func mockGitBranchErr() func(string) (string, error) {
+	return func(string) (string, error) { return "", errors.New("not a git repo") }
 }
 
 func mockNow(t time.Time) func() time.Time {
@@ -225,6 +225,94 @@ func TestStatusMultiWindowSchedule(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "9:00 AM - 12:00 PM")
 	assert.Contains(t, stdout, "1:00 PM - 5:00 PM")
+}
+
+func TestStatusCrossProjectShowsCorrectBranch(t *testing.T) {
+	homeDir, proj := setupStatusTest(t)
+
+	require.NoError(t, project.SetSchedules(homeDir, proj.ID, weekdaySchedule(9, 0, 17, 0)))
+
+	// Saturday so we get "not a working day" and skip schedule logic
+	now := time.Date(2025, 6, 14, 10, 0, 0, 0, time.UTC)
+
+	// Read config to get the assigned repo path
+	cfg, err := project.ReadConfig(homeDir)
+	require.NoError(t, err)
+	cfgEntry := project.FindProjectByID(cfg, proj.ID)
+	require.NotNil(t, cfgEntry)
+	require.NotEmpty(t, cfgEntry.Repos)
+	expectedRepoDir := cfgEntry.Repos[0]
+
+	// Use a different repoDir (simulating CWD in a different project's repo)
+	differentRepoDir := t.TempDir()
+
+	// Mock verifies the correct repo dir is passed
+	var calledWithDir string
+	gitBranch := func(repoDir string) (string, error) {
+		calledWithDir = repoDir
+		return "feature/other-project", nil
+	}
+
+	stdout, err := execStatus(homeDir, differentRepoDir, proj.Name, gitBranch, mockNow(now))
+
+	require.NoError(t, err)
+	assert.Equal(t, expectedRepoDir, calledWithDir, "should query the project's repo, not CWD")
+	assert.Contains(t, stdout, "feature/other-project")
+}
+
+func TestStatusCrossProjectCWDMatchesProjectRepo(t *testing.T) {
+	homeDir, proj := setupStatusTest(t)
+
+	require.NoError(t, project.SetSchedules(homeDir, proj.ID, weekdaySchedule(9, 0, 17, 0)))
+
+	// Saturday so we get "not a working day" and skip schedule logic
+	now := time.Date(2025, 6, 14, 10, 0, 0, 0, time.UTC)
+
+	// Read config to get the assigned repo path
+	cfg, err := project.ReadConfig(homeDir)
+	require.NoError(t, err)
+	cfgEntry := project.FindProjectByID(cfg, proj.ID)
+	require.NotNil(t, cfgEntry)
+	require.NotEmpty(t, cfgEntry.Repos)
+	assignedRepo := cfgEntry.Repos[0]
+
+	// CWD matches the project's repo — should use CWD, not just Repos[0]
+	var calledWithDir string
+	gitBranch := func(repoDir string) (string, error) {
+		calledWithDir = repoDir
+		return "main", nil
+	}
+
+	_, err = execStatus(homeDir, assignedRepo, proj.Name, gitBranch, mockNow(now))
+
+	require.NoError(t, err)
+	assert.Equal(t, assignedRepo, calledWithDir, "should use CWD when it matches a project repo")
+}
+
+func TestStatusNoReposNoBranch(t *testing.T) {
+	homeDir := t.TempDir()
+
+	// Create project without assigning any repo
+	proj, err := project.CreateProject(homeDir, "No Repos Project")
+	require.NoError(t, err)
+
+	require.NoError(t, project.SetSchedules(homeDir, proj.ID, weekdaySchedule(9, 0, 17, 0)))
+
+	// Saturday so we get "not a working day" and skip schedule logic
+	now := time.Date(2025, 6, 14, 10, 0, 0, 0, time.UTC)
+
+	branchCalled := false
+	gitBranch := func(string) (string, error) {
+		branchCalled = true
+		return "main", nil
+	}
+
+	stdout, err := execStatus(homeDir, "", proj.Name, gitBranch, mockNow(now))
+
+	require.NoError(t, err)
+	assert.False(t, branchCalled, "should not call gitBranchFunc when no repos assigned")
+	assert.NotContains(t, stdout, "Branch:")
+	assert.Contains(t, stdout, "No Repos Project")
 }
 
 func TestStatusRegisteredAsSubcommand(t *testing.T) {
