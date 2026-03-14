@@ -85,12 +85,14 @@ func runStatus(
 		}
 	}
 
-	// Last checkout
-	checkouts, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
+	// Load all entries once
+	entries, err := LoadProjectEntries(homeDir, proj.Slug)
 	if err != nil {
 		return err
 	}
-	if last := findLastCheckout(checkouts); last != nil {
+
+	// Last checkout
+	if last := findLastCheckout(entries.Checkouts); last != nil {
 		ago := formatDurationAgo(now.Sub(last.Timestamp))
 		_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Checked out:"), Text(ago+" ago"))
 	}
@@ -121,13 +123,8 @@ func runStatus(
 		return nil
 	}
 
-	// Compute today's logged time
-	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
-	if err != nil {
-		return err
-	}
-
-	// Expand schedules for the whole month (needed by BuildReport)
+	// Compute today's logged time (with activity-aware idle trimming)
+	// Expand schedules for the whole month (needed by ComputeDayBudget)
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	monthEnd := time.Date(now.Year(), now.Month()+1, 0, 23, 59, 59, 0, time.UTC)
 	monthSchedules, err := schedule.ExpandSchedules(schedules, monthStart, monthEnd)
@@ -135,39 +132,18 @@ func runStatus(
 		return err
 	}
 
-	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
-	if err != nil {
-		return err
-	}
-
-	report := timetrack.BuildReport(checkouts, logs, commits, monthSchedules, now.Year(), now.Month(), now, nil)
-
-	todayMinutes := 0
-	for _, row := range report.Rows {
-		if mins, ok := row.Days[now.Day()]; ok {
-			todayMinutes += mins
-		}
-	}
-
-	// Total scheduled minutes for today
-	totalScheduled := 0
-	for _, win := range todaySchedule.Windows {
-		fromMins := win.From.Hour*60 + win.From.Minute
-		toMins := win.To.Hour*60 + win.To.Minute
-		totalScheduled += toMins - fromMins
-	}
-
-	remaining := totalScheduled - todayMinutes
-	if remaining < 0 {
-		remaining = 0
-	}
+	budget := timetrack.ComputeDayBudget(
+		entries.Checkouts, entries.Logs, entries.Commits,
+		monthSchedules, now, now,
+		timetrack.ActivityEntries{Stops: entries.ActivityStops, Starts: entries.ActivityStarts},
+	)
 
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintf(w, "%s  %s  %s  %s\n",
 		Silent("Today:"),
-		Primary(entry.FormatMinutes(todayMinutes)+" logged"),
+		Primary(entry.FormatMinutes(budget.LoggedMinutes)+" logged"),
 		Silent("·"),
-		Text(entry.FormatMinutes(remaining)+" remaining"),
+		Text(entry.FormatMinutes(budget.RemainingMinutes)+" remaining"),
 	)
 
 	// Schedule line

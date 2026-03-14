@@ -277,32 +277,12 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 		return nil, err
 	}
 
-	logs, err := entry.ReadAllEntries(homeDir, proj.Slug)
-	if err != nil {
-		return nil, err
-	}
-
-	checkouts, err := entry.ReadAllCheckoutEntries(homeDir, proj.Slug)
-	if err != nil {
-		return nil, err
-	}
-
-	commits, err := entry.ReadAllCommitEntries(homeDir, proj.Slug)
+	entries, err := LoadProjectEntries(homeDir, proj.Slug)
 	if err != nil {
 		return nil, err
 	}
 
 	submits, err := entry.ReadAllSubmitEntries(homeDir, proj.Slug)
-	if err != nil {
-		return nil, err
-	}
-
-	activityStops, err := entry.ReadAllActivityStopEntries(homeDir, proj.Slug)
-	if err != nil {
-		return nil, err
-	}
-
-	activityStarts, err := entry.ReadAllActivityStartEntries(homeDir, proj.Slug)
 	if err != nil {
 		return nil, err
 	}
@@ -315,13 +295,13 @@ func loadReportInputs(homeDir, repoDir, projectFlag, monthFlag, weekFlag, yearFl
 
 	return &reportInputs{
 		proj:           proj,
-		checkouts:      checkouts,
-		logs:           logs,
-		commits:        commits,
+		checkouts:      entries.Checkouts,
+		logs:           entries.Logs,
+		commits:        entries.Commits,
 		schedules:      daySchedules,
 		submits:        submits,
-		activityStops:  activityStops,
-		activityStarts: activityStarts,
+		activityStops:  entries.ActivityStops,
+		activityStarts: entries.ActivityStarts,
 		from:           from,
 		to:             to,
 		year:           year,
