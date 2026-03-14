@@ -47,13 +47,17 @@ func (m reportModel) renderDetailPanel() string {
 			marker = "> "
 		}
 
+		fromStr := ce.Start.Format("15:04")
+		toStr := ce.Start.Add(time.Duration(ce.Minutes) * time.Minute).Format("15:04")
+		timeRange := fmt.Sprintf("%s–%s", fromStr, toStr)
+
 		durStr := entry.FormatMinutes(ce.Minutes)
 		msg := ce.Message
 		if msg == "" {
 			msg = "(no message)"
 		}
 
-		line := fmt.Sprintf("%s%s  %s", marker, padRight(durStr, 7), msg)
+		line := fmt.Sprintf("%s%s  %s  %s", marker, padRight(timeRange, 13), padRight(durStr, 7), msg)
 		if i == m.selectedEntryIdx {
 			b.WriteString(headerStyle.Render(line))
 		} else {
