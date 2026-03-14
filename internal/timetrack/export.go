@@ -66,20 +66,16 @@ func BuildExportData(
 		}
 	}
 
-	scheduleWindows, scheduledMins := buildScheduleLookup(daySchedules, year, month)
+	scheduleWindows, _ := buildScheduleLookup(daySchedules, year, month)
 
-	// Use segment-based approach when commits are available
-	var segments []sessionSegment
-	var checkoutBucket map[string]map[int]int
-	if len(commits) > 0 {
-		segments = buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
-		if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
-			segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
-		}
-		checkoutBucket = buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, now.Location())
-	} else {
-		checkoutBucket = buildCheckoutBucket(checkouts, year, month, daysInMonth, scheduleWindows, now)
+	loc := now.Location()
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+	if len(activity) > 0 && (len(activity[0].Stops) > 0 || len(activity[0].Starts) > 0) {
+		segments = trimSegmentsByIdleGaps(segments, activity[0].Stops, activity[0].Starts)
 	}
+	// Trim manual log time ranges from checkout segments
+	segments = deductLogOverlaps(segments, logs, year, month, loc)
+	checkoutBucket := buildSegmentBucket(segments, year, month, daysInMonth, scheduleWindows, loc)
 
 	// Zero out checkout attribution for generated days
 	for day := range generatedSet {
@@ -87,16 +83,6 @@ func BuildExportData(
 			delete(checkoutBucket[branch], day)
 		}
 	}
-
-	// Build log minutes by day for deduction
-	logMinsByDay := make(map[int]int)
-	for _, l := range logs {
-		if l.Start.Year() == year && l.Start.Month() == month {
-			logMinsByDay[l.Start.Day()] += l.Minutes
-		}
-	}
-
-	deductScheduleOverrun(checkoutBucket, logMinsByDay, scheduledMins, daysInMonth, generatedSet)
 
 	// Build per-day data: day -> task -> []ExportEntry
 	type dayTask struct {
