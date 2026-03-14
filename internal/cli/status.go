@@ -29,11 +29,12 @@ var statusCmd = LeafCommand{
 		projectFlag, _ := cmd.Flags().GetString("project")
 		return runStatus(cmd, homeDir, repoDir, projectFlag, defaultGitBranch, time.Now)
 	},
+
 }.Build()
 
-// defaultGitBranch returns the current git branch name.
-func defaultGitBranch() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+// defaultGitBranch returns the current git branch name for the given repo directory.
+func defaultGitBranch(repoDir string) (string, error) {
+	out, err := exec.Command("git", "-C", repoDir, "rev-parse", "--abbrev-ref", "HEAD").Output()
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +44,7 @@ func defaultGitBranch() (string, error) {
 func runStatus(
 	cmd *cobra.Command,
 	homeDir, repoDir, projectFlag string,
-	gitBranchFunc func() (string, error),
+	gitBranchFunc func(repoDir string) (string, error),
 	nowFunc func() time.Time,
 ) error {
 	proj, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
@@ -62,10 +63,26 @@ func runStatus(
 	// Project
 	_, _ = fmt.Fprintf(w, "%s  %s\n", Silent("Project:"), Primary(proj.Name))
 
+	// Resolve the repo directory for branch lookup:
+	// If CWD is one of the project's repos, use it; otherwise pick the first assigned repo.
+	branchRepoDir := ""
+	cfgEntry := project.FindProjectByID(cfg, proj.ID)
+	if cfgEntry != nil && len(cfgEntry.Repos) > 0 {
+		branchRepoDir = cfgEntry.Repos[0]
+		for _, r := range cfgEntry.Repos {
+			if r == repoDir {
+				branchRepoDir = repoDir
+				break
+			}
+		}
+	}
+
 	// Branch
-	branch, branchErr := gitBranchFunc()
-	if branchErr == nil && branch != "" {
-		_, _ = fmt.Fprintf(w, "%s   %s\n", Silent("Branch:"), Primary(branch))
+	if branchRepoDir != "" {
+		branch, branchErr := gitBranchFunc(branchRepoDir)
+		if branchErr == nil && branch != "" {
+			_, _ = fmt.Fprintf(w, "%s   %s\n", Silent("Branch:"), Primary(branch))
+		}
 	}
 
 	// Last checkout
@@ -173,7 +190,6 @@ func runStatus(
 	}
 
 	// Watcher state (only when precise mode is enabled)
-	cfgEntry := project.FindProjectByID(cfg, proj.ID)
 	if cfgEntry != nil && cfgEntry.Precise {
 		daemonRunning, _, _ := watch.IsDaemonRunning(homeDir)
 		if daemonRunning {
