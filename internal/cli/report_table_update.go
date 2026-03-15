@@ -149,6 +149,7 @@ func (m reportModel) handleEdit() (tea.Model, tea.Cmd) {
 
 	if ce.Persisted && ce.Entry != nil {
 		// Update existing persisted entry
+		ce.Entry.Start = ce.Start
 		ce.Entry.Minutes = ce.Minutes
 		ce.Entry.Task = ce.Task
 		ce.Entry.Message = ce.Message
