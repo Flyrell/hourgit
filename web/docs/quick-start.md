@@ -32,8 +32,8 @@ git checkout fix/login-bug
 For meetings, reviews, research, or anything that isn't a branch switch:
 
 ```bash
-hourgit log --duration 1h30m "standup"
-hourgit log --from 9am --to 10:30am "code review"
+hourgit log add --duration 1h30m "standup"
+hourgit log add --from 9am --to 10:30am "code review"
 ```
 
 ## 4. View the interactive report
