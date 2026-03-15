@@ -39,8 +39,7 @@ var projectRemoveCmd = LeafCommand{
 		}
 
 		if identifier == "" {
-			// Fall back to repo config
-			entry, err := resolveProjectFromRepo(homeDir, repoDir)
+			entry, err := ResolveProjectContext(homeDir, repoDir, "")
 			if err != nil {
 				return err
 			}
@@ -98,35 +97,4 @@ func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm Co
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' removed", Primary(entry.Name))))
 	return nil
-}
-
-// resolveProjectFromRepo resolves a project from the current repo's config.
-func resolveProjectFromRepo(homeDir, repoDir string) (*project.ProjectEntry, error) {
-	if repoDir == "" {
-		return nil, fmt.Errorf("no project specified (use positional arg, --project flag, or run from an assigned repo)")
-	}
-
-	repoCfg, err := project.ReadRepoConfig(repoDir)
-	if err != nil {
-		return nil, err
-	}
-	if repoCfg == nil {
-		return nil, fmt.Errorf("no project specified (use positional arg, --project flag, or run from an assigned repo)")
-	}
-
-	cfg, err := project.ReadConfig(homeDir)
-	if err != nil {
-		return nil, err
-	}
-
-	entry := project.FindProjectByID(cfg, repoCfg.ProjectID)
-	if entry != nil {
-		return entry, nil
-	}
-	entry = project.FindProject(cfg, repoCfg.Project)
-	if entry != nil {
-		return entry, nil
-	}
-
-	return nil, fmt.Errorf("project '%s' from repo config not found in registry", repoCfg.Project)
 }

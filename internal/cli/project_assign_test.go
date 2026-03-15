@@ -245,8 +245,8 @@ func TestProjectAssignAutoDetectFromRepo(t *testing.T) {
 	_, _, err := execProjectAssign(dir, AlwaysYes(), "Auto Project")
 	require.NoError(t, err)
 
-	// Verify auto-detection works via resolveProjectFromRepo
-	resolved, err := resolveProjectFromRepo(home, dir)
+	// Verify auto-detection works via ResolveProjectContext (same as RunE fallback)
+	resolved, err := ResolveProjectContext(home, dir, "")
 	require.NoError(t, err)
 	assert.Equal(t, "Auto Project", resolved.Name)
 }
