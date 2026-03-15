@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var editCmd = LeafCommand{
+var logEditCmd = LeafCommand{
 	Use:   "edit <hash>",
 	Short: "Edit an existing log entry",
 	Args:  cobra.ExactArgs(1),
@@ -57,13 +57,13 @@ var editCmd = LeafCommand{
 		} else {
 			confirm = pk.Confirm
 		}
-		return runEdit(cmd, homeDir, repoDir, projectFlag, args[0],
+		return runLogEdit(cmd, homeDir, repoDir, projectFlag, args[0],
 			durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag,
 			flagsChanged, pk, confirm, time.Now)
 	},
 }.Build()
 
-func runEdit(
+func runLogEdit(
 	cmd *cobra.Command,
 	homeDir, repoDir, projectFlag, hash string,
 	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,

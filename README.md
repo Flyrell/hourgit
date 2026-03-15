@@ -90,8 +90,8 @@ hourgit version
 
 3. **Log non-git work** manually:
    ```bash
-   hourgit log --duration 1h30m "standup"
-   hourgit log --from 9am --to 10:30am "standup"
+   hourgit log add --duration 1h30m "standup"
+   hourgit log add --from 9am --to 10:30am "standup"
    ```
 
 4. **View the interactive report:**
@@ -111,7 +111,7 @@ hourgit version
 
 Core commands for recording, viewing, and managing your time entries.
 
-Commands: `init` · `log` · `edit` · `remove` · `sync` · `report` · `history` · `status`
+Commands: `init` · `log add` · `log edit` · `log remove` · `sync` · `report` · `history` · `status`
 
 #### `hourgit init`
 
@@ -129,12 +129,12 @@ hourgit init [--project <name>] [--mode <mode>] [--force] [--append] [--yes]
 | `-a`, `--append` | `false` | Append to existing post-checkout hook |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-#### `hourgit log`
+#### `hourgit log add`
 
 Manually log time for a project. Uses a hybrid mode: provide any combination of flags and you'll be prompted only for the missing pieces.
 
 ```bash
-hourgit log [MESSAGE] [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [--project <name>]
+hourgit log add [MESSAGE] [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [--project <name>]
 ```
 
 | Flag | Default | Description |
@@ -152,25 +152,25 @@ hourgit log [MESSAGE] [--duration <dur>] [--from <time>] [--to <time>] [--date <
 
 ```bash
 # Fully specified — no prompts
-hourgit log --duration 3h "did some work"
-hourgit log --from 9am --to 12pm "morning work"
-hourgit log --duration 3h --date 2025-01-10 "forgot to log"
+hourgit log add --duration 3h "did some work"
+hourgit log add --from 9am --to 12pm "morning work"
+hourgit log add --duration 3h --date 2025-01-10 "forgot to log"
 
 # Partial flags — prompted for the rest
-hourgit log --duration 3h          # prompted for message
-hourgit log --from 9am             # prompted for --to and message
-hourgit log "meeting notes"        # prompted for time mode and inputs
+hourgit log add --duration 3h          # prompted for message
+hourgit log add --from 9am             # prompted for --to and message
+hourgit log add "meeting notes"        # prompted for time mode and inputs
 
 # Fully interactive
-hourgit log
+hourgit log add
 ```
 
-#### `hourgit edit`
+#### `hourgit log edit`
 
 Edit an existing log entry by its hash. When edit flags are provided, only those changes are applied directly. Without flags, an interactive editor opens with current values pre-filled.
 
 ```bash
-hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [-m <msg>] [--project <name>]
+hourgit log edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <date>] [--task <label>] [-m <msg>] [--project <name>]
 ```
 
 | Flag | Default | Description |
@@ -189,19 +189,19 @@ hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <da
 **Examples**
 
 ```bash
-hourgit edit abc1234 --duration 3h
-hourgit edit abc1234 --from 9am --to 12pm
-hourgit edit abc1234 --task "reviews"
-hourgit edit abc1234 -m "updated message"
-hourgit edit abc1234              # interactive mode
+hourgit log edit abc1234 --duration 3h
+hourgit log edit abc1234 --from 9am --to 12pm
+hourgit log edit abc1234 --task "reviews"
+hourgit log edit abc1234 -m "updated message"
+hourgit log edit abc1234              # interactive mode
 ```
 
-#### `hourgit remove`
+#### `hourgit log remove`
 
 Remove a log or checkout entry by its hash.
 
 ```bash
-hourgit remove <hash> [--project <name>] [--yes]
+hourgit log remove <hash> [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
@@ -209,7 +209,7 @@ hourgit remove <hash> [--project <name>] [--yes]
 | `-p`, `--project` | auto-detect | Project name or ID |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-> Works with both log and checkout entries (unlike `edit`, which only supports log entries). Shows entry details and asks for confirmation before deleting. If the entry is not found in the current repo's project, all projects are searched.
+> Works with both log and checkout entries (unlike `log edit`, which only supports log entries). Shows entry details and asks for confirmation before deleting. If the entry is not found in the current repo's project, all projects are searched.
 
 #### `hourgit sync`
 

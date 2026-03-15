@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupEditTest(t *testing.T) (homeDir string, repoDir string, proj *project.ProjectEntry, e entry.Entry) {
+func setupLogEditTest(t *testing.T) (homeDir string, repoDir string, proj *project.ProjectEntry, e entry.Entry) {
 	t.Helper()
 	homeDir = t.TempDir()
 	repoDir = t.TempDir()
@@ -41,36 +41,36 @@ func setupEditTest(t *testing.T) (homeDir string, repoDir string, proj *project.
 	return homeDir, repoDir, p, e
 }
 
-func execEdit(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
+func execLogEdit(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
 	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,
 ) (string, error) {
-	return execEditWithConfirm(homeDir, repoDir, projectFlag, hash, flags,
+	return execLogEditWithConfirm(homeDir, repoDir, projectFlag, hash, flags,
 		durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag, nil)
 }
 
-func execEditWithConfirm(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
+func execLogEditWithConfirm(homeDir, repoDir, projectFlag, hash string, flags map[string]bool,
 	durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag string,
 	confirm ConfirmFunc,
 ) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := editCmd
+	cmd := logEditCmd
 	cmd.SetOut(stdout)
 
 	if flags == nil {
 		flags = map[string]bool{}
 	}
 
-	err := runEdit(cmd, homeDir, repoDir, projectFlag, hash,
+	err := runLogEdit(cmd, homeDir, repoDir, projectFlag, hash,
 		durationFlag, fromFlag, toFlag, dateFlag, taskFlag, messageFlag,
 		flags, PromptKit{}, confirm, fixedNow)
 	return stdout.String(), err
 }
 
-func TestEditDurationOnly(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditDurationOnly(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "duration:")
@@ -88,11 +88,11 @@ func TestEditDurationOnly(t *testing.T) {
 	assert.Equal(t, "coding", e.Task)
 }
 
-func TestEditFromToMode(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditFromToMode(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "1pm", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "1pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -103,12 +103,12 @@ func TestEditFromToMode(t *testing.T) {
 	assert.Equal(t, 180, e.Minutes)
 }
 
-func TestEditFromOnly(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditFromOnly(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Original: 9:00 - 12:00 (180 min). Change from to 10:00, keep duration (3h) → to shifts to 13:00.
 	flags := map[string]bool{"from": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -119,12 +119,12 @@ func TestEditFromOnly(t *testing.T) {
 	assert.Equal(t, 180, e.Minutes) // duration preserved: 3h
 }
 
-func TestEditToOnly(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditToOnly(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Original: 9:00 - 12:00 (180 min). Change end to 2pm, keep start at 9:00.
 	flags := map[string]bool{"to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "2pm", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "2pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -135,11 +135,11 @@ func TestEditToOnly(t *testing.T) {
 	assert.Equal(t, 300, e.Minutes) // 9:00 - 14:00 = 5h
 }
 
-func TestEditDateOnly(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditDateOnly(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"date": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "2025-07-01", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "2025-07-01", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -156,11 +156,11 @@ func TestEditDateOnly(t *testing.T) {
 	assert.Equal(t, 180, e.Minutes)
 }
 
-func TestEditTask(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditTask(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "reviews", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "reviews", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "task:")
@@ -171,11 +171,11 @@ func TestEditTask(t *testing.T) {
 	assert.Equal(t, "reviews", e.Task)
 }
 
-func TestEditClearTask(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditClearTask(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "task:")
@@ -186,11 +186,11 @@ func TestEditClearTask(t *testing.T) {
 	assert.Equal(t, "", e.Task)
 }
 
-func TestEditMessage(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditMessage(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"message": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "updated work")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "updated work")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "message:")
@@ -201,22 +201,22 @@ func TestEditMessage(t *testing.T) {
 	assert.Equal(t, "updated work", e.Message)
 }
 
-func TestEditEmptyMessageError(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditEmptyMessageError(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"message": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "message is required")
 }
 
-func TestEditDurationAndFrom(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditDurationAndFrom(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Original: 9:00-12:00 (180 min). --duration 2h --from 10am → 10:00-12:00
 	flags := map[string]bool{"duration": true, "from": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -227,12 +227,12 @@ func TestEditDurationAndFrom(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes)
 }
 
-func TestEditDurationAndTo(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditDurationAndTo(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Original: 9:00-12:00 (180 min). --duration 2h --to 2pm → from = 12:00, 2h
 	flags := map[string]bool{"duration": true, "to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "2pm", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "2pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -243,12 +243,12 @@ func TestEditDurationAndTo(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes)
 }
 
-func TestEditAllThreeConsistent(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditAllThreeConsistent(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// --from 10am --to 12pm --duration 2h → consistent, should succeed
 	flags := map[string]bool{"duration": true, "from": true, "to": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "12pm", "", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "12pm", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -259,85 +259,85 @@ func TestEditAllThreeConsistent(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes)
 }
 
-func TestEditAllThreeInconsistent(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditAllThreeInconsistent(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// --from 10am --to 12pm --duration 3h → inconsistent (2h ≠ 3h)
 	flags := map[string]bool{"duration": true, "from": true, "to": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "3h", "10am", "12pm", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "3h", "10am", "12pm", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match")
 }
 
-func TestEditToBeforeStart(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditToBeforeStart(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Original: 9:00-12:00. Set --to to 8am → error (before 9:00 start)
 	flags := map[string]bool{"to": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "8am", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "8am", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "must be after")
 }
 
-func TestEditInvalidFromFlag(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditInvalidFromFlag(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"from": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "invalid", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "invalid", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid --from time")
 }
 
-func TestEditInvalidToFlag(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditInvalidToFlag(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"to": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "invalid", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "invalid", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid --to time")
 }
 
-func TestEditExceeds24Hours(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditExceeds24Hours(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "25h", "", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "25h", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot log more than 24h")
 }
 
-func TestEditNotFound(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditNotFound(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "nonexistent", flags, "2h", "", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "nonexistent", flags, "2h", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestEditNoChanges(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditNoChanges(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Set task to same value
 	flags := map[string]bool{"task": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "coding", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "", "", "coding", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "no changes")
 	assert.NotContains(t, stdout, "updated entry")
 }
 
-func TestEditPreservesIDAndCreatedAt(t *testing.T) {
-	homeDir, repoDir, proj, original := setupEditTest(t)
+func TestLogEditPreservesIDAndCreatedAt(t *testing.T) {
+	homeDir, repoDir, proj, original := setupLogEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "5h", "", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "5h", "", "", "", "", "")
 
 	require.NoError(t, err)
 
@@ -347,11 +347,11 @@ func TestEditPreservesIDAndCreatedAt(t *testing.T) {
 	assert.True(t, original.CreatedAt.Equal(e.CreatedAt))
 }
 
-func TestEditByProjectFlag(t *testing.T) {
-	homeDir, _, proj, _ := setupEditTest(t)
+func TestLogEditByProjectFlag(t *testing.T) {
+	homeDir, _, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, "", proj.Name, "ed01234", flags, "1h", "", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, "", proj.Name, "ed01234", flags, "1h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -361,7 +361,7 @@ func TestEditByProjectFlag(t *testing.T) {
 	assert.Equal(t, 60, e.Minutes)
 }
 
-func TestEditCrossProjectScan(t *testing.T) {
+func TestLogEditCrossProjectScan(t *testing.T) {
 	homeDir := t.TempDir()
 
 	// Create a project without repo assignment
@@ -383,7 +383,7 @@ func TestEditCrossProjectScan(t *testing.T) {
 
 	// No repo, no project flag — should scan and find it
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEdit(homeDir, "", "", "5c01234", flags, "2h", "", "", "", "", "")
+	stdout, err := execLogEdit(homeDir, "", "", "5c01234", flags, "2h", "", "", "", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -393,11 +393,11 @@ func TestEditCrossProjectScan(t *testing.T) {
 	assert.Equal(t, 120, updated.Minutes)
 }
 
-func TestEditInteractiveMode(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditInteractiveMode(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	stdout := new(bytes.Buffer)
-	cmd := editCmd
+	cmd := logEditCmd
 	cmd.SetOut(stdout)
 
 	pk := PromptKit{
@@ -419,7 +419,7 @@ func TestEditInteractiveMode(t *testing.T) {
 	}
 
 	flags := map[string]bool{} // no flags = interactive mode
-	err := runEdit(cmd, homeDir, repoDir, "", "ed01234",
+	err := runLogEdit(cmd, homeDir, repoDir, "", "ed01234",
 		"", "", "", "", "", "",
 		flags, pk, nil, fixedNow)
 
@@ -432,20 +432,11 @@ func TestEditInteractiveMode(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes) // from 10:00, duration 2h
 }
 
-func TestEditRegisteredAsSubcommand(t *testing.T) {
-	root := newRootCmd()
-	names := make([]string, len(root.Commands()))
-	for i, cmd := range root.Commands() {
-		names[i] = cmd.Name()
-	}
-	assert.Contains(t, names, "edit")
-}
-
-func TestEditDateAndFrom(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditDateAndFrom(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	flags := map[string]bool{"date": true, "from": true}
-	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "2025-08-01", "", "")
+	stdout, err := execLogEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "2025-08-01", "", "")
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
@@ -460,8 +451,8 @@ func TestEditDateAndFrom(t *testing.T) {
 	assert.Equal(t, 180, e.Minutes)
 }
 
-func TestEditScheduleWarningOutsideHours(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditScheduleWarningOutsideHours(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Original entry: 2025-06-16 (Monday) 9:00–12:00, within default 9–17 schedule.
 	// Move it to 22:00–01:00 — completely outside schedule.
@@ -472,7 +463,7 @@ func TestEditScheduleWarningOutsideHours(t *testing.T) {
 	}
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
+	stdout, err := execLogEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", confirm)
 
 	require.NoError(t, err)
@@ -481,8 +472,8 @@ func TestEditScheduleWarningOutsideHours(t *testing.T) {
 	assert.Contains(t, stdout, "updated entry")
 }
 
-func TestEditScheduleWarningDeclined(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditScheduleWarningDeclined(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Move to outside schedule, but decline the warning
 	confirm := func(prompt string) (bool, error) {
@@ -490,15 +481,15 @@ func TestEditScheduleWarningDeclined(t *testing.T) {
 	}
 
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
+	stdout, err := execLogEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", confirm)
 
 	require.NoError(t, err)
 	assert.NotContains(t, stdout, "updated entry")
 }
 
-func TestEditMessageOnlyNoWarning(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditMessageOnlyNoWarning(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Only change message — no schedule warning should trigger
 	confirmed := false
@@ -508,7 +499,7 @@ func TestEditMessageOnlyNoWarning(t *testing.T) {
 	}
 
 	flags := map[string]bool{"message": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
+	stdout, err := execLogEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "", "", "", "", "new message", confirm)
 
 	require.NoError(t, err)
@@ -516,20 +507,20 @@ func TestEditMessageOnlyNoWarning(t *testing.T) {
 	assert.Contains(t, stdout, "updated entry")
 }
 
-func TestEditYesFlagSkipsWarning(t *testing.T) {
-	homeDir, repoDir, _, _ := setupEditTest(t)
+func TestLogEditYesFlagSkipsWarning(t *testing.T) {
+	homeDir, repoDir, _, _ := setupLogEditTest(t)
 
 	// Move to outside schedule with --yes (AlwaysYes)
 	flags := map[string]bool{"from": true, "to": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
+	stdout, err := execLogEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"", "22:00", "23:00", "", "", "", AlwaysYes())
 
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "updated entry")
 }
 
-func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditBudgetExcludesCurrentEntry(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Original entry: edt1234, 9:00–12:00 (180 min) on Monday.
 	// Add another 5h entry to fill up most of the 8h budget.
@@ -551,7 +542,7 @@ func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
 	}
 
 	flags := map[string]bool{"duration": true}
-	stdout, err := execEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
+	stdout, err := execLogEditWithConfirm(homeDir, repoDir, "", "ed01234", flags,
 		"2h", "", "", "", "", "", confirm)
 
 	require.NoError(t, err)
@@ -559,8 +550,8 @@ func TestEditBudgetExcludesCurrentEntry(t *testing.T) {
 	assert.Contains(t, stdout, "updated entry")
 }
 
-func TestEditCheckoutEntryRejected(t *testing.T) {
-	homeDir, repoDir, proj, _ := setupEditTest(t)
+func TestLogEditCheckoutEntryRejected(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupLogEditTest(t)
 
 	// Write a checkout entry
 	ce := entry.CheckoutEntry{
@@ -573,7 +564,7 @@ func TestEditCheckoutEntryRejected(t *testing.T) {
 	require.NoError(t, entry.WriteCheckoutEntry(homeDir, proj.Slug, ce))
 
 	flags := map[string]bool{"duration": true}
-	_, err := execEdit(homeDir, repoDir, "", "c009999", flags, "2h", "", "", "", "", "")
+	_, err := execLogEdit(homeDir, repoDir, "", "c009999", flags, "2h", "", "", "", "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot be edited")
