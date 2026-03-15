@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var removeCmd = LeafCommand{
+var logRemoveCmd = LeafCommand{
 	Use:   "remove <hash>",
 	Short: "Remove a log or checkout entry",
 	Args:  cobra.ExactArgs(1),
@@ -34,11 +34,11 @@ var removeCmd = LeafCommand{
 			confirm = NewConfirmFunc()
 		}
 
-		return runRemove(cmd, homeDir, repoDir, projectFlag, args[0], confirm)
+		return runLogRemove(cmd, homeDir, repoDir, projectFlag, args[0], confirm)
 	},
 }.Build()
 
-func runRemove(cmd *cobra.Command, homeDir, repoDir, projectFlag, hash string, confirm ConfirmFunc) error {
+func runLogRemove(cmd *cobra.Command, homeDir, repoDir, projectFlag, hash string, confirm ConfirmFunc) error {
 	slug, entryType, detail, err := locateAnyEntry(homeDir, repoDir, projectFlag, hash)
 	if err != nil {
 		return err
