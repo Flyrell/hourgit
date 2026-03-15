@@ -11,5 +11,6 @@ var projectCmd = GroupCommand{
 		projectEditCmd,
 		projectListCmd,
 		projectRemoveCmd,
+		scheduleCmd,
 	},
 }.Build()

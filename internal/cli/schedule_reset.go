@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var configResetCmd = LeafCommand{
+var scheduleResetCmd = LeafCommand{
 	Use:   "reset",
 	Short: "Reset a project's schedule to the defaults",
 	StrFlags: []StringFlag{
@@ -27,11 +27,11 @@ var configResetCmd = LeafCommand{
 		yes, _ := cmd.Flags().GetBool("yes")
 		confirm := ResolveConfirmFunc(yes)
 
-		return runConfigReset(cmd, homeDir, repoDir, projectFlag, confirm)
+		return runScheduleReset(cmd, homeDir, repoDir, projectFlag, confirm)
 	},
 }.Build()
 
-func runConfigReset(cmd *cobra.Command, homeDir, repoDir, projectFlag string, confirm ConfirmFunc) error {
+func runScheduleReset(cmd *cobra.Command, homeDir, repoDir, projectFlag string, confirm ConfirmFunc) error {
 	entry, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
 	if err != nil {
 		return err

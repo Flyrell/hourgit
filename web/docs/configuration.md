@@ -4,7 +4,7 @@ Hourgit uses a schedule system to define working hours. The factory default is *
 
 ## Schedule Types
 
-The interactive schedule editor (`config set` / `defaults set`) supports three schedule types:
+The interactive schedule editor (`project schedule set` / `defaults schedule set`) supports three schedule types:
 
 - **Recurring** — repeats on a regular pattern (e.g., every weekday, every Monday/Wednesday/Friday)
 - **One-off** — applies to a single specific date (e.g., a holiday or overtime day)
@@ -18,16 +18,16 @@ Every project starts with a copy of the defaults. You can then customize a proje
 
 ```bash
 # View current schedule
-hourgit config get --project 'My Project'
+hourgit project schedule get --project 'My Project'
 
 # Edit schedule interactively
-hourgit config set --project 'My Project'
+hourgit project schedule set --project 'My Project'
 
 # Revert to defaults
-hourgit config reset --project 'My Project'
+hourgit project schedule reset --project 'My Project'
 
 # See expanded hours for a month
-hourgit config report --project 'My Project' --month 3
+hourgit project schedule report --project 'My Project' --month 3
 ```
 
 ## Precise Mode
@@ -49,11 +49,11 @@ Changes to defaults only affect newly created projects. Existing projects keep t
 
 ```bash
 # View defaults
-hourgit defaults get
+hourgit defaults schedule get
 
 # Edit defaults
-hourgit defaults set
+hourgit defaults schedule set
 
 # Reset to factory (Mon-Fri, 9-5)
-hourgit defaults reset
+hourgit defaults schedule reset
 ```

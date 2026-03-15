@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultsSetCmd = LeafCommand{
+var defaultsScheduleSetCmd = LeafCommand{
 	Use:   "set",
 	Short: "Interactively edit the default schedule for new projects",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -17,11 +17,11 @@ var defaultsSetCmd = LeafCommand{
 			return err
 		}
 		kit := NewPromptKit()
-		return runDefaultsSet(cmd, homeDir, kit)
+		return runDefaultsScheduleSet(cmd, homeDir, kit)
 	},
 }.Build()
 
-func runDefaultsSet(cmd *cobra.Command, homeDir string, kit PromptKit) error {
+func runDefaultsScheduleSet(cmd *cobra.Command, homeDir string, kit PromptKit) error {
 	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err

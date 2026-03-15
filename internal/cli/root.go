@@ -23,7 +23,6 @@ func newRootCmd() *cobra.Command {
 			statusCmd,
 			versionCmd,
 			projectCmd,
-			configCmd,
 			defaultsCmd,
 			completionCmd,
 			updateCmd,
