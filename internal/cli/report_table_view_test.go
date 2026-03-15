@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -9,10 +10,14 @@ import (
 )
 
 func buildDetailPanelModel(entries []timetrack.CellEntry, selectedIdx int) reportModel {
+	totalMin := 0
+	for _, e := range entries {
+		totalMin += e.Minutes
+	}
 	row := timetrack.DetailedTaskRow{
 		Name: "dev",
 		Days: map[int]*timetrack.CellData{
-			1: {Entries: entries, TotalMinutes: 0},
+			1: {Entries: entries, TotalMinutes: totalMin},
 		},
 	}
 	return reportModel{
@@ -51,8 +56,7 @@ func TestRenderDetailPanel_TimeRange(t *testing.T) {
 	m := buildDetailPanelModel(entries, 0)
 	out := m.renderDetailPanel()
 
-	assert.Contains(t, out, "09:00")
-	assert.Contains(t, out, "12:00")
+	assert.Contains(t, out, "09:00-12:00")
 	assert.Contains(t, out, "3h")
 	assert.Contains(t, out, "morning work")
 }
@@ -69,8 +73,7 @@ func TestRenderDetailPanel_EmptyMessage(t *testing.T) {
 	out := m.renderDetailPanel()
 
 	assert.Contains(t, out, "(no message)")
-	assert.Contains(t, out, "14:00")
-	assert.Contains(t, out, "15:00")
+	assert.Contains(t, out, "14:00-15:00")
 }
 
 func TestRenderDetailPanel_SelectedMarker(t *testing.T) {
@@ -82,9 +85,22 @@ func TestRenderDetailPanel_SelectedMarker(t *testing.T) {
 	m := buildDetailPanelModel(entries, 1)
 	out := m.renderDetailPanel()
 
-	assert.Contains(t, out, "> ")
-	assert.Contains(t, out, "first")
-	assert.Contains(t, out, "second")
+	lines := strings.Split(out, "\n")
+	var firstLine, secondLine string
+	for _, l := range lines {
+		if strings.Contains(l, "first") {
+			firstLine = l
+		}
+		if strings.Contains(l, "second") {
+			secondLine = l
+		}
+	}
+	assert.NotEmpty(t, firstLine, "should find line containing 'first'")
+	assert.NotEmpty(t, secondLine, "should find line containing 'second'")
+	assert.NotContains(t, firstLine, "> ", "first entry should not have selection marker")
+	assert.Contains(t, secondLine, "> ", "second entry should have selection marker")
+	assert.Contains(t, out, "09:00-10:00")
+	assert.Contains(t, out, "10:00-11:00")
 }
 
 func TestRenderDetailPanel_MidnightCrossing(t *testing.T) {
@@ -98,6 +114,20 @@ func TestRenderDetailPanel_MidnightCrossing(t *testing.T) {
 	m := buildDetailPanelModel(entries, 0)
 	out := m.renderDetailPanel()
 
-	assert.Contains(t, out, "23:30")
-	assert.Contains(t, out, "00:30")
+	assert.Contains(t, out, "23:30-00:30")
+}
+
+func TestRenderDetailPanel_ZeroStart(t *testing.T) {
+	entries := []timetrack.CellEntry{
+		{
+			Minutes: 90,
+			Message: "duration only",
+		},
+	}
+	m := buildDetailPanelModel(entries, 0)
+	out := m.renderDetailPanel()
+
+	assert.Contains(t, out, "1h 30m")
+	assert.Contains(t, out, "duration only")
+	assert.NotContains(t, out, "00:00-")
 }
