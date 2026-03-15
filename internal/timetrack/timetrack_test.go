@@ -123,7 +123,7 @@ func TestBuildReport_LogTaskKeyFallback(t *testing.T) {
 	report := BuildReport(nil, logs, nil, days, year, month, afterMonth(year, month), nil)
 
 	assert.Equal(t, 1, len(report.Rows))
-	assert.Equal(t, "did research", report.Rows[0].Name)
+	assert.Equal(t, "(no task)", report.Rows[0].Name)
 	assert.Equal(t, 120, report.Rows[0].TotalMinutes)
 }
 
@@ -316,6 +316,33 @@ func TestBuildDetailedReport_LogEntries(t *testing.T) {
 	assert.Equal(t, 2, len(cd.Entries))
 	assert.True(t, cd.Entries[0].Persisted)
 	assert.True(t, cd.Entries[1].Persisted)
+}
+
+func TestBuildDetailedReport_LogTaskKeyFallback(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+
+	days := []schedule.DaySchedule{workday(year, month, 2)}
+
+	logs := []entry.Entry{
+		{ID: "l1", Start: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Minutes: 60, Message: "did research", Task: ""},
+		{ID: "l2", Start: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Minutes: 60, Message: "wrote docs", Task: ""},
+	}
+
+	report := BuildDetailedReport(nil, logs, nil, days, from, to, afterMonth(year, month))
+
+	assert.Equal(t, 1, len(report.Rows))
+	row := findDetailedRow(report, "(no task)")
+	assert.NotNil(t, row)
+	assert.Equal(t, 120, row.TotalMinutes)
+
+	cd := row.Days[2]
+	assert.NotNil(t, cd)
+	assert.Equal(t, 120, cd.TotalMinutes)
+	assert.Equal(t, 2, len(cd.Entries))
+	assert.Equal(t, "did research", cd.Entries[0].Message)
+	assert.Equal(t, "wrote docs", cd.Entries[1].Message)
 }
 
 func TestBuildDetailedReport_CheckoutDeductedByLogs(t *testing.T) {
