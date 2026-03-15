@@ -82,22 +82,33 @@ func TestEntrySelectorOverlay_View(t *testing.T) {
 }
 
 func TestEditOverlay_FieldNavigation(t *testing.T) {
-	ce := timetrack.CellEntry{Minutes: 60, Message: "test", Task: "task"}
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
 	o := newEditOverlay(ce)
 
+	assert.Equal(t, editFieldFrom, o.field)
+
+	// Tab through all fields: From → To → Duration → Task → Message → Confirm
+	updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyTab})
+	o = updated.(*editOverlay)
+	assert.Equal(t, editFieldTo, o.field)
+
+	updated, _ = o.Update(tea.KeyMsg{Type: tea.KeyTab})
+	o = updated.(*editOverlay)
 	assert.Equal(t, editFieldDuration, o.field)
 
-	// Tab to next field
-	updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyTab})
+	updated, _ = o.Update(tea.KeyMsg{Type: tea.KeyTab})
 	o = updated.(*editOverlay)
 	assert.Equal(t, editFieldTask, o.field)
 
-	// Tab again
 	updated, _ = o.Update(tea.KeyMsg{Type: tea.KeyTab})
 	o = updated.(*editOverlay)
 	assert.Equal(t, editFieldMessage, o.field)
 
-	// Tab to confirm
 	updated, _ = o.Update(tea.KeyMsg{Type: tea.KeyTab})
 	o = updated.(*editOverlay)
 	assert.Equal(t, editFieldConfirm, o.field)
@@ -109,38 +120,90 @@ func TestEditOverlay_FieldNavigation(t *testing.T) {
 }
 
 func TestEditOverlay_TextInput(t *testing.T) {
-	ce := timetrack.CellEntry{Minutes: 60, Message: "", Task: ""}
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "",
+		Task:    "",
+	}
 	o := newEditOverlay(ce)
 
-	// Clear duration and type new one
-	o.duration = ""
-	for _, ch := range "2h" {
+	// First field is From — clear it and type new value
+	o.from = ""
+	for _, ch := range "10am" {
 		updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
 		o = updated.(*editOverlay)
 	}
-	assert.Equal(t, "2h", o.duration)
+	assert.Equal(t, "10am", o.from)
 
 	// Backspace
 	updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyBackspace})
 	o = updated.(*editOverlay)
-	assert.Equal(t, "2", o.duration)
+	assert.Equal(t, "10a", o.from)
 }
 
-func TestEditOverlay_InvalidDuration(t *testing.T) {
-	ce := timetrack.CellEntry{Minutes: 60, Message: "test", Task: "task"}
+func TestEditOverlay_InvalidFrom(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
 	o := newEditOverlay(ce)
-	o.duration = "invalid"
+	o.from = "invalid"
 	o.field = editFieldConfirm
 
 	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	o = updated.(*editOverlay)
 	assert.Nil(t, cmd) // No result — stays in overlay
-	assert.Contains(t, o.err, "Invalid duration")
+	assert.Contains(t, o.err, "Invalid from time")
+}
+
+func TestEditOverlay_InvalidTo(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
+	o := newEditOverlay(ce)
+	o.to = "invalid"
+	o.field = editFieldConfirm
+
+	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	o = updated.(*editOverlay)
+	assert.Nil(t, cmd)
+	assert.Contains(t, o.err, "Invalid to time")
+}
+
+func TestEditOverlay_ToBeforeFrom(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
+	o := newEditOverlay(ce)
+	o.from = "5pm"
+	o.to = "9am"
+	o.field = editFieldConfirm
+
+	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	o = updated.(*editOverlay)
+	assert.Nil(t, cmd)
+	assert.Contains(t, o.err, "To must be after From")
 }
 
 func TestEditOverlay_ValidSubmit(t *testing.T) {
-	ce := timetrack.CellEntry{Minutes: 60, Message: "test", Task: "task"}
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
 	o := newEditOverlay(ce)
+	o.from = "9:00"
+	o.to = "11:30"
 	o.duration = "2h30m"
 	o.task = "updated-task"
 	o.message = "updated-msg"
@@ -154,16 +217,24 @@ func TestEditOverlay_ValidSubmit(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "edit", result.action)
 	assert.Equal(t, 150, o.entry.Minutes) // 2h30m
+	assert.Equal(t, 9, o.entry.Start.Hour())
 	assert.Equal(t, "updated-task", o.entry.Task)
 	assert.Equal(t, "updated-msg", o.entry.Message)
 }
 
 func TestEditOverlay_View(t *testing.T) {
-	ce := timetrack.CellEntry{Minutes: 60, Message: "test", Task: "task"}
+	ce := timetrack.CellEntry{
+		Minutes: 60,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+		Task:    "task",
+	}
 	o := newEditOverlay(ce)
 
 	view := o.View()
 	assert.Contains(t, view, "Edit Entry")
+	assert.Contains(t, view, "From")
+	assert.Contains(t, view, "To")
 	assert.Contains(t, view, "Duration")
 	assert.Contains(t, view, "Task")
 	assert.Contains(t, view, "Message")
@@ -396,6 +467,8 @@ func TestReportModel_HandleEdit_PersistsInMemoryEntry(t *testing.T) {
 	}
 
 	editOv := newEditOverlay(ce)
+	editOv.from = "9:00"
+	editOv.to = "11:00"
 	editOv.duration = "2h"
 	editOv.task = "feature-x"
 	editOv.message = "feature-x"
@@ -431,4 +504,111 @@ func TestReportModel_HandleEdit_PersistsInMemoryEntry(t *testing.T) {
 	assert.Equal(t, modeNormal, rm.mode)
 	assert.Nil(t, rm.overlay)
 	assert.Contains(t, rm.footerMsg, "saved")
+}
+
+func TestEditOverlay_Interdependency_FromRecomputesTo(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 120,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+	}
+	o := newEditOverlay(ce)
+	// Initial: from=9:00, to=11:00, duration=2h
+	assert.Equal(t, "09:00", o.from)
+	assert.Equal(t, "11:00", o.to)
+	assert.Equal(t, "2h", o.duration)
+
+	// Change from to 10:00 and tab away → to should become 12:00 (keeping 2h duration)
+	o.from = "10:00"
+	// Advance field triggers recompute
+	o.advanceField()
+	assert.Equal(t, "12:00", o.to)
+	assert.Equal(t, "2h", o.duration)
+}
+
+func TestEditOverlay_Interdependency_ToRecomputesDuration(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 120,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+	}
+	o := newEditOverlay(ce)
+	// Navigate to To field
+	o.field = editFieldTo
+
+	// Change to to 14:00 and tab away → duration should become 5h (9:00 to 14:00)
+	o.to = "14:00"
+	o.advanceField()
+	assert.Equal(t, "5h", o.duration)
+	assert.Equal(t, "09:00", o.from) // from unchanged
+}
+
+func TestEditOverlay_Interdependency_DurationRecomputesTo(t *testing.T) {
+	ce := timetrack.CellEntry{
+		Minutes: 120,
+		Start:   time.Date(2025, 1, 5, 9, 0, 0, 0, time.UTC),
+		Message: "test",
+	}
+	o := newEditOverlay(ce)
+	// Navigate to Duration field
+	o.field = editFieldDuration
+
+	// Change duration to 4h and tab away → to should become 13:00 (9:00 + 4h)
+	o.duration = "4h"
+	o.advanceField()
+	assert.Equal(t, "13:00", o.to)
+	assert.Equal(t, "09:00", o.from) // from unchanged
+}
+
+func TestAddOverlay_FieldNavigation(t *testing.T) {
+	o := newAddOverlay(5, time.January, 2025, "my-task")
+
+	assert.Equal(t, addFieldFrom, o.field)
+
+	// Tab through: From → To → Duration → Task → Message → Confirm
+	o.advanceField()
+	assert.Equal(t, addFieldTo, o.field)
+	o.advanceField()
+	assert.Equal(t, addFieldDuration, o.field)
+	o.advanceField()
+	assert.Equal(t, addFieldTask, o.field)
+	o.advanceField()
+	assert.Equal(t, addFieldMessage, o.field)
+	o.advanceField()
+	assert.Equal(t, addFieldConfirm, o.field)
+
+	// Back
+	o.retreatField()
+	assert.Equal(t, addFieldMessage, o.field)
+}
+
+func TestAddOverlay_Interdependency(t *testing.T) {
+	o := newAddOverlay(5, time.January, 2025, "task")
+	o.from = "9:00"
+	o.duration = "3h"
+
+	// Leaving from → recomputes to
+	o.field = addFieldFrom
+	o.advanceField()
+	assert.Equal(t, "12:00", o.to)
+
+	// Change to and leave → recomputes duration
+	o.to = "14:00"
+	o.field = addFieldTo
+	o.advanceField()
+	assert.Equal(t, "5h", o.duration)
+}
+
+func TestAddOverlay_BuildEntryUsesFrom(t *testing.T) {
+	o := newAddOverlay(5, time.January, 2025, "my-task")
+	o.from = "10:30"
+	o.duration = "2h"
+	o.message = "did stuff"
+
+	now := time.Date(2025, 1, 5, 14, 0, 0, 0, time.UTC)
+	e, err := o.buildEntry(now)
+	require.NoError(t, err)
+	assert.Equal(t, 120, e.Minutes)
+	assert.Equal(t, 10, e.Start.Hour())
+	assert.Equal(t, 30, e.Start.Minute())
 }

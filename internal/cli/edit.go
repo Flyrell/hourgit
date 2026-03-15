@@ -6,6 +6,7 @@ import (
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/project"
+	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/spf13/cobra"
 )
 
@@ -211,9 +212,9 @@ func applyFlagEdits(
 	hasTo := flagsChanged["to"]
 	hasDate := flagsChanged["date"]
 
-	// Mutual exclusivity
-	if hasDuration && (hasFrom || hasTo) {
-		return e, fmt.Errorf("--duration and --from/--to are mutually exclusive")
+	// Over-specified: all three time flags
+	if hasDuration && hasFrom && hasTo {
+		return e, fmt.Errorf("--duration, --from, and --to cannot all be specified together")
 	}
 
 	// Handle date shift
@@ -227,36 +228,78 @@ func applyFlagEdits(
 		e.Start = time.Date(y, m, d, e.Start.Hour(), e.Start.Minute(), 0, 0, e.Start.Location())
 	}
 
-	// Handle time changes
-	if hasDuration {
+	// Handle time changes — interdependent from/to/duration
+	switch {
+	case hasDuration && hasFrom:
+		// --duration --from → set from, set minutes (to = from + duration)
+		fromTOD, err := schedule.ParseTimeOfDay(fromFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --from time: %w", err)
+		}
+		minutes, err := entry.ParseDuration(durationFlag)
+		if err != nil {
+			return e, err
+		}
+		y, m, d := e.Start.Date()
+		e.Start = time.Date(y, m, d, fromTOD.Hour, fromTOD.Minute, 0, 0, e.Start.Location())
+		e.Minutes = minutes
+
+	case hasDuration && hasTo:
+		// --duration --to → compute from = to - duration, set minutes
+		toTOD, err := schedule.ParseTimeOfDay(toFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --to time: %w", err)
+		}
+		minutes, err := entry.ParseDuration(durationFlag)
+		if err != nil {
+			return e, err
+		}
+		y, m, d := e.Start.Date()
+		endTime := time.Date(y, m, d, toTOD.Hour, toTOD.Minute, 0, 0, e.Start.Location())
+		e.Start = endTime.Add(-time.Duration(minutes) * time.Minute)
+		e.Minutes = minutes
+
+	case hasDuration:
+		// --duration alone → keep from, update minutes (to shifts)
 		minutes, err := entry.ParseDuration(durationFlag)
 		if err != nil {
 			return e, err
 		}
 		e.Minutes = minutes
-	} else if hasFrom || hasTo {
-		// Compute current end time
-		oldEnd := e.Start.Add(time.Duration(e.Minutes) * time.Minute)
-		oldFromStr := e.Start.Format("15:04")
-		oldToStr := oldEnd.Format("15:04")
 
-		fromStr := oldFromStr
-		if hasFrom {
-			fromStr = fromFlag
-		}
-		toStr := oldToStr
-		if hasTo {
-			toStr = toFlag
-		}
-
+	case hasFrom && hasTo:
+		// --from --to → compute minutes = to - from
 		y, m, d := e.Start.Date()
 		baseDate := time.Date(y, m, d, 0, 0, 0, 0, e.Start.Location())
-		start, minutes, err := parseFromTo(fromStr, toStr, baseDate)
+		start, minutes, err := parseFromTo(fromFlag, toFlag, baseDate)
 		if err != nil {
 			return e, err
 		}
 		e.Start = start
 		e.Minutes = minutes
+
+	case hasFrom:
+		// --from alone → keep minutes, update from (to shifts)
+		fromTOD, err := schedule.ParseTimeOfDay(fromFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --from time: %w", err)
+		}
+		y, m, d := e.Start.Date()
+		e.Start = time.Date(y, m, d, fromTOD.Hour, fromTOD.Minute, 0, 0, e.Start.Location())
+
+	case hasTo:
+		// --to alone → keep from, compute minutes = to - from
+		toTOD, err := schedule.ParseTimeOfDay(toFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --to time: %w", err)
+		}
+		y, m, d := e.Start.Date()
+		endTime := time.Date(y, m, d, toTOD.Hour, toTOD.Minute, 0, 0, e.Start.Location())
+		newMinutes := int(endTime.Sub(e.Start).Minutes())
+		if newMinutes <= 0 {
+			return e, fmt.Errorf("--to (%s) must be after entry start (%s)", toTOD, e.Start.Format("15:04"))
+		}
+		e.Minutes = newMinutes
 	}
 
 	if flagsChanged["task"] {
@@ -293,19 +336,23 @@ func applyInteractiveEdits(e entry.Entry, pk PromptKit) (entry.Entry, error) {
 	if err != nil {
 		return e, err
 	}
+	fromTOD, err := schedule.ParseTimeOfDay(fromStr)
+	if err != nil {
+		return e, fmt.Errorf("invalid from time: %w", err)
+	}
 
-	// To
-	endTime := e.Start.Add(time.Duration(e.Minutes) * time.Minute)
-	toStr, err := pk.PromptWithDefault("To (e.g. 5pm, 17:00)", endTime.Format("15:04"))
+	// Duration
+	durationStr, err := pk.PromptWithDefault("Duration (e.g. 30m, 3h, 3h30m)", entry.FormatMinutes(e.Minutes))
+	if err != nil {
+		return e, err
+	}
+	minutes, err := entry.ParseDuration(durationStr)
 	if err != nil {
 		return e, err
 	}
 
-	start, minutes, err := parseFromTo(fromStr, toStr, newDate)
-	if err != nil {
-		return e, err
-	}
-	e.Start = start
+	y, m, d := newDate.Date()
+	e.Start = time.Date(y, m, d, fromTOD.Hour, fromTOD.Minute, 0, 0, e.Start.Location())
 	e.Minutes = minutes
 
 	// Task

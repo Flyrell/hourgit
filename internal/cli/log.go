@@ -115,13 +115,12 @@ func runLog(
 		if err != nil {
 			return err
 		}
-		// Try to place at the first available schedule slot
 		start, err = findDurationSlot(homeDir, proj, baseDate, minutes, now)
 		if err != nil {
-			// Fall back to now - minutes if no schedule/slot available
+			// No schedule or no room — place at beginning of day (9:00);
+			// the schedule warning system will inform the user
 			y, m, d := baseDate.Date()
-			start = time.Date(y, m, d, now.Hour(), now.Minute(), 0, 0, now.Location()).
-				Add(-time.Duration(minutes) * time.Minute)
+			start = time.Date(y, m, d, 9, 0, 0, 0, now.Location())
 		}
 	} else {
 		if fromFlag == "" {
