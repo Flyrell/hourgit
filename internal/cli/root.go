@@ -15,8 +15,6 @@ func newRootCmd() *cobra.Command {
 		Subcommands: []*cobra.Command{
 			initCmd,
 			logCmd,
-			editCmd,
-			removeCmd,
 			syncCmd,
 			reportCmd,
 			historyCmd,
