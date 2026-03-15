@@ -243,14 +243,31 @@ func TestEditDurationAndTo(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes)
 }
 
-func TestEditDurationFromToOverSpecified(t *testing.T) {
+func TestEditAllThreeConsistent(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupEditTest(t)
+
+	// --from 10am --to 12pm --duration 2h → consistent, should succeed
+	flags := map[string]bool{"duration": true, "from": true, "to": true}
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "12pm", "", "", "")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "updated entry")
+
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
+	require.NoError(t, err)
+	assert.Equal(t, 10, e.Start.Hour())
+	assert.Equal(t, 120, e.Minutes)
+}
+
+func TestEditAllThreeInconsistent(t *testing.T) {
 	homeDir, repoDir, _, _ := setupEditTest(t)
 
+	// --from 10am --to 12pm --duration 3h → inconsistent (2h ≠ 3h)
 	flags := map[string]bool{"duration": true, "from": true, "to": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "9am", "11am", "", "", "")
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "3h", "10am", "12pm", "", "", "")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot all be specified")
+	assert.Contains(t, err.Error(), "does not match")
 }
 
 func TestEditToBeforeStart(t *testing.T) {

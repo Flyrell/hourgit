@@ -73,7 +73,7 @@ hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <da
 | `-m`, `--message` | — | New message |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-> Any two of `--duration`, `--from`, and `--to` can be combined (the third is computed), but all three cannot be specified together. `--from` only: keeps duration, shifts the time window. `--to` only: keeps start, recalculates duration. `--duration` only: keeps start, shifts end. Entry ID and creation timestamp are preserved.
+> Any combination of `--duration`, `--from`, and `--to` is allowed. With two flags, the third is computed. With all three, they must be consistent (to - from = duration). `--from` only: keeps duration, shifts the time window. `--to` only: keeps start, recalculates duration. `--duration` only: keeps start, shifts end. Entry ID and creation timestamp are preserved.
 
 **Examples:**
 

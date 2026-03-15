@@ -212,11 +212,6 @@ func applyFlagEdits(
 	hasTo := flagsChanged["to"]
 	hasDate := flagsChanged["date"]
 
-	// Over-specified: all three time flags
-	if hasDuration && hasFrom && hasTo {
-		return e, fmt.Errorf("--duration, --from, and --to cannot all be specified together")
-	}
-
 	// Handle date shift
 	if hasDate {
 		newDate, err := resolveBaseDate(dateFlag, nowFn())
@@ -230,6 +225,34 @@ func applyFlagEdits(
 
 	// Handle time changes — interdependent from/to/duration
 	switch {
+	case hasDuration && hasFrom && hasTo:
+		// All three specified — validate consistency: to - from must equal duration
+		fromTOD, err := schedule.ParseTimeOfDay(fromFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --from time: %w", err)
+		}
+		toTOD, err := schedule.ParseTimeOfDay(toFlag)
+		if err != nil {
+			return e, fmt.Errorf("invalid --to time: %w", err)
+		}
+		minutes, err := entry.ParseDuration(durationFlag)
+		if err != nil {
+			return e, err
+		}
+		fromMins := fromTOD.Hour*60 + fromTOD.Minute
+		toMins := toTOD.Hour*60 + toTOD.Minute
+		if toMins <= fromMins {
+			return e, fmt.Errorf("--to (%s) must be after --from (%s)", toFlag, fromFlag)
+		}
+		computed := toMins - fromMins
+		if computed != minutes {
+			return e, fmt.Errorf("--duration (%s) does not match --from/%s to --to/%s (%s)",
+				durationFlag, fromFlag, toFlag, entry.FormatMinutes(computed))
+		}
+		y, m, d := e.Start.Date()
+		e.Start = time.Date(y, m, d, fromTOD.Hour, fromTOD.Minute, 0, 0, e.Start.Location())
+		e.Minutes = minutes
+
 	case hasDuration && hasFrom:
 		// --duration --from → set from, set minutes (to = from + duration)
 		fromTOD, err := schedule.ParseTimeOfDay(fromFlag)
