@@ -162,8 +162,8 @@ func TestProjectRemoveAutoDetectFromRepo(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.AssignProject(home, repo, entry))
 
-	// Use resolveProjectFromRepo to simulate auto-detection
-	resolved, err := resolveProjectFromRepo(home, repo)
+	// Use ResolveProjectContext to simulate auto-detection (same as RunE fallback)
+	resolved, err := ResolveProjectContext(home, repo, "")
 	require.NoError(t, err)
 	assert.Equal(t, "Auto Project", resolved.Name)
 
@@ -177,10 +177,10 @@ func TestProjectRemoveAutoDetectFromRepo(t *testing.T) {
 func TestProjectRemoveAutoDetectNoRepo(t *testing.T) {
 	home := t.TempDir()
 
-	_, err := resolveProjectFromRepo(home, "")
+	_, err := ResolveProjectContext(home, "", "")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no project specified")
+	assert.Contains(t, err.Error(), "no project found")
 }
 
 func TestProjectRemoveAutoDetectNoAssignment(t *testing.T) {
@@ -189,10 +189,10 @@ func TestProjectRemoveAutoDetectNoAssignment(t *testing.T) {
 
 	require.NoError(t, os.MkdirAll(filepath.Join(repo, ".git"), 0755))
 
-	_, err := resolveProjectFromRepo(home, repo)
+	_, err := ResolveProjectContext(home, repo, "")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no project specified")
+	assert.Contains(t, err.Error(), "no project found")
 }
 
 func TestProjectRemoveRegisteredAsSubcommand(t *testing.T) {

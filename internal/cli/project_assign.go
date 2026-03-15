@@ -45,8 +45,7 @@ var projectAssignCmd = LeafCommand{
 		} else if projectFlag != "" {
 			projectName = projectFlag
 		} else {
-			// Fall back to repo config
-			entry, err := resolveProjectFromRepo(homeDir, dir)
+			entry, err := ResolveProjectContext(homeDir, dir, "")
 			if err != nil {
 				return err
 			}
