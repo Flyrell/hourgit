@@ -129,17 +129,17 @@ func TestEditOverlay_TextInput(t *testing.T) {
 	o := newEditOverlay(ce)
 
 	// First field is From — clear it and type new value
-	o.from = ""
+	o.times.from = ""
 	for _, ch := range "10am" {
 		updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
 		o = updated.(*editOverlay)
 	}
-	assert.Equal(t, "10am", o.from)
+	assert.Equal(t, "10am", o.times.from)
 
 	// Backspace
 	updated, _ := o.Update(tea.KeyMsg{Type: tea.KeyBackspace})
 	o = updated.(*editOverlay)
-	assert.Equal(t, "10a", o.from)
+	assert.Equal(t, "10a", o.times.from)
 }
 
 func TestEditOverlay_InvalidFrom(t *testing.T) {
@@ -150,7 +150,7 @@ func TestEditOverlay_InvalidFrom(t *testing.T) {
 		Task:    "task",
 	}
 	o := newEditOverlay(ce)
-	o.from = "invalid"
+	o.times.from = "invalid"
 	o.field = editFieldConfirm
 
 	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -167,7 +167,7 @@ func TestEditOverlay_InvalidTo(t *testing.T) {
 		Task:    "task",
 	}
 	o := newEditOverlay(ce)
-	o.to = "invalid"
+	o.times.to = "invalid"
 	o.field = editFieldConfirm
 
 	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -184,8 +184,8 @@ func TestEditOverlay_ToBeforeFrom(t *testing.T) {
 		Task:    "task",
 	}
 	o := newEditOverlay(ce)
-	o.from = "5pm"
-	o.to = "9am"
+	o.times.from = "5pm"
+	o.times.to = "9am"
 	o.field = editFieldConfirm
 
 	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -202,9 +202,9 @@ func TestEditOverlay_ValidSubmit(t *testing.T) {
 		Task:    "task",
 	}
 	o := newEditOverlay(ce)
-	o.from = "9:00"
-	o.to = "11:30"
-	o.duration = "2h30m"
+	o.times.from = "9:00"
+	o.times.to = "11:30"
+	o.times.duration = "2h30m"
 	o.task = "updated-task"
 	o.message = "updated-msg"
 	o.field = editFieldConfirm
@@ -243,7 +243,9 @@ func TestEditOverlay_View(t *testing.T) {
 
 func TestAddOverlay_ValidSubmit(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "my-task")
-	o.duration = "1h"
+	o.times.from = "9:00"
+	o.times.to = "10:00"
+	o.times.duration = "1h"
 	o.message = "new work"
 	o.field = addFieldConfirm
 
@@ -256,20 +258,34 @@ func TestAddOverlay_ValidSubmit(t *testing.T) {
 	assert.Equal(t, "add", result.action)
 }
 
-func TestAddOverlay_EmptyDuration(t *testing.T) {
+func TestAddOverlay_EmptyTo(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "task")
-	o.duration = ""
+	o.times.to = ""
 	o.field = addFieldConfirm
 
 	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	o = updated.(*addOverlay)
 	assert.Nil(t, cmd)
-	assert.Contains(t, o.err, "Duration is required")
+	assert.Contains(t, o.err, "Invalid to time")
+}
+
+func TestAddOverlay_ToBeforeFrom(t *testing.T) {
+	o := newAddOverlay(5, time.January, 2025, "task")
+	o.times.from = "5pm"
+	o.times.to = "9am"
+	o.field = addFieldConfirm
+
+	updated, cmd := o.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	o = updated.(*addOverlay)
+	assert.Nil(t, cmd)
+	assert.Contains(t, o.err, "To must be after From")
 }
 
 func TestAddOverlay_BuildEntry(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "my-task")
-	o.duration = "2h"
+	o.times.from = "9:00"
+	o.times.to = "11:00"
+	o.times.duration = "2h"
 	o.message = "did stuff"
 
 	now := time.Date(2025, 1, 5, 14, 0, 0, 0, time.UTC)
@@ -284,7 +300,9 @@ func TestAddOverlay_BuildEntry(t *testing.T) {
 
 func TestAddOverlay_BuildEntryMessageFallback(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "my-task")
-	o.duration = "1h"
+	o.times.from = "9:00"
+	o.times.to = "10:00"
+	o.times.duration = "1h"
 	o.message = "" // empty message should fall back to task
 
 	now := time.Date(2025, 1, 5, 14, 0, 0, 0, time.UTC)
@@ -467,9 +485,9 @@ func TestReportModel_HandleEdit_PersistsInMemoryEntry(t *testing.T) {
 	}
 
 	editOv := newEditOverlay(ce)
-	editOv.from = "9:00"
-	editOv.to = "11:00"
-	editOv.duration = "2h"
+	editOv.times.from = "9:00"
+	editOv.times.to = "11:00"
+	editOv.times.duration = "2h"
 	editOv.task = "feature-x"
 	editOv.message = "feature-x"
 	editOv.field = editFieldConfirm
@@ -514,16 +532,16 @@ func TestEditOverlay_Interdependency_FromRecomputesTo(t *testing.T) {
 	}
 	o := newEditOverlay(ce)
 	// Initial: from=9:00, to=11:00, duration=2h
-	assert.Equal(t, "09:00", o.from)
-	assert.Equal(t, "11:00", o.to)
-	assert.Equal(t, "2h", o.duration)
+	assert.Equal(t, "09:00", o.times.from)
+	assert.Equal(t, "11:00", o.times.to)
+	assert.Equal(t, "2h", o.times.duration)
 
 	// Change from to 10:00 and tab away → to should become 12:00 (keeping 2h duration)
-	o.from = "10:00"
+	o.times.from = "10:00"
 	// Advance field triggers recompute
 	o.advanceField()
-	assert.Equal(t, "12:00", o.to)
-	assert.Equal(t, "2h", o.duration)
+	assert.Equal(t, "12:00", o.times.to)
+	assert.Equal(t, "2h", o.times.duration)
 }
 
 func TestEditOverlay_Interdependency_ToRecomputesDuration(t *testing.T) {
@@ -537,10 +555,10 @@ func TestEditOverlay_Interdependency_ToRecomputesDuration(t *testing.T) {
 	o.field = editFieldTo
 
 	// Change to to 14:00 and tab away → duration should become 5h (9:00 to 14:00)
-	o.to = "14:00"
+	o.times.to = "14:00"
 	o.advanceField()
-	assert.Equal(t, "5h", o.duration)
-	assert.Equal(t, "09:00", o.from) // from unchanged
+	assert.Equal(t, "5h", o.times.duration)
+	assert.Equal(t, "09:00", o.times.from) // from unchanged
 }
 
 func TestEditOverlay_Interdependency_DurationRecomputesTo(t *testing.T) {
@@ -554,10 +572,10 @@ func TestEditOverlay_Interdependency_DurationRecomputesTo(t *testing.T) {
 	o.field = editFieldDuration
 
 	// Change duration to 4h and tab away → to should become 13:00 (9:00 + 4h)
-	o.duration = "4h"
+	o.times.duration = "4h"
 	o.advanceField()
-	assert.Equal(t, "13:00", o.to)
-	assert.Equal(t, "09:00", o.from) // from unchanged
+	assert.Equal(t, "13:00", o.times.to)
+	assert.Equal(t, "09:00", o.times.from) // from unchanged
 }
 
 func TestAddOverlay_FieldNavigation(t *testing.T) {
@@ -584,25 +602,26 @@ func TestAddOverlay_FieldNavigation(t *testing.T) {
 
 func TestAddOverlay_Interdependency(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "task")
-	o.from = "9:00"
-	o.duration = "3h"
+	o.times.from = "9:00"
+	o.times.duration = "3h"
 
 	// Leaving from → recomputes to
 	o.field = addFieldFrom
 	o.advanceField()
-	assert.Equal(t, "12:00", o.to)
+	assert.Equal(t, "12:00", o.times.to)
 
 	// Change to and leave → recomputes duration
-	o.to = "14:00"
+	o.times.to = "14:00"
 	o.field = addFieldTo
 	o.advanceField()
-	assert.Equal(t, "5h", o.duration)
+	assert.Equal(t, "5h", o.times.duration)
 }
 
-func TestAddOverlay_BuildEntryUsesFrom(t *testing.T) {
+func TestAddOverlay_BuildEntryUsesFromTo(t *testing.T) {
 	o := newAddOverlay(5, time.January, 2025, "my-task")
-	o.from = "10:30"
-	o.duration = "2h"
+	o.times.from = "10:30"
+	o.times.to = "12:30"
+	o.times.duration = "2h"
 	o.message = "did stuff"
 
 	now := time.Date(2025, 1, 5, 14, 0, 0, 0, time.UTC)
@@ -611,4 +630,14 @@ func TestAddOverlay_BuildEntryUsesFrom(t *testing.T) {
 	assert.Equal(t, 120, e.Minutes)
 	assert.Equal(t, 10, e.Start.Hour())
 	assert.Equal(t, 30, e.Start.Minute())
+}
+
+func TestAddOverlay_BuildEntryToBeforeFrom(t *testing.T) {
+	o := newAddOverlay(5, time.January, 2025, "task")
+	o.times.from = "5pm"
+	o.times.to = "9am"
+
+	_, err := o.buildEntry(time.Now())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "to must be after from")
 }
