@@ -32,11 +32,11 @@ func TestBuildExportData_LogEntriesGroupedByTask(t *testing.T) {
 	assert.Equal(t, 225, day.TotalMinutes) // 60+90+75
 	assert.Equal(t, 225, data.TotalMinutes)
 
-	// Should have 2 groups: "API design research" (no task, uses message) and "feature-auth"
+	// Should have 2 groups: "(no task)" and "feature-auth"
 	require.Equal(t, 2, len(day.Groups))
 
 	// Groups sorted alphabetically
-	assert.Equal(t, "API design research", day.Groups[0].Task)
+	assert.Equal(t, "(no task)", day.Groups[0].Task)
 	assert.Equal(t, 75, day.Groups[0].TotalMinutes)
 	assert.Equal(t, 1, len(day.Groups[0].Entries))
 

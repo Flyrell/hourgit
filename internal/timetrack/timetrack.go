@@ -496,7 +496,7 @@ func logTaskKey(e entry.Entry) string {
 	if e.Task != "" {
 		return e.Task
 	}
-	return e.Message
+	return "(no task)"
 }
 
 // daysIn returns the number of days in the given month.
