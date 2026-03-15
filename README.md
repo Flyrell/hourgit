@@ -184,7 +184,7 @@ hourgit edit <hash> [--duration <dur>] [--from <time>] [--to <time>] [--date <da
 | `-m`, `--message` | — | New message |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-> `--duration` and `--from`/`--to` are mutually exclusive. `--from` only: keeps existing end time, recalculates duration. `--to` only: keeps existing start time, recalculates duration. Entry ID and creation timestamp are preserved. If the entry is not found in the current repo's project, all projects are searched.
+> Any two of `--duration`, `--from`, and `--to` can be combined (the third is computed), but all three cannot be specified together. `--from` only: keeps duration, shifts the time window. `--to` only: keeps start, recalculates duration. `--duration` only: keeps start, shifts end. Entry ID and creation timestamp are preserved. If the entry is not found in the current repo's project, all projects are searched.
 
 **Examples**
 

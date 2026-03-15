@@ -117,10 +117,10 @@ func runLog(
 		}
 		start, err = findDurationSlot(homeDir, proj, baseDate, minutes, now)
 		if err != nil {
-			// No schedule or no room — place at beginning of day (9:00);
+			// No schedule or no room — place at beginning of day;
 			// the schedule warning system will inform the user
 			y, m, d := baseDate.Date()
-			start = time.Date(y, m, d, 9, 0, 0, 0, now.Location())
+			start = time.Date(y, m, d, defaultStartHour, 0, 0, 0, now.Location())
 		}
 	} else {
 		if fromFlag == "" {
