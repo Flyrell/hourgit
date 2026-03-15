@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var configSetCmd = LeafCommand{
+var scheduleSetCmd = LeafCommand{
 	Use:   "set",
 	Short: "Interactively edit a project's schedule",
 	StrFlags: []StringFlag{
@@ -21,11 +21,11 @@ var configSetCmd = LeafCommand{
 		projectFlag, _ := cmd.Flags().GetString("project")
 		kit := NewPromptKit()
 
-		return runConfigSet(cmd, homeDir, repoDir, projectFlag, kit)
+		return runScheduleSet(cmd, homeDir, repoDir, projectFlag, kit)
 	},
 }.Build()
 
-func runConfigSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, kit PromptKit) error {
+func runScheduleSet(cmd *cobra.Command, homeDir, repoDir, projectFlag string, kit PromptKit) error {
 	entry, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
 	if err != nil {
 		return err

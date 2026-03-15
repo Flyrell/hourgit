@@ -237,6 +237,20 @@ func TestProjectAssignDifferentProjectWithForce(t *testing.T) {
 	assert.Equal(t, "Project B", repoCfg.Project)
 }
 
+func TestProjectAssignAutoDetectFromRepo(t *testing.T) {
+	dir := setupProjectTest(t)
+	home := os.Getenv("HOME")
+
+	// First assign the project
+	_, _, err := execProjectAssign(dir, AlwaysYes(), "Auto Project")
+	require.NoError(t, err)
+
+	// Verify auto-detection works via resolveProjectFromRepo
+	resolved, err := resolveProjectFromRepo(home, dir)
+	require.NoError(t, err)
+	assert.Equal(t, "Auto Project", resolved.Name)
+}
+
 func TestProjectAssignRegisteredAsSubcommand(t *testing.T) {
 	commands := projectCmd.Commands()
 	names := make([]string, len(commands))

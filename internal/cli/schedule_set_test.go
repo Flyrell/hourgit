@@ -80,16 +80,16 @@ func testKit(sel SelectFunc, prompt PromptFunc, confirm ConfirmFunc, multiSel Mu
 	}
 }
 
-func execConfigSet(homeDir, repoDir, projectFlag string, kit PromptKit) (string, error) {
+func execScheduleSet(homeDir, repoDir, projectFlag string, kit PromptKit) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := configSetCmd
+	cmd := scheduleSetCmd
 	cmd.SetOut(stdout)
-	err := runConfigSet(cmd, homeDir, repoDir, projectFlag, kit)
+	err := runScheduleSet(cmd, homeDir, repoDir, projectFlag, kit)
 	return stdout.String(), err
 }
 
-func TestConfigSetQuitImmediately(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
+func TestScheduleSetQuitImmediately(t *testing.T) {
+	homeDir, repoDir, _ := setupScheduleTest(t)
 
 	kit := testKit(
 		mockSelect(3), // Save & quit
@@ -97,14 +97,14 @@ func TestConfigSetQuitImmediately(t *testing.T) {
 		mockConfirm(false),
 		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 }
 
-func TestConfigSetAddRecurringWeekendAndQuit(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetAddRecurringWeekendAndQuit(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Action: Add(0), then Save&quit(3)
 	// Schedule type: Recurring(0)
@@ -115,7 +115,7 @@ func TestConfigSetAddRecurringWeekendAndQuit(t *testing.T) {
 		mockConfirmSequence(false, false), // no more ranges, no overlap confirm needed
 		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -130,8 +130,8 @@ func TestConfigSetAddRecurringWeekendAndQuit(t *testing.T) {
 	assert.Contains(t, schedules[1].RRule, "BYDAY=SA,SU")
 }
 
-func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetAddSpecificDaysAndQuit(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Action: Add(0), then Save&quit(3)
 	// Schedule type: Recurring(0)
@@ -143,7 +143,7 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 		mockConfirmSequence(false, true), // no more ranges, overlap override yes
 		mockMultiSelect([]int{0, 2, 4}),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -158,8 +158,8 @@ func TestConfigSetAddSpecificDaysAndQuit(t *testing.T) {
 	assert.Contains(t, schedules[1].RRule, "BYDAY=MO,WE,FR")
 }
 
-func TestConfigSetEditAndQuit(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetEditAndQuit(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Action: Edit(1), select schedule 0, then Save&quit(3)
 	// Schedule type: Recurring(0)
@@ -170,7 +170,7 @@ func TestConfigSetEditAndQuit(t *testing.T) {
 		mockConfirmSequence(false), // no more ranges
 		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -184,8 +184,8 @@ func TestConfigSetEditAndQuit(t *testing.T) {
 	assert.Equal(t, "16:00", schedules[0].Ranges[0].To)
 }
 
-func TestConfigSetDeleteAndQuit(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetDeleteAndQuit(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Action: Delete(2), select schedule 0, then Save&quit(3)
 	kit := testKit(
@@ -194,7 +194,7 @@ func TestConfigSetDeleteAndQuit(t *testing.T) {
 		mockConfirm(false),
 		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -208,8 +208,8 @@ func TestConfigSetDeleteAndQuit(t *testing.T) {
 	assert.Empty(t, regEntry.Schedules)
 }
 
-func TestConfigSetByProjectFlag(t *testing.T) {
-	homeDir, _, entry := setupConfigTest(t)
+func TestScheduleSetByProjectFlag(t *testing.T) {
+	homeDir, _, entry := setupScheduleTest(t)
 
 	kit := testKit(
 		mockSelect(3), // Save & quit
@@ -217,13 +217,13 @@ func TestConfigSetByProjectFlag(t *testing.T) {
 		mockConfirm(false),
 		mockMultiSelect(nil),
 	)
-	stdout, err := execConfigSet(homeDir, "", entry.Name, kit)
+	stdout, err := execScheduleSet(homeDir, "", entry.Name, kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 }
 
-func TestConfigSetNoProject(t *testing.T) {
+func TestScheduleSetNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 
 	kit := testKit(
@@ -232,14 +232,14 @@ func TestConfigSetNoProject(t *testing.T) {
 		mockConfirm(false),
 		mockMultiSelect(nil),
 	)
-	_, err := execConfigSet(homeDir, "", "", kit)
+	_, err := execScheduleSet(homeDir, "", "", kit)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
 }
 
-func TestConfigSetRegisteredAsSubcommand(t *testing.T) {
-	commands := configCmd.Commands()
+func TestScheduleSetRegisteredAsSubcommand(t *testing.T) {
+	commands := scheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
@@ -247,8 +247,8 @@ func TestConfigSetRegisteredAsSubcommand(t *testing.T) {
 	assert.Contains(t, names, "set")
 }
 
-func TestConfigSetAddOverlap(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetAddOverlap(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Add(0): recurring(0) > specific days(3) > Monday > 8am-4pm > no more ranges
 	// Overlap detected → confirm yes
@@ -259,7 +259,7 @@ func TestConfigSetAddOverlap(t *testing.T) {
 		mockConfirmSequence(false, true), // no more ranges, override yes
 		mockMultiSelect([]int{0}),        // Monday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -271,8 +271,8 @@ func TestConfigSetAddOverlap(t *testing.T) {
 	assert.True(t, schedules[1].Override, "new entry should have override set")
 }
 
-func TestConfigSetAddNoOverlap(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetAddNoOverlap(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	confirmCalled := false
 	confirmTracker := func(_ string) (bool, error) {
@@ -289,7 +289,7 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 		confirmTracker,
 		mockMultiSelect([]int{5}), // Saturday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -304,8 +304,8 @@ func TestConfigSetAddNoOverlap(t *testing.T) {
 	assert.False(t, schedules[1].Override)
 }
 
-func TestConfigSetAddOverlapDeclined(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleSetAddOverlapDeclined(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Add overlapping Monday schedule, decline override
 	kit := testKit(
@@ -314,7 +314,7 @@ func TestConfigSetAddOverlapDeclined(t *testing.T) {
 		mockConfirmSequence(false, false), // no more ranges, override no
 		mockMultiSelect([]int{0}),         // Monday
 	)
-	stdout, err := execConfigSet(homeDir, repoDir, "", kit)
+	stdout, err := execScheduleSet(homeDir, repoDir, "", kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -349,7 +349,7 @@ func TestBuildScheduleEntryRecurringSpecificDays(t *testing.T) {
 	kit := testKit(
 		mockSelectSequence(0, 3), // recurring, specific days
 		mockPrompt("9am", "5pm"),
-		mockConfirm(false),            // no more ranges
+		mockConfirm(false),              // no more ranges
 		mockMultiSelect([]int{0, 2, 4}), // Mon, Wed, Fri
 	)
 
@@ -587,4 +587,3 @@ func TestDeleteScheduleActionEmpty(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no schedules to delete")
 }
-

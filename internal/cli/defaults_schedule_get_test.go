@@ -10,18 +10,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execDefaultsGet(homeDir string) (string, error) {
+func execDefaultsScheduleGet(homeDir string) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := defaultsGetCmd
+	cmd := defaultsScheduleGetCmd
 	cmd.SetOut(stdout)
-	err := runDefaultsGet(cmd, homeDir)
+	err := runDefaultsScheduleGet(cmd, homeDir)
 	return stdout.String(), err
 }
 
-func TestDefaultsGetFactoryDefaults(t *testing.T) {
+func TestDefaultsScheduleGetFactoryDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 
-	stdout, err := execDefaultsGet(homeDir)
+	stdout, err := execDefaultsScheduleGet(homeDir)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Default schedule for new projects")
@@ -29,7 +29,7 @@ func TestDefaultsGetFactoryDefaults(t *testing.T) {
 	assert.Contains(t, stdout, "every weekday")
 }
 
-func TestDefaultsGetCustomDefaults(t *testing.T) {
+func TestDefaultsScheduleGetCustomDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 
 	custom := []schedule.ScheduleEntry{
@@ -37,17 +37,26 @@ func TestDefaultsGetCustomDefaults(t *testing.T) {
 	}
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
-	stdout, err := execDefaultsGet(homeDir)
+	stdout, err := execDefaultsScheduleGet(homeDir)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "8:00 AM - 12:00 PM")
 }
 
-func TestDefaultsGetRegisteredAsSubcommand(t *testing.T) {
-	commands := defaultsCmd.Commands()
+func TestDefaultsScheduleGetRegisteredAsSubcommand(t *testing.T) {
+	commands := defaultsScheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
 	}
 	assert.Contains(t, names, "get")
+}
+
+func TestDefaultsScheduleRegisteredUnderDefaults(t *testing.T) {
+	commands := defaultsCmd.Commands()
+	names := make([]string, len(commands))
+	for i, cmd := range commands {
+		names[i] = cmd.Name()
+	}
+	assert.Contains(t, names, "schedule")
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultsGetCmd = LeafCommand{
+var defaultsScheduleGetCmd = LeafCommand{
 	Use:   "get",
 	Short: "Show the default schedule for new projects",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -16,11 +16,11 @@ var defaultsGetCmd = LeafCommand{
 		if err != nil {
 			return err
 		}
-		return runDefaultsGet(cmd, homeDir)
+		return runDefaultsScheduleGet(cmd, homeDir)
 	},
 }.Build()
 
-func runDefaultsGet(cmd *cobra.Command, homeDir string) error {
+func runDefaultsScheduleGet(cmd *cobra.Command, homeDir string) error {
 	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err

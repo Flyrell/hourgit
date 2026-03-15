@@ -10,22 +10,44 @@ import (
 )
 
 var projectRemoveCmd = LeafCommand{
-	Use:   "remove PROJECT",
+	Use:   "remove [PROJECT]",
 	Short: "Remove a project and clean up its repository assignments",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	BoolFlags: []BoolFlag{
 		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
+	},
+	StrFlags: []StringFlag{
+		{Name: "project", Shorthand: "p", Usage: "project name or ID"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
+		repoDir, _ := os.Getwd()
 
+		projectFlag, _ := cmd.Flags().GetString("project")
 		yes, _ := cmd.Flags().GetBool("yes")
 		confirm := ResolveConfirmFunc(yes)
 
-		return runProjectRemove(cmd, homeDir, args[0], confirm)
+		// Resolve project identifier: positional arg > --project flag > repo config
+		var identifier string
+		if len(args) > 0 {
+			identifier = args[0]
+		} else if projectFlag != "" {
+			identifier = projectFlag
+		}
+
+		if identifier == "" {
+			// Fall back to repo config
+			entry, err := resolveProjectFromRepo(homeDir, repoDir)
+			if err != nil {
+				return err
+			}
+			identifier = entry.Name
+		}
+
+		return runProjectRemove(cmd, homeDir, identifier, confirm)
 	},
 }.Build()
 
@@ -76,4 +98,35 @@ func runProjectRemove(cmd *cobra.Command, homeDir, identifier string, confirm Co
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("project '%s' removed", Primary(entry.Name))))
 	return nil
+}
+
+// resolveProjectFromRepo resolves a project from the current repo's config.
+func resolveProjectFromRepo(homeDir, repoDir string) (*project.ProjectEntry, error) {
+	if repoDir == "" {
+		return nil, fmt.Errorf("no project specified (use positional arg, --project flag, or run from an assigned repo)")
+	}
+
+	repoCfg, err := project.ReadRepoConfig(repoDir)
+	if err != nil {
+		return nil, err
+	}
+	if repoCfg == nil {
+		return nil, fmt.Errorf("no project specified (use positional arg, --project flag, or run from an assigned repo)")
+	}
+
+	cfg, err := project.ReadConfig(homeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	entry := project.FindProjectByID(cfg, repoCfg.ProjectID)
+	if entry != nil {
+		return entry, nil
+	}
+	entry = project.FindProject(cfg, repoCfg.Project)
+	if entry != nil {
+		return entry, nil
+	}
+
+	return nil, fmt.Errorf("project '%s' from repo config not found in registry", repoCfg.Project)
 }

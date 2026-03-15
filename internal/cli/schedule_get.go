@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var configGetCmd = LeafCommand{
+var scheduleGetCmd = LeafCommand{
 	Use:   "get",
 	Short: "Show the schedule configuration for a project",
 	StrFlags: []StringFlag{
@@ -21,11 +21,11 @@ var configGetCmd = LeafCommand{
 
 		projectFlag, _ := cmd.Flags().GetString("project")
 
-		return runConfigGet(cmd, homeDir, repoDir, projectFlag)
+		return runScheduleGet(cmd, homeDir, repoDir, projectFlag)
 	},
 }.Build()
 
-func runConfigGet(cmd *cobra.Command, homeDir, repoDir, projectFlag string) error {
+func runScheduleGet(cmd *cobra.Command, homeDir, repoDir, projectFlag string) error {
 	entry, err := ResolveProjectContext(homeDir, repoDir, projectFlag)
 	if err != nil {
 		return err

@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execDefaultsReport(homeDir, monthFlag, yearFlag string, now time.Time) (string, error) {
+func execDefaultsScheduleReport(homeDir, monthFlag, yearFlag string, now time.Time) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := defaultsReportCmd
+	cmd := defaultsScheduleReportCmd
 	cmd.SetOut(stdout)
-	err := runDefaultsReport(cmd, homeDir, monthFlag, yearFlag, now)
+	err := runDefaultsScheduleReport(cmd, homeDir, monthFlag, yearFlag, now)
 	return stdout.String(), err
 }
 
-func TestDefaultsReportFactoryDefaults(t *testing.T) {
+func TestDefaultsScheduleReportFactoryDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execDefaultsReport(homeDir, "", "", now)
+	stdout, err := execDefaultsScheduleReport(homeDir, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Default working hours")
@@ -36,7 +36,7 @@ func TestDefaultsReportFactoryDefaults(t *testing.T) {
 	assert.NotContains(t, stdout, "Sun ")
 }
 
-func TestDefaultsReportCustomDefaults(t *testing.T) {
+func TestDefaultsScheduleReportCustomDefaults(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
@@ -45,7 +45,7 @@ func TestDefaultsReportCustomDefaults(t *testing.T) {
 	}
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
-	stdout, err := execDefaultsReport(homeDir, "", "", now)
+	stdout, err := execDefaultsScheduleReport(homeDir, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "10:00 AM - 2:00 PM")
@@ -54,19 +54,19 @@ func TestDefaultsReportCustomDefaults(t *testing.T) {
 	assert.Contains(t, stdout, "Sun ")
 }
 
-func TestDefaultsReportWithMonthAndYearFlags(t *testing.T) {
+func TestDefaultsScheduleReportWithMonthAndYearFlags(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execDefaultsReport(homeDir, "3", "2025", now)
+	stdout, err := execDefaultsScheduleReport(homeDir, "3", "2025", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "March 2025")
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 }
 
-func TestDefaultsReportRegisteredAsSubcommand(t *testing.T) {
-	commands := defaultsCmd.Commands()
+func TestDefaultsScheduleReportRegisteredAsSubcommand(t *testing.T) {
+	commands := defaultsScheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()

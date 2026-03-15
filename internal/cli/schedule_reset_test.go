@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execConfigReset(homeDir, repoDir, projectFlag string, confirm ConfirmFunc) (string, error) {
+func execScheduleReset(homeDir, repoDir, projectFlag string, confirm ConfirmFunc) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := configResetCmd
+	cmd := scheduleResetCmd
 	cmd.SetOut(stdout)
-	err := runConfigReset(cmd, homeDir, repoDir, projectFlag, confirm)
+	err := runScheduleReset(cmd, homeDir, repoDir, projectFlag, confirm)
 	return stdout.String(), err
 }
 
-func TestConfigResetHappyPath(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleResetHappyPath(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Set a custom schedule first
 	custom := []schedule.ScheduleEntry{
@@ -27,7 +27,7 @@ func TestConfigResetHappyPath(t *testing.T) {
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
-	stdout, err := execConfigReset(homeDir, repoDir, "", AlwaysYes())
+	stdout, err := execScheduleReset(homeDir, repoDir, "", AlwaysYes())
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "reset to default")
@@ -39,8 +39,8 @@ func TestConfigResetHappyPath(t *testing.T) {
 	assert.Equal(t, schedule.DefaultSchedules(), schedules)
 }
 
-func TestConfigResetDeclined(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleResetDeclined(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	custom := []schedule.ScheduleEntry{
 		{Ranges: []schedule.TimeRange{{From: "06:00", To: "14:00"}}, RRule: "FREQ=DAILY"},
@@ -48,7 +48,7 @@ func TestConfigResetDeclined(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	stdout, err := execConfigReset(homeDir, repoDir, "", decline)
+	stdout, err := execScheduleReset(homeDir, repoDir, "", decline)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "cancelled")
@@ -60,26 +60,26 @@ func TestConfigResetDeclined(t *testing.T) {
 	assert.Equal(t, custom, schedules)
 }
 
-func TestConfigResetByProjectFlag(t *testing.T) {
-	homeDir, _, entry := setupConfigTest(t)
+func TestScheduleResetByProjectFlag(t *testing.T) {
+	homeDir, _, entry := setupScheduleTest(t)
 
-	stdout, err := execConfigReset(homeDir, "", entry.Name, AlwaysYes())
+	stdout, err := execScheduleReset(homeDir, "", entry.Name, AlwaysYes())
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "reset to default")
 }
 
-func TestConfigResetNoProject(t *testing.T) {
+func TestScheduleResetNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 
-	_, err := execConfigReset(homeDir, "", "", AlwaysYes())
+	_, err := execScheduleReset(homeDir, "", "", AlwaysYes())
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
 }
 
-func TestConfigResetRegisteredAsSubcommand(t *testing.T) {
-	commands := configCmd.Commands()
+func TestScheduleResetRegisteredAsSubcommand(t *testing.T) {
+	commands := scheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()

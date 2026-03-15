@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultsResetCmd = LeafCommand{
+var defaultsScheduleResetCmd = LeafCommand{
 	Use:   "reset",
 	Short: "Reset the default schedule to factory settings (Mon-Fri 9am-5pm)",
 	BoolFlags: []BoolFlag{
@@ -23,11 +23,11 @@ var defaultsResetCmd = LeafCommand{
 		yes, _ := cmd.Flags().GetBool("yes")
 		confirm := ResolveConfirmFunc(yes)
 
-		return runDefaultsReset(cmd, homeDir, confirm)
+		return runDefaultsScheduleReset(cmd, homeDir, confirm)
 	},
 }.Build()
 
-func runDefaultsReset(cmd *cobra.Command, homeDir string, confirm ConfirmFunc) error {
+func runDefaultsScheduleReset(cmd *cobra.Command, homeDir string, confirm ConfirmFunc) error {
 	confirmed, err := confirm("Reset defaults to factory settings (Mon-Fri 9am-5pm)?")
 	if err != nil {
 		return err

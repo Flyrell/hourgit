@@ -2,24 +2,24 @@
 
 Manage per-project schedule configuration. If `--project` is omitted, the project is auto-detected from the current repository.
 
-## `hourgit config get`
+## `hourgit project schedule get`
 
 Show the schedule configuration for a project.
 
 ```bash
-hourgit config get [--project <name>]
+hourgit project schedule get [--project <name>]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Project name or ID |
 
-## `hourgit config set`
+## `hourgit project schedule set`
 
 Interactively edit a project's schedule using a guided schedule builder.
 
 ```bash
-hourgit config set [--project <name>]
+hourgit project schedule set [--project <name>]
 ```
 
 | Flag | Default | Description |
@@ -33,12 +33,12 @@ The interactive editor lets you define:
 
 Each schedule entry defines one or more time ranges for the days it covers.
 
-## `hourgit config reset`
+## `hourgit project schedule reset`
 
 Reset a project's schedule to the defaults.
 
 ```bash
-hourgit config reset [--project <name>] [--yes]
+hourgit project schedule reset [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
@@ -46,12 +46,12 @@ hourgit config reset [--project <name>] [--yes]
 | `-p`, `--project` | auto-detect | Project name or ID |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-## `hourgit config report`
+## `hourgit project schedule report`
 
 Show expanded working hours for a given month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
+hourgit project schedule report [--project <name>] [--month <1-12>] [--year <YYYY>]
 ```
 
 | Flag | Default | Description |

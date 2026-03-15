@@ -10,15 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execDefaultsReset(homeDir string, confirm ConfirmFunc) (string, error) {
+func execDefaultsScheduleReset(homeDir string, confirm ConfirmFunc) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := defaultsResetCmd
+	cmd := defaultsScheduleResetCmd
 	cmd.SetOut(stdout)
-	err := runDefaultsReset(cmd, homeDir, confirm)
+	err := runDefaultsScheduleReset(cmd, homeDir, confirm)
 	return stdout.String(), err
 }
 
-func TestDefaultsResetHappyPath(t *testing.T) {
+func TestDefaultsScheduleResetHappyPath(t *testing.T) {
 	homeDir := t.TempDir()
 
 	// Set custom defaults first
@@ -27,7 +27,7 @@ func TestDefaultsResetHappyPath(t *testing.T) {
 	}
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
-	stdout, err := execDefaultsReset(homeDir, AlwaysYes())
+	stdout, err := execDefaultsScheduleReset(homeDir, AlwaysYes())
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "defaults reset to factory settings")
@@ -38,7 +38,7 @@ func TestDefaultsResetHappyPath(t *testing.T) {
 	assert.Equal(t, schedule.DefaultSchedules(), project.GetDefaults(cfg))
 }
 
-func TestDefaultsResetDeclined(t *testing.T) {
+func TestDefaultsScheduleResetDeclined(t *testing.T) {
 	homeDir := t.TempDir()
 
 	custom := []schedule.ScheduleEntry{
@@ -47,7 +47,7 @@ func TestDefaultsResetDeclined(t *testing.T) {
 	require.NoError(t, project.SetDefaults(homeDir, custom))
 
 	decline := func(_ string) (bool, error) { return false, nil }
-	stdout, err := execDefaultsReset(homeDir, decline)
+	stdout, err := execDefaultsScheduleReset(homeDir, decline)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "cancelled")
@@ -58,8 +58,8 @@ func TestDefaultsResetDeclined(t *testing.T) {
 	assert.Equal(t, custom, project.GetDefaults(cfg))
 }
 
-func TestDefaultsResetRegisteredAsSubcommand(t *testing.T) {
-	commands := defaultsCmd.Commands()
+func TestDefaultsScheduleResetRegisteredAsSubcommand(t *testing.T) {
+	commands := defaultsScheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()

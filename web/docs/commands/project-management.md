@@ -16,14 +16,15 @@ hourgit project add <name> [--mode <mode>]
 
 ## `hourgit project assign`
 
-Assign the current repository to a project.
+Assign the current repository to a project. When no project is specified, auto-detects from the current repo's assignment.
 
 ```bash
-hourgit project assign <name> [--force] [--yes]
+hourgit project assign [PROJECT] [--project <name>] [--force] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
 | `-f`, `--force` | `false` | Reassign repository to a different project |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
@@ -53,12 +54,13 @@ hourgit project list
 
 ## `hourgit project remove`
 
-Remove a project and clean up its repository assignments.
+Remove a project and clean up its repository assignments. When no project is specified, auto-detects from the current repo's assignment.
 
 ```bash
-hourgit project remove <name> [--yes]
+hourgit project remove [PROJECT] [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |

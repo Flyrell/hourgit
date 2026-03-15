@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupConfigTest(t *testing.T) (homeDir string, repoDir string, entry *project.ProjectEntry) {
+func setupScheduleTest(t *testing.T) (homeDir string, repoDir string, entry *project.ProjectEntry) {
 	t.Helper()
 	homeDir = t.TempDir()
 	repoDir = t.TempDir()
@@ -31,18 +31,18 @@ func setupConfigTest(t *testing.T) (homeDir string, repoDir string, entry *proje
 	return homeDir, repoDir, entry
 }
 
-func execConfigGet(homeDir, repoDir, projectFlag string) (string, error) {
+func execScheduleGet(homeDir, repoDir, projectFlag string) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := configGetCmd
+	cmd := scheduleGetCmd
 	cmd.SetOut(stdout)
-	err := runConfigGet(cmd, homeDir, repoDir, projectFlag)
+	err := runScheduleGet(cmd, homeDir, repoDir, projectFlag)
 	return stdout.String(), err
 }
 
-func TestConfigGetDefaultSchedule(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
+func TestScheduleGetDefaultSchedule(t *testing.T) {
+	homeDir, repoDir, _ := setupScheduleTest(t)
 
-	stdout, err := execConfigGet(homeDir, repoDir, "")
+	stdout, err := execScheduleGet(homeDir, repoDir, "")
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Schedule for")
@@ -51,18 +51,18 @@ func TestConfigGetDefaultSchedule(t *testing.T) {
 	assert.Contains(t, stdout, "every weekday")
 }
 
-func TestConfigGetByProjectFlag(t *testing.T) {
-	homeDir, _, entry := setupConfigTest(t)
+func TestScheduleGetByProjectFlag(t *testing.T) {
+	homeDir, _, entry := setupScheduleTest(t)
 
-	stdout, err := execConfigGet(homeDir, "", entry.Name)
+	stdout, err := execScheduleGet(homeDir, "", entry.Name)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Test Project")
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 }
 
-func TestConfigGetCustomSchedule(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleGetCustomSchedule(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	custom := []schedule.ScheduleEntry{
 		{Ranges: []schedule.TimeRange{{From: "08:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO,WE,FR"},
@@ -70,7 +70,7 @@ func TestConfigGetCustomSchedule(t *testing.T) {
 	}
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
-	stdout, err := execConfigGet(homeDir, repoDir, "")
+	stdout, err := execScheduleGet(homeDir, repoDir, "")
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "8:00 AM - 12:00 PM")
@@ -79,20 +79,29 @@ func TestConfigGetCustomSchedule(t *testing.T) {
 	assert.Contains(t, stdout, "2.")
 }
 
-func TestConfigGetNoProject(t *testing.T) {
+func TestScheduleGetNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 
-	_, err := execConfigGet(homeDir, "", "")
+	_, err := execScheduleGet(homeDir, "", "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
 }
 
-func TestConfigGetRegisteredAsSubcommand(t *testing.T) {
-	commands := configCmd.Commands()
+func TestScheduleGetRegisteredAsSubcommand(t *testing.T) {
+	commands := scheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
 	}
 	assert.Contains(t, names, "get")
+}
+
+func TestScheduleRegisteredUnderProject(t *testing.T) {
+	commands := projectCmd.Commands()
+	names := make([]string, len(commands))
+	for i, cmd := range commands {
+		names[i] = cmd.Name()
+	}
+	assert.Contains(t, names, "schedule")
 }

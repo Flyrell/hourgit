@@ -152,6 +152,49 @@ func TestProjectRemoveDeletesEntryDirectory(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "entry directory should be deleted")
 }
 
+func TestProjectRemoveAutoDetectFromRepo(t *testing.T) {
+	home := t.TempDir()
+	repo := t.TempDir()
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repo, ".git"), 0755))
+
+	entry, err := project.CreateProject(home, "Auto Project")
+	require.NoError(t, err)
+	require.NoError(t, project.AssignProject(home, repo, entry))
+
+	// Use resolveProjectFromRepo to simulate auto-detection
+	resolved, err := resolveProjectFromRepo(home, repo)
+	require.NoError(t, err)
+	assert.Equal(t, "Auto Project", resolved.Name)
+
+	// Now actually remove using the resolved identifier
+	stdout, err := execProjectRemove(home, resolved.Name, AlwaysYes())
+
+	assert.NoError(t, err)
+	assert.Contains(t, stdout, "project 'Auto Project' removed")
+}
+
+func TestProjectRemoveAutoDetectNoRepo(t *testing.T) {
+	home := t.TempDir()
+
+	_, err := resolveProjectFromRepo(home, "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no project specified")
+}
+
+func TestProjectRemoveAutoDetectNoAssignment(t *testing.T) {
+	home := t.TempDir()
+	repo := t.TempDir()
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repo, ".git"), 0755))
+
+	_, err := resolveProjectFromRepo(home, repo)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no project specified")
+}
+
 func TestProjectRemoveRegisteredAsSubcommand(t *testing.T) {
 	commands := projectCmd.Commands()
 	names := make([]string, len(commands))
