@@ -7,6 +7,7 @@ import (
 
 	"github.com/Flyrell/hourgit/internal/entry"
 	"github.com/Flyrell/hourgit/internal/hashutil"
+	"github.com/Flyrell/hourgit/internal/schedule"
 	"github.com/Flyrell/hourgit/internal/timetrack"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -166,7 +167,9 @@ func (o *entrySelectorOverlay) selectedEntry() timetrack.CellEntry {
 type editField int
 
 const (
-	editFieldDuration editField = iota
+	editFieldFrom editField = iota
+	editFieldTo
+	editFieldDuration
 	editFieldTask
 	editFieldMessage
 	editFieldConfirm
@@ -174,6 +177,8 @@ const (
 
 type editOverlay struct {
 	entry    timetrack.CellEntry
+	from     string
+	to       string
 	duration string
 	task     string
 	message  string
@@ -182,8 +187,11 @@ type editOverlay struct {
 }
 
 func newEditOverlay(ce timetrack.CellEntry) *editOverlay {
+	endTime := ce.Start.Add(time.Duration(ce.Minutes) * time.Minute)
 	return &editOverlay{
 		entry:    ce,
+		from:     ce.Start.Format("15:04"),
+		to:       endTime.Format("15:04"),
 		duration: entry.FormatMinutes(ce.Minutes),
 		task:     ce.Task,
 		message:  ce.Message,
@@ -194,6 +202,10 @@ func (o *editOverlay) Init() tea.Cmd { return nil }
 
 func (o *editOverlay) activeTextField() *textField {
 	switch o.field {
+	case editFieldFrom:
+		return &textField{&o.from}
+	case editFieldTo:
+		return &textField{&o.to}
 	case editFieldDuration:
 		return &textField{&o.duration}
 	case editFieldTask:
@@ -204,6 +216,70 @@ func (o *editOverlay) activeTextField() *textField {
 	return nil
 }
 
+// recomputeFromField recalculates to = from + duration when leaving the from field.
+func (o *editOverlay) recomputeFromField() {
+	fromTOD, err := schedule.ParseTimeOfDay(o.from)
+	if err != nil {
+		return
+	}
+	mins, err := entry.ParseDuration(o.duration)
+	if err != nil {
+		return
+	}
+	endTime := time.Date(2000, 1, 1, fromTOD.Hour, fromTOD.Minute, 0, 0, time.UTC).
+		Add(time.Duration(mins) * time.Minute)
+	o.to = endTime.Format("15:04")
+}
+
+// recomputeToField recalculates duration = to - from when leaving the to field.
+func (o *editOverlay) recomputeToField() {
+	fromTOD, err := schedule.ParseTimeOfDay(o.from)
+	if err != nil {
+		return
+	}
+	toTOD, err := schedule.ParseTimeOfDay(o.to)
+	if err != nil {
+		return
+	}
+	fromMins := fromTOD.Hour*60 + fromTOD.Minute
+	toMins := toTOD.Hour*60 + toTOD.Minute
+	if toMins > fromMins {
+		o.duration = entry.FormatMinutes(toMins - fromMins)
+	}
+}
+
+// recomputeDurationField recalculates to = from + duration when leaving the duration field.
+func (o *editOverlay) recomputeDurationField() {
+	o.recomputeFromField() // same logic: to = from + duration
+}
+
+func (o *editOverlay) advanceField() {
+	prev := o.field
+	if o.field < editFieldConfirm {
+		o.field++
+	}
+	o.recomputeOnLeave(prev)
+}
+
+func (o *editOverlay) retreatField() {
+	prev := o.field
+	if o.field > editFieldFrom {
+		o.field--
+	}
+	o.recomputeOnLeave(prev)
+}
+
+func (o *editOverlay) recomputeOnLeave(prev editField) {
+	switch prev {
+	case editFieldFrom:
+		o.recomputeFromField()
+	case editFieldTo:
+		o.recomputeToField()
+	case editFieldDuration:
+		o.recomputeDurationField()
+	}
+}
+
 func (o *editOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -211,31 +287,38 @@ func (o *editOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			return o, overlayResultMsg("cancel", nil)
 		case "tab", "down":
-			if o.field < editFieldConfirm {
-				o.field++
-			}
+			o.advanceField()
 		case "shift+tab", "up":
-			if o.field > editFieldDuration {
-				o.field--
-			}
+			o.retreatField()
 		case "enter":
 			if o.field == editFieldConfirm {
-				// Validate duration
-				mins, err := entry.ParseDuration(o.duration)
+				fromTOD, err := schedule.ParseTimeOfDay(o.from)
 				if err != nil {
-					o.err = "Invalid duration (e.g. 2h30m, 90m)"
+					o.err = "Invalid from time (e.g. 9am, 14:00)"
 					return o, nil
 				}
+				toTOD, err := schedule.ParseTimeOfDay(o.to)
+				if err != nil {
+					o.err = "Invalid to time (e.g. 5pm, 17:00)"
+					return o, nil
+				}
+				fromMins := fromTOD.Hour*60 + fromTOD.Minute
+				toMins := toTOD.Hour*60 + toTOD.Minute
+				if toMins <= fromMins {
+					o.err = "To must be after From"
+					return o, nil
+				}
+				mins := toMins - fromMins
+				// Update entry start and minutes
+				y, mo, d := o.entry.Start.Date()
+				o.entry.Start = time.Date(y, mo, d, fromTOD.Hour, fromTOD.Minute, 0, 0, o.entry.Start.Location())
 				o.entry.Minutes = mins
 				o.entry.Task = o.task
 				o.entry.Message = o.message
 				o.err = ""
 				return o, overlayResultMsg("edit", nil)
 			}
-			// Enter on a field moves to next
-			if o.field < editFieldConfirm {
-				o.field++
-			}
+			o.advanceField()
 		case "backspace":
 			if tf := o.activeTextField(); tf != nil {
 				tf.deleteChar()
@@ -261,6 +344,8 @@ func (o *editOverlay) View() string {
 		value string
 		field editField
 	}{
+		{"From", o.from, editFieldFrom},
+		{"To", o.to, editFieldTo},
 		{"Duration", o.duration, editFieldDuration},
 		{"Task", o.task, editFieldTask},
 		{"Message", o.message, editFieldMessage},
@@ -305,7 +390,9 @@ func (o *editOverlay) View() string {
 type addField int
 
 const (
-	addFieldDuration addField = iota
+	addFieldFrom addField = iota
+	addFieldTo
+	addFieldDuration
 	addFieldTask
 	addFieldMessage
 	addFieldConfirm
@@ -316,6 +403,8 @@ type addOverlay struct {
 	month    time.Month
 	year     int
 	task     string // pre-filled from selected row
+	from     string
+	to       string
 	duration string
 	message  string
 	field    addField
@@ -328,6 +417,7 @@ func newAddOverlay(day int, month time.Month, year int, task string) *addOverlay
 		month: month,
 		year:  year,
 		task:  task,
+		from:  "9:00",
 	}
 }
 
@@ -335,6 +425,10 @@ func (o *addOverlay) Init() tea.Cmd { return nil }
 
 func (o *addOverlay) activeTextField() *textField {
 	switch o.field {
+	case addFieldFrom:
+		return &textField{&o.from}
+	case addFieldTo:
+		return &textField{&o.to}
 	case addFieldDuration:
 		return &textField{&o.duration}
 	case addFieldTask:
@@ -345,6 +439,70 @@ func (o *addOverlay) activeTextField() *textField {
 	return nil
 }
 
+// recomputeFromField recalculates to = from + duration when leaving the from field.
+func (o *addOverlay) recomputeFromField() {
+	fromTOD, err := schedule.ParseTimeOfDay(o.from)
+	if err != nil {
+		return
+	}
+	mins, err := entry.ParseDuration(o.duration)
+	if err != nil {
+		return
+	}
+	endTime := time.Date(2000, 1, 1, fromTOD.Hour, fromTOD.Minute, 0, 0, time.UTC).
+		Add(time.Duration(mins) * time.Minute)
+	o.to = endTime.Format("15:04")
+}
+
+// recomputeToField recalculates duration = to - from when leaving the to field.
+func (o *addOverlay) recomputeToField() {
+	fromTOD, err := schedule.ParseTimeOfDay(o.from)
+	if err != nil {
+		return
+	}
+	toTOD, err := schedule.ParseTimeOfDay(o.to)
+	if err != nil {
+		return
+	}
+	fromMins := fromTOD.Hour*60 + fromTOD.Minute
+	toMins := toTOD.Hour*60 + toTOD.Minute
+	if toMins > fromMins {
+		o.duration = entry.FormatMinutes(toMins - fromMins)
+	}
+}
+
+// recomputeDurationField recalculates to = from + duration when leaving the duration field.
+func (o *addOverlay) recomputeDurationField() {
+	o.recomputeFromField() // same logic: to = from + duration
+}
+
+func (o *addOverlay) advanceField() {
+	prev := o.field
+	if o.field < addFieldConfirm {
+		o.field++
+	}
+	o.recomputeOnLeave(prev)
+}
+
+func (o *addOverlay) retreatField() {
+	prev := o.field
+	if o.field > addFieldFrom {
+		o.field--
+	}
+	o.recomputeOnLeave(prev)
+}
+
+func (o *addOverlay) recomputeOnLeave(prev addField) {
+	switch prev {
+	case addFieldFrom:
+		o.recomputeFromField()
+	case addFieldTo:
+		o.recomputeToField()
+	case addFieldDuration:
+		o.recomputeDurationField()
+	}
+}
+
 func (o *addOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -352,30 +510,44 @@ func (o *addOverlay) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			return o, overlayResultMsg("cancel", nil)
 		case "tab", "down":
-			if o.field < addFieldConfirm {
-				o.field++
-			}
+			o.advanceField()
 		case "shift+tab", "up":
-			if o.field > addFieldDuration {
-				o.field--
-			}
+			o.retreatField()
 		case "enter":
 			if o.field == addFieldConfirm {
+				fromTOD, err := schedule.ParseTimeOfDay(o.from)
+				if err != nil {
+					o.err = "Invalid from time (e.g. 9am, 14:00)"
+					return o, nil
+				}
 				if o.duration == "" {
 					o.err = "Duration is required"
 					return o, nil
 				}
-				_, err := entry.ParseDuration(o.duration)
+				mins, err := entry.ParseDuration(o.duration)
 				if err != nil {
 					o.err = "Invalid duration (e.g. 2h30m, 90m)"
 					return o, nil
 				}
+				// Validate to if provided
+				if o.to != "" {
+					toTOD, err := schedule.ParseTimeOfDay(o.to)
+					if err != nil {
+						o.err = "Invalid to time (e.g. 5pm, 17:00)"
+						return o, nil
+					}
+					toMins := toTOD.Hour*60 + toTOD.Minute
+					fromMins := fromTOD.Hour*60 + fromTOD.Minute
+					if toMins <= fromMins {
+						o.err = "To must be after From"
+						return o, nil
+					}
+				}
+				_ = mins
 				o.err = ""
 				return o, overlayResultMsg("add", nil)
 			}
-			if o.field < addFieldConfirm {
-				o.field++
-			}
+			o.advanceField()
 		case "backspace":
 			if tf := o.activeTextField(); tf != nil {
 				tf.deleteChar()
@@ -401,6 +573,8 @@ func (o *addOverlay) View() string {
 		value string
 		field addField
 	}{
+		{"From", o.from, addFieldFrom},
+		{"To", o.to, addFieldTo},
 		{"Duration", o.duration, addFieldDuration},
 		{"Task", o.task, addFieldTask},
 		{"Message", o.message, addFieldMessage},
@@ -440,6 +614,11 @@ func (o *addOverlay) View() string {
 }
 
 func (o *addOverlay) buildEntry(now time.Time) (entry.Entry, error) {
+	fromTOD, err := schedule.ParseTimeOfDay(o.from)
+	if err != nil {
+		return entry.Entry{}, fmt.Errorf("invalid from time: %w", err)
+	}
+
 	mins, err := entry.ParseDuration(o.duration)
 	if err != nil {
 		return entry.Entry{}, err
@@ -453,7 +632,7 @@ func (o *addOverlay) buildEntry(now time.Time) (entry.Entry, error) {
 
 	return entry.Entry{
 		ID:        hashutil.GenerateID("add"),
-		Start:     time.Date(o.year, o.month, o.day, 9, 0, 0, 0, time.UTC),
+		Start:     time.Date(o.year, o.month, o.day, fromTOD.Hour, fromTOD.Minute, 0, 0, time.UTC),
 		Minutes:   mins,
 		Message:   msg,
 		Task:      task,

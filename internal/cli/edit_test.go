@@ -106,7 +106,7 @@ func TestEditFromToMode(t *testing.T) {
 func TestEditFromOnly(t *testing.T) {
 	homeDir, repoDir, proj, _ := setupEditTest(t)
 
-	// Original: 9:00 - 12:00 (180 min). Change from to 10:00, keep end at 12:00.
+	// Original: 9:00 - 12:00 (180 min). Change from to 10:00, keep duration (3h) → to shifts to 13:00.
 	flags := map[string]bool{"from": true}
 	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "10am", "", "", "", "")
 
@@ -116,7 +116,7 @@ func TestEditFromOnly(t *testing.T) {
 	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 10, e.Start.Hour())
-	assert.Equal(t, 120, e.Minutes) // 10:00 - 12:00 = 2h
+	assert.Equal(t, 180, e.Minutes) // duration preserved: 3h
 }
 
 func TestEditToOnly(t *testing.T) {
@@ -211,14 +211,77 @@ func TestEditEmptyMessageError(t *testing.T) {
 	assert.Contains(t, err.Error(), "message is required")
 }
 
-func TestEditDurationFromToMutuallyExclusive(t *testing.T) {
+func TestEditDurationAndFrom(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupEditTest(t)
+
+	// Original: 9:00-12:00 (180 min). --duration 2h --from 10am → 10:00-12:00
+	flags := map[string]bool{"duration": true, "from": true}
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "10am", "", "", "", "")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "updated entry")
+
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
+	require.NoError(t, err)
+	assert.Equal(t, 10, e.Start.Hour())
+	assert.Equal(t, 120, e.Minutes)
+}
+
+func TestEditDurationAndTo(t *testing.T) {
+	homeDir, repoDir, proj, _ := setupEditTest(t)
+
+	// Original: 9:00-12:00 (180 min). --duration 2h --to 2pm → from = 12:00, 2h
+	flags := map[string]bool{"duration": true, "to": true}
+	stdout, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "", "2pm", "", "", "")
+
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "updated entry")
+
+	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
+	require.NoError(t, err)
+	assert.Equal(t, 12, e.Start.Hour())
+	assert.Equal(t, 120, e.Minutes)
+}
+
+func TestEditDurationFromToOverSpecified(t *testing.T) {
 	homeDir, repoDir, _, _ := setupEditTest(t)
 
-	flags := map[string]bool{"duration": true, "from": true}
-	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "9am", "", "", "", "")
+	flags := map[string]bool{"duration": true, "from": true, "to": true}
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "2h", "9am", "11am", "", "", "")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "mutually exclusive")
+	assert.Contains(t, err.Error(), "cannot all be specified")
+}
+
+func TestEditToBeforeStart(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	// Original: 9:00-12:00. Set --to to 8am → error (before 9:00 start)
+	flags := map[string]bool{"to": true}
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "8am", "", "", "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "must be after")
+}
+
+func TestEditInvalidFromFlag(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	flags := map[string]bool{"from": true}
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "invalid", "", "", "", "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --from time")
+}
+
+func TestEditInvalidToFlag(t *testing.T) {
+	homeDir, repoDir, _, _ := setupEditTest(t)
+
+	flags := map[string]bool{"to": true}
+	_, err := execEdit(homeDir, repoDir, "", "ed01234", flags, "", "", "invalid", "", "", "")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --to time")
 }
 
 func TestEditExceeds24Hours(t *testing.T) {
@@ -327,8 +390,8 @@ func TestEditInteractiveMode(t *testing.T) {
 				return "2025-06-16", nil // same date
 			case "From (e.g. 9am, 14:00)":
 				return "10:00", nil // change from 9:00 to 10:00
-			case "To (e.g. 5pm, 17:00)":
-				return "12:00", nil // same end
+			case "Duration (e.g. 30m, 3h, 3h30m)":
+				return "2h", nil // 2h duration → to = 12:00
 			case "Task":
 				return "coding", nil // same task
 			case "Message":
@@ -349,7 +412,7 @@ func TestEditInteractiveMode(t *testing.T) {
 	e, err := entry.ReadEntry(homeDir, proj.Slug, "ed01234")
 	require.NoError(t, err)
 	assert.Equal(t, 10, e.Start.Hour())
-	assert.Equal(t, 120, e.Minutes) // 10:00 - 12:00
+	assert.Equal(t, 120, e.Minutes) // from 10:00, duration 2h
 }
 
 func TestEditRegisteredAsSubcommand(t *testing.T) {
@@ -376,8 +439,8 @@ func TestEditDateAndFrom(t *testing.T) {
 	assert.Equal(t, time.August, e.Start.Month())
 	assert.Equal(t, 1, e.Start.Day())
 	assert.Equal(t, 10, e.Start.Hour())
-	// Original end was 12:00, new from is 10:00 → 2h
-	assert.Equal(t, 120, e.Minutes)
+	// --from keeps duration (3h), to shifts
+	assert.Equal(t, 180, e.Minutes)
 }
 
 func TestEditScheduleWarningOutsideHours(t *testing.T) {

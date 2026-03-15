@@ -65,6 +65,7 @@ func TestLogDurationMode(t *testing.T) {
 	assert.Len(t, entries, 1)
 	assert.Equal(t, 180, entries[0].Minutes)
 	assert.Equal(t, "did some work", entries[0].Message)
+	assert.Equal(t, 9, entries[0].Start.Hour())
 }
 
 func TestLogFromToMode(t *testing.T) {
@@ -455,10 +456,19 @@ func TestLogDurationModeUnscheduledDayFallback(t *testing.T) {
 	homeDir, repoDir, proj := setupLogTest(t)
 
 	// 2025-01-11 is a Saturday — no schedule, so findDurationSlot fails
-	// and falls back to now - duration (fixedNow is 14:00, so 14:00 - 3h = 11:00)
-	stdout, err := execLog(homeDir, repoDir, "", "3h", "", "", "2025-01-11", "", "weekend work")
+	// and falls back to 9:00 default; the schedule warning system will warn the user
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "3h", "", "", "2025-01-11", "", "weekend work", pk)
 
 	require.NoError(t, err)
+	assert.True(t, confirmed, "should have warned about unscheduled day")
 	assert.Contains(t, stdout, "logged")
 	assert.Contains(t, stdout, "3h")
 
@@ -469,7 +479,40 @@ func TestLogDurationModeUnscheduledDayFallback(t *testing.T) {
 	assert.Equal(t, 2025, entries[0].Start.Year())
 	assert.Equal(t, time.January, entries[0].Start.Month())
 	assert.Equal(t, 11, entries[0].Start.Day())
-	assert.Equal(t, 11, entries[0].Start.Hour())
+	assert.Equal(t, 9, entries[0].Start.Hour())
+}
+
+func TestLogDurationModeNoSlotAvailable(t *testing.T) {
+	homeDir, repoDir, proj := setupLogTest(t)
+
+	// Fill up Monday (2025-06-16, 9am-5pm = 8h) with an existing 8h entry
+	e := entry.Entry{
+		ID:      "00f0001",
+		Start:   time.Date(2025, 6, 16, 9, 0, 0, 0, time.UTC),
+		Minutes: 480,
+		Message: "full day",
+	}
+	require.NoError(t, entry.WriteEntry(homeDir, proj.Slug, e))
+
+	// Try to log 1h on same day — no slot available, falls back to 9:00
+	// and schedule warning fires about exceeding budget
+	confirmed := false
+	pk := PromptKit{
+		Confirm: func(prompt string) (bool, error) {
+			confirmed = true
+			return true, nil
+		},
+	}
+
+	stdout, err := execLogWithPrompts(homeDir, repoDir, "", "1h", "", "", "2025-06-16", "", "extra work", pk)
+
+	require.NoError(t, err)
+	assert.True(t, confirmed, "should have warned about budget overrun")
+	assert.Contains(t, stdout, "logged")
+
+	entries, err := entry.ReadAllEntries(homeDir, proj.Slug)
+	require.NoError(t, err)
+	assert.Len(t, entries, 2)
 }
 
 func TestLogFromToModeWithDate(t *testing.T) {
