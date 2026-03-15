@@ -20,8 +20,8 @@ Manual logging is supported for non-code work (research, analysis, meetings) via
 - [Commands](#commands)
   - [Time Tracking](#time-tracking) — init, log, edit, remove, sync, report, history, status
   - [Project Management](#project-management) — project add/assign/edit/list/remove
-  - [Schedule Configuration](#schedule-configuration) — config get/set/reset/report
-  - [Default Schedule](#default-schedule) — defaults get/set/reset/report
+  - [Schedule Configuration](#schedule-configuration) — project schedule get/set/reset/report
+  - [Default Schedule](#default-schedule) — defaults schedule get/set/reset/report
   - [Shell Completions](#shell-completions) — completion install/generate
   - [Other](#other) — version, watch
 - [Precise Mode](#precise-mode)
@@ -324,14 +324,15 @@ hourgit project add <name> [--mode <mode>]
 
 #### `hourgit project assign`
 
-Assign the current repository to a project.
+Assign the current repository to a project. The project name is optional — if omitted, the project is auto-detected from the current repository.
 
 ```bash
-hourgit project assign <name> [--force] [--yes]
+hourgit project assign [PROJECT] [--project <name>] [--force] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
 | `-f`, `--force` | `false` | Reassign repository to a different project |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
@@ -375,52 +376,53 @@ No flags.
 
 #### `hourgit project remove`
 
-Remove a project and clean up its repository assignments.
+Remove a project and clean up its repository assignments. The project name is optional — if omitted, the project is auto-detected from the current repository.
 
 ```bash
-hourgit project remove <name> [--yes]
+hourgit project remove [PROJECT] [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-p`, `--project` | auto-detect | Project name or ID (alternative to positional argument) |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
 ### Schedule Configuration
 
 Manage per-project schedule configuration. If `--project` is omitted, the project is auto-detected from the current repository.
 
-Commands: `config get` · `config set` · `config reset` · `config report`
+Commands: `project schedule get` · `project schedule set` · `project schedule reset` · `project schedule report`
 
-#### `hourgit config get`
+#### `hourgit project schedule get`
 
 Show the schedule configuration for a project.
 
 ```bash
-hourgit config get [--project <name>]
+hourgit project schedule get [--project <name>]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Project name or ID |
 
-#### `hourgit config set`
+#### `hourgit project schedule set`
 
 Interactively edit a project's schedule using a guided schedule builder.
 
 ```bash
-hourgit config set [--project <name>]
+hourgit project schedule set [--project <name>]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-p`, `--project` | auto-detect | Project name or ID |
 
-#### `hourgit config reset`
+#### `hourgit project schedule reset`
 
 Reset a project's schedule to the defaults.
 
 ```bash
-hourgit config reset [--project <name>] [--yes]
+hourgit project schedule reset [--project <name>] [--yes]
 ```
 
 | Flag | Default | Description |
@@ -428,12 +430,12 @@ hourgit config reset [--project <name>] [--yes]
 | `-p`, `--project` | auto-detect | Project name or ID |
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-#### `hourgit config report`
+#### `hourgit project schedule report`
 
 Show expanded working hours for a given month (resolves schedule rules into concrete days and time ranges).
 
 ```bash
-hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
+hourgit project schedule report [--project <name>] [--month <1-12>] [--year <YYYY>]
 ```
 
 | Flag | Default | Description |
@@ -446,46 +448,46 @@ hourgit config report [--project <name>] [--month <1-12>] [--year <YYYY>]
 
 Manage the default schedule applied to new projects.
 
-Commands: `defaults get` · `defaults set` · `defaults reset` · `defaults report`
+Commands: `defaults schedule get` · `defaults schedule set` · `defaults schedule reset` · `defaults schedule report`
 
-#### `hourgit defaults get`
+#### `hourgit defaults schedule get`
 
 Show the default schedule for new projects.
 
 ```bash
-hourgit defaults get
+hourgit defaults schedule get
 ```
 
 No flags.
 
-#### `hourgit defaults set`
+#### `hourgit defaults schedule set`
 
 Interactively edit the default schedule for new projects.
 
 ```bash
-hourgit defaults set
+hourgit defaults schedule set
 ```
 
 No flags.
 
-#### `hourgit defaults reset`
+#### `hourgit defaults schedule reset`
 
 Reset the default schedule to factory settings (Mon-Fri, 9 AM - 5 PM).
 
 ```bash
-hourgit defaults reset [--yes]
+hourgit defaults schedule reset [--yes]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-y`, `--yes` | `false` | Skip confirmation prompt |
 
-#### `hourgit defaults report`
+#### `hourgit defaults schedule report`
 
 Show expanded default working hours for a given month.
 
 ```bash
-hourgit defaults report [--month <1-12>] [--year <YYYY>]
+hourgit defaults schedule report [--month <1-12>] [--year <YYYY>]
 ```
 
 | Flag | Default | Description |
@@ -612,7 +614,7 @@ Hourgit uses a schedule system to define working hours. The factory default is *
 
 ### Schedule types
 
-The interactive schedule editor (`config set` / `defaults set`) supports three schedule types:
+The interactive schedule editor (`project schedule set` / `defaults schedule set`) supports three schedule types:
 
 - **Recurring** — repeats on a regular pattern (e.g., every weekday, every Monday/Wednesday/Friday)
 - **One-off** — applies to a single specific date (e.g., a holiday or overtime day)
@@ -622,7 +624,7 @@ Each schedule entry defines one or more time ranges for the days it covers. Mult
 
 ### Per-project overrides
 
-Every project starts with a copy of the defaults. You can then customize a project's schedule independently using `hourgit config set --project NAME`. To revert a project back to the current defaults, use `hourgit config reset --project NAME`.
+Every project starts with a copy of the defaults. You can then customize a project's schedule independently using `hourgit project schedule set --project NAME`. To revert a project back to the current defaults, use `hourgit project schedule reset --project NAME`.
 
 ## Data Storage
 

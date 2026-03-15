@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execConfigReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string, now time.Time) (string, error) {
+func execScheduleReport(homeDir, repoDir, projectFlag, monthFlag, yearFlag string, now time.Time) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := configReportCmd
+	cmd := scheduleReportCmd
 	cmd.SetOut(stdout)
-	err := runConfigReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, now)
+	err := runScheduleReport(cmd, homeDir, repoDir, projectFlag, monthFlag, yearFlag, now)
 	return stdout.String(), err
 }
 
-func TestConfigReportDefaultSchedule(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
+func TestScheduleReportDefaultSchedule(t *testing.T) {
+	homeDir, repoDir, _ := setupScheduleTest(t)
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC) // mid-February
 
-	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
+	stdout, err := execScheduleReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Working hours for")
@@ -38,19 +38,19 @@ func TestConfigReportDefaultSchedule(t *testing.T) {
 	assert.NotContains(t, stdout, "Sun ")
 }
 
-func TestConfigReportByProjectFlag(t *testing.T) {
-	homeDir, _, entry := setupConfigTest(t)
+func TestScheduleReportByProjectFlag(t *testing.T) {
+	homeDir, _, entry := setupScheduleTest(t)
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execConfigReport(homeDir, "", entry.Name, "", "", now)
+	stdout, err := execScheduleReport(homeDir, "", entry.Name, "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "Test Project")
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 }
 
-func TestConfigReportMultipleWindows(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleReportMultipleWindows(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	custom := []schedule.ScheduleEntry{
 		{Ranges: []schedule.TimeRange{{From: "09:00", To: "12:00"}}, RRule: "FREQ=WEEKLY;BYDAY=MO"},
@@ -59,25 +59,25 @@ func TestConfigReportMultipleWindows(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
-	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
+	stdout, err := execScheduleReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	// Default is accumulate: both windows appear comma-separated
 	assert.Contains(t, stdout, "9:00 AM - 12:00 PM, 1:00 PM - 5:00 PM")
 }
 
-func TestConfigReportNoProject(t *testing.T) {
+func TestScheduleReportNoProject(t *testing.T) {
 	homeDir := t.TempDir()
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	_, err := execConfigReport(homeDir, "", "", "", "", now)
+	_, err := execScheduleReport(homeDir, "", "", "", "", now)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no project found")
 }
 
-func TestConfigReportNoWorkingHours(t *testing.T) {
-	homeDir, repoDir, entry := setupConfigTest(t)
+func TestScheduleReportNoWorkingHours(t *testing.T) {
+	homeDir, repoDir, entry := setupScheduleTest(t)
 
 	// Set schedule to a specific date outside the test month
 	custom := []schedule.ScheduleEntry{
@@ -86,25 +86,25 @@ func TestConfigReportNoWorkingHours(t *testing.T) {
 	require.NoError(t, project.SetSchedules(homeDir, entry.ID, custom))
 
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
-	stdout, err := execConfigReport(homeDir, repoDir, "", "", "", now)
+	stdout, err := execScheduleReport(homeDir, repoDir, "", "", "", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "No working hours scheduled this month")
 }
 
-func TestConfigReportWithMonthAndYearFlags(t *testing.T) {
-	homeDir, repoDir, _ := setupConfigTest(t)
+func TestScheduleReportWithMonthAndYearFlags(t *testing.T) {
+	homeDir, repoDir, _ := setupScheduleTest(t)
 	now := time.Date(2026, 2, 15, 12, 0, 0, 0, time.UTC)
 
-	stdout, err := execConfigReport(homeDir, repoDir, "", "1", "2025", now)
+	stdout, err := execScheduleReport(homeDir, repoDir, "", "1", "2025", now)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "January 2025")
 	assert.Contains(t, stdout, "9:00 AM - 5:00 PM")
 }
 
-func TestConfigReportRegisteredAsSubcommand(t *testing.T) {
-	commands := configCmd.Commands()
+func TestScheduleReportRegisteredAsSubcommand(t *testing.T) {
+	commands := scheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()

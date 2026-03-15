@@ -11,12 +11,15 @@ import (
 )
 
 var projectAssignCmd = LeafCommand{
-	Use:   "assign PROJECT",
+	Use:   "assign [PROJECT]",
 	Short: "Assign repository to a project",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	BoolFlags: []BoolFlag{
 		{Name: "force", Shorthand: "f", Usage: "reassign repository to a different project"},
 		{Name: "yes", Shorthand: "y", Usage: "skip confirmation prompt"},
+	},
+	StrFlags: []StringFlag{
+		{Name: "project", Shorthand: "p", Usage: "project name or ID"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
@@ -31,10 +34,26 @@ var projectAssignCmd = LeafCommand{
 
 		force, _ := cmd.Flags().GetBool("force")
 		yes, _ := cmd.Flags().GetBool("yes")
+		projectFlag, _ := cmd.Flags().GetString("project")
 
 		confirm := ResolveConfirmFunc(yes)
 
-		return runProjectAssign(cmd, dir, homeDir, args[0], force, confirm)
+		// Resolve project name: positional arg > --project flag > repo config
+		var projectName string
+		if len(args) > 0 {
+			projectName = args[0]
+		} else if projectFlag != "" {
+			projectName = projectFlag
+		} else {
+			// Fall back to repo config
+			entry, err := resolveProjectFromRepo(homeDir, dir)
+			if err != nil {
+				return err
+			}
+			projectName = entry.Name
+		}
+
+		return runProjectAssign(cmd, dir, homeDir, projectName, force, confirm)
 	},
 }.Build()
 

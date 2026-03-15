@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultsReportCmd = LeafCommand{
+var defaultsScheduleReportCmd = LeafCommand{
 	Use:   "report",
 	Short: "Show expanded default working hours for a given month",
 	StrFlags: []StringFlag{
@@ -24,11 +24,11 @@ var defaultsReportCmd = LeafCommand{
 		monthFlag, _ := cmd.Flags().GetString("month")
 		yearFlag, _ := cmd.Flags().GetString("year")
 
-		return runDefaultsReport(cmd, homeDir, monthFlag, yearFlag, time.Now())
+		return runDefaultsScheduleReport(cmd, homeDir, monthFlag, yearFlag, time.Now())
 	},
 }.Build()
 
-func runDefaultsReport(cmd *cobra.Command, homeDir, monthFlag, yearFlag string, now time.Time) error {
+func runDefaultsScheduleReport(cmd *cobra.Command, homeDir, monthFlag, yearFlag string, now time.Time) error {
 	cfg, err := project.ReadConfig(homeDir)
 	if err != nil {
 		return err

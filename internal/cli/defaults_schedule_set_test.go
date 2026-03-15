@@ -9,15 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func execDefaultsSet(homeDir string, kit PromptKit) (string, error) {
+func execDefaultsScheduleSet(homeDir string, kit PromptKit) (string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := defaultsSetCmd
+	cmd := defaultsScheduleSetCmd
 	cmd.SetOut(stdout)
-	err := runDefaultsSet(cmd, homeDir, kit)
+	err := runDefaultsScheduleSet(cmd, homeDir, kit)
 	return stdout.String(), err
 }
 
-func TestDefaultsSetQuitImmediately(t *testing.T) {
+func TestDefaultsScheduleSetQuitImmediately(t *testing.T) {
 	homeDir := t.TempDir()
 
 	kit := testKit(
@@ -26,13 +26,13 @@ func TestDefaultsSetQuitImmediately(t *testing.T) {
 		mockConfirm(false),
 		mockMultiSelect(nil),
 	)
-	stdout, err := execDefaultsSet(homeDir, kit)
+	stdout, err := execDefaultsScheduleSet(homeDir, kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
 }
 
-func TestDefaultsSetAddAndQuit(t *testing.T) {
+func TestDefaultsScheduleSetAddAndQuit(t *testing.T) {
 	homeDir := t.TempDir()
 
 	// Add(0): recurring(0) > every weekend(1) > 10am-2pm > no more ranges
@@ -43,7 +43,7 @@ func TestDefaultsSetAddAndQuit(t *testing.T) {
 		mockConfirmSequence(false, false), // no more ranges, no overlap
 		mockMultiSelect(nil),
 	)
-	stdout, err := execDefaultsSet(homeDir, kit)
+	stdout, err := execDefaultsScheduleSet(homeDir, kit)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "saved")
@@ -55,8 +55,8 @@ func TestDefaultsSetAddAndQuit(t *testing.T) {
 	assert.Len(t, defaults, 2) // original default + new
 }
 
-func TestDefaultsSetRegisteredAsSubcommand(t *testing.T) {
-	commands := defaultsCmd.Commands()
+func TestDefaultsScheduleSetRegisteredAsSubcommand(t *testing.T) {
+	commands := defaultsScheduleCmd.Commands()
 	names := make([]string, len(commands))
 	for i, cmd := range commands {
 		names[i] = cmd.Name()
