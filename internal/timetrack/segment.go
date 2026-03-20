@@ -12,45 +12,73 @@ import (
 type idleGap struct {
 	stop  time.Time // activity_stop timestamp (last file change before idle)
 	start time.Time // activity_start timestamp (first file change after idle)
+	repo  string    // repo this gap belongs to (empty = applies to all)
 }
 
 // buildIdleGaps pairs activity_stop and activity_start entries into idle gaps.
+// Stops and starts are grouped by repo and paired within each group.
 // Gaps are sorted chronologically by stop time.
 func buildIdleGaps(stops []entry.ActivityStopEntry, starts []entry.ActivityStartEntry) []idleGap {
-	// Sort stops and starts by timestamp
-	sortedStops := make([]entry.ActivityStopEntry, len(stops))
-	copy(sortedStops, stops)
-	sort.Slice(sortedStops, func(i, j int) bool {
-		return sortedStops[i].Timestamp.Before(sortedStops[j].Timestamp)
-	})
+	// Group stops by repo
+	stopsByRepo := make(map[string][]entry.ActivityStopEntry)
+	for _, s := range stops {
+		stopsByRepo[s.Repo] = append(stopsByRepo[s.Repo], s)
+	}
 
-	sortedStarts := make([]entry.ActivityStartEntry, len(starts))
-	copy(sortedStarts, starts)
-	sort.Slice(sortedStarts, func(i, j int) bool {
-		return sortedStarts[i].Timestamp.Before(sortedStarts[j].Timestamp)
-	})
+	// Group starts by repo
+	startsByRepo := make(map[string][]entry.ActivityStartEntry)
+	for _, s := range starts {
+		startsByRepo[s.Repo] = append(startsByRepo[s.Repo], s)
+	}
 
-	// Pair each stop with the next start that comes after it
+	// Collect all repo keys
+	repos := make(map[string]bool)
+	for r := range stopsByRepo {
+		repos[r] = true
+	}
+
 	var gaps []idleGap
-	startIdx := 0
-	for _, stop := range sortedStops {
-		// Find the first start after this stop
-		for startIdx < len(sortedStarts) && !sortedStarts[startIdx].Timestamp.After(stop.Timestamp) {
-			startIdx++
+	for repo := range repos {
+		repoStops := stopsByRepo[repo]
+		repoStarts := startsByRepo[repo]
+		if len(repoStarts) == 0 {
+			continue
 		}
-		if startIdx < len(sortedStarts) {
-			gaps = append(gaps, idleGap{
-				stop:  stop.Timestamp,
-				start: sortedStarts[startIdx].Timestamp,
-			})
-			startIdx++
+
+		// Sort stops and starts by timestamp
+		sort.Slice(repoStops, func(i, j int) bool {
+			return repoStops[i].Timestamp.Before(repoStops[j].Timestamp)
+		})
+		sort.Slice(repoStarts, func(i, j int) bool {
+			return repoStarts[i].Timestamp.Before(repoStarts[j].Timestamp)
+		})
+
+		// Pair each stop with the next start that comes after it
+		startIdx := 0
+		for _, stop := range repoStops {
+			for startIdx < len(repoStarts) && !repoStarts[startIdx].Timestamp.After(stop.Timestamp) {
+				startIdx++
+			}
+			if startIdx < len(repoStarts) {
+				gaps = append(gaps, idleGap{
+					stop:  stop.Timestamp,
+					start: repoStarts[startIdx].Timestamp,
+					repo:  repo,
+				})
+				startIdx++
+			}
 		}
 	}
+
+	// Sort gaps chronologically by stop time
+	sort.Slice(gaps, func(i, j int) bool {
+		return gaps[i].stop.Before(gaps[j].stop)
+	})
 	return gaps
 }
 
 // trimSegmentsByIdleGaps removes idle periods from checkout segments.
-// For each segment, idle gaps that overlap are used to split or trim the segment.
+// For each segment, only idle gaps matching the segment's repo are applied.
 func trimSegmentsByIdleGaps(segments []sessionSegment, stops []entry.ActivityStopEntry, starts []entry.ActivityStartEntry) []sessionSegment {
 	if len(stops) == 0 || len(starts) == 0 {
 		return segments
@@ -63,10 +91,29 @@ func trimSegmentsByIdleGaps(segments []sessionSegment, stops []entry.ActivitySto
 
 	var result []sessionSegment
 	for _, seg := range segments {
-		trimmed := applyGapsToSegment(seg, gaps)
+		filtered := filterGapsByRepo(gaps, seg.repo)
+		trimmed := applyGapsToSegment(seg, filtered)
 		result = append(result, trimmed...)
 	}
 	return result
+}
+
+// filterGapsByRepo returns gaps that apply to the given segment repo.
+// Rules:
+//   - Gap with empty repo → applies to all segments (backward compat / log deduction)
+//   - Segment with empty repo → affected by all gaps (conservative fallback)
+//   - Otherwise → gap applies only if repos match
+func filterGapsByRepo(gaps []idleGap, segRepo string) []idleGap {
+	if segRepo == "" {
+		return gaps
+	}
+	var filtered []idleGap
+	for _, g := range gaps {
+		if g.repo == "" || g.repo == segRepo {
+			filtered = append(filtered, g)
+		}
+	}
+	return filtered
 }
 
 // applyGapsToSegment applies all overlapping idle gaps to a single segment,
@@ -134,11 +181,51 @@ type sessionSegment struct {
 	message string // commit message, empty for uncommitted trailing segment
 }
 
+// buildSyntheticCheckouts creates synthetic checkout entries from commits to
+// detect repo switches. When consecutive commits are on different repos, a
+// synthetic checkout is placed at the midpoint to split the timeline.
+func buildSyntheticCheckouts(commits []entry.CommitEntry) []entry.CheckoutEntry {
+	if len(commits) == 0 {
+		return nil
+	}
+
+	sorted := make([]entry.CommitEntry, len(commits))
+	copy(sorted, commits)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
+	})
+
+	var synthetic []entry.CheckoutEntry
+	for i := 1; i < len(sorted); i++ {
+		prev := sorted[i-1]
+		curr := sorted[i]
+		if prev.Repo == "" || curr.Repo == "" {
+			continue
+		}
+		if prev.Repo == curr.Repo {
+			continue
+		}
+		// Different repos — create synthetic checkout at midpoint
+		mid := prev.Timestamp.Add(curr.Timestamp.Sub(prev.Timestamp) / 2)
+		synthetic = append(synthetic, entry.CheckoutEntry{
+			ID:        "synthetic-" + curr.ID,
+			Type:      "checkout",
+			Timestamp: mid,
+			Next:      curr.Branch,
+			Repo:      curr.Repo,
+		})
+	}
+	return synthetic
+}
+
 // buildCheckoutSegments splits checkout sessions by commits to produce
 // finer-grained time segments. Each commit creates a segment from the previous
 // boundary to the commit timestamp. Time is attributed backwards from the commit
 // — work before a commit is attributed to that commit. Trailing time after the
 // last commit becomes an unnamed segment (uncommitted work).
+//
+// Synthetic checkouts are injected from commit-based repo switches so that
+// commits in different repos are never orphaned.
 //
 // When no commits exist within a session, the entire session becomes one segment.
 func buildCheckoutSegments(
@@ -149,18 +236,23 @@ func buildCheckoutSegments(
 ) []sessionSegment {
 	loc := now.Location()
 
+	// Merge synthetic checkouts from commit-based repo switches
+	synthetic := buildSyntheticCheckouts(commits)
+	allCheckouts := append(checkouts, synthetic...)
+
 	// Sort checkouts chronologically
-	sorted := make([]entry.CheckoutEntry, len(checkouts))
-	copy(sorted, checkouts)
+	sorted := make([]entry.CheckoutEntry, len(allCheckouts))
+	copy(sorted, allCheckouts)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
 	})
 
-	// Deduplicate: skip consecutive checkouts to the same branch
+	// Deduplicate: skip consecutive checkouts to the same branch+repo
 	if len(sorted) > 0 {
 		deduped := []entry.CheckoutEntry{sorted[0]}
 		for i := 1; i < len(sorted); i++ {
-			if cleanBranchName(sorted[i].Next) != cleanBranchName(sorted[i-1].Next) {
+			if cleanBranchName(sorted[i].Next) != cleanBranchName(sorted[i-1].Next) ||
+				sorted[i].Repo != sorted[i-1].Repo {
 				deduped = append(deduped, sorted[i])
 			}
 		}
@@ -182,6 +274,7 @@ func buildCheckoutSegments(
 	if lastBeforeIdx >= 0 {
 		pairs = append(pairs, checkoutRange{
 			branch: cleanBranchName(sorted[lastBeforeIdx].Next),
+			repo:   sorted[lastBeforeIdx].Repo,
 			from:   monthStart,
 		})
 	}
@@ -190,6 +283,7 @@ func buildCheckoutSegments(
 		if c.Timestamp.After(monthStart) && !c.Timestamp.After(monthEnd) {
 			pairs = append(pairs, checkoutRange{
 				branch: cleanBranchName(c.Next),
+				repo:   c.Repo,
 				from:   c.Timestamp,
 			})
 		}
@@ -224,13 +318,14 @@ func buildCheckoutSegments(
 			continue
 		}
 
-		// Find commits within this session's time range on the same branch
+		// Find commits within this session's time range on the same branch+repo
 		var sessionCommits []entry.CommitEntry
 		for _, c := range sortedCommits {
 			if c.Timestamp.Before(p.from) || !c.Timestamp.Before(p.to) {
 				continue
 			}
-			if cleanBranchName(c.Branch) == p.branch {
+			if cleanBranchName(c.Branch) == p.branch &&
+				(c.Repo == "" || p.repo == "" || c.Repo == p.repo) {
 				sessionCommits = append(sessionCommits, c)
 			}
 		}
@@ -239,6 +334,7 @@ func buildCheckoutSegments(
 			// No commits — single segment for the whole session
 			segments = append(segments, sessionSegment{
 				branch: p.branch,
+				repo:   p.repo,
 				from:   p.from,
 				to:     p.to,
 			})
@@ -250,9 +346,13 @@ func buildCheckoutSegments(
 		for _, c := range sessionCommits {
 			commitTime := c.Timestamp.Truncate(time.Minute)
 			if commitTime.After(boundary) {
+				repo := c.Repo
+				if repo == "" {
+					repo = p.repo
+				}
 				segments = append(segments, sessionSegment{
 					branch:  p.branch,
-					repo:    c.Repo,
+					repo:    repo,
 					from:    boundary,
 					to:      commitTime,
 					message: c.Message,
@@ -265,6 +365,7 @@ func buildCheckoutSegments(
 		if boundary.Before(p.to) {
 			segments = append(segments, sessionSegment{
 				branch: p.branch,
+				repo:   p.repo,
 				from:   boundary,
 				to:     p.to,
 			})
