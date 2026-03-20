@@ -397,3 +397,446 @@ func TestTrimSegmentsByIdleGaps_NoOverlap(t *testing.T) {
 	assert.Len(t, result, 1)
 	assert.Equal(t, segments[0], result[0])
 }
+
+// --- Synthetic checkout tests ---
+
+func TestBuildSyntheticCheckouts_NoCommits(t *testing.T) {
+	result := buildSyntheticCheckouts(nil)
+	assert.Nil(t, result)
+}
+
+func TestBuildSyntheticCheckouts_SingleRepo(t *testing.T) {
+	commits := []entry.CommitEntry{
+		{ID: "c1", Timestamp: t9am, Branch: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: t10am, Branch: "main", Repo: "/repoA"},
+		{ID: "c3", Timestamp: t11am, Branch: "feat", Repo: "/repoA"},
+	}
+	result := buildSyntheticCheckouts(commits)
+	assert.Nil(t, result)
+}
+
+func TestBuildSyntheticCheckouts_MultiRepo(t *testing.T) {
+	commits := []entry.CommitEntry{
+		{ID: "c1", Timestamp: t9am, Branch: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: t11am, Branch: "feat", Repo: "/repoB"},
+	}
+	result := buildSyntheticCheckouts(commits)
+	assert.Len(t, result, 1)
+
+	// Midpoint of 9:00 and 11:00 = 10:00
+	assert.Equal(t, t10am, result[0].Timestamp)
+	assert.Equal(t, "feat", result[0].Next)
+	assert.Equal(t, "/repoB", result[0].Repo)
+}
+
+func TestBuildSyntheticCheckouts_ConsecutiveSameRepo(t *testing.T) {
+	commits := []entry.CommitEntry{
+		{ID: "c1", Timestamp: t9am, Branch: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: t10am, Branch: "feat", Repo: "/repoA"},
+		{ID: "c3", Timestamp: t11am, Branch: "main", Repo: "/repoA"},
+	}
+	result := buildSyntheticCheckouts(commits)
+	assert.Nil(t, result)
+}
+
+func TestBuildSyntheticCheckouts_EmptyRepoSkipped(t *testing.T) {
+	commits := []entry.CommitEntry{
+		{ID: "c1", Timestamp: t9am, Branch: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: t10am, Branch: "feat", Repo: ""},
+		{ID: "c3", Timestamp: t11am, Branch: "main", Repo: "/repoB"},
+	}
+	// c1→c2: c2 has empty repo, skip
+	// c2→c3: c2 has empty repo, skip
+	result := buildSyntheticCheckouts(commits)
+	assert.Nil(t, result)
+}
+
+// --- Repo-aware deduplication tests ---
+
+func TestBuildCheckoutSegments_SameBranchDifferentRepos(t *testing.T) {
+	year, month := 2025, time.January
+	daysInMonth := 31
+
+	// Two checkouts to "main" but in different repos — should NOT be deduplicated
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoB"},
+		{ID: "c3", Timestamp: time.Date(2025, 1, 2, 15, 0, 0, 0, time.UTC), Next: "feat", Repo: "/repoA"},
+	}
+
+	segments := buildCheckoutSegments(checkouts, nil, year, month, daysInMonth, afterMonth(year, month))
+
+	// Should have 3 segments: main@repoA, main@repoB, feat@repoA
+	assert.Equal(t, 3, len(segments))
+	assert.Equal(t, "main", segments[0].branch)
+	assert.Equal(t, "/repoA", segments[0].repo)
+	assert.Equal(t, "main", segments[1].branch)
+	assert.Equal(t, "/repoB", segments[1].repo)
+	assert.Equal(t, "feat", segments[2].branch)
+	assert.Equal(t, "/repoA", segments[2].repo)
+}
+
+// --- Repo-aware commit matching tests ---
+
+func TestBuildCheckoutSegments_CommitMatchesByRepo(t *testing.T) {
+	year, month := 2025, time.January
+	daysInMonth := 31
+
+	// Two overlapping sessions on "main" in different repos
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoB"},
+	}
+
+	// Commit on main in repoB — should only match the repoB session
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoB", Message: "fix in repoB"},
+	}
+
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, afterMonth(year, month))
+
+	// repoA session: 9:00-12:00, no commits → single segment
+	repoASegs := filterSegmentsByRepo(segments, "/repoA")
+	assert.Equal(t, 1, len(repoASegs))
+	assert.Equal(t, "", repoASegs[0].message) // no commit message
+
+	// repoB session: 12:00-end, split by commit at 13:00
+	repoBSegs := filterSegmentsByRepo(segments, "/repoB")
+	assert.Equal(t, 2, len(repoBSegs))
+	assert.Equal(t, "fix in repoB", repoBSegs[0].message)
+	assert.Equal(t, "", repoBSegs[1].message) // trailing
+}
+
+// --- Repo-aware idle gap tests ---
+
+func TestTrimSegmentsByIdleGaps_DifferentRepoNotApplied(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", repo: "/repoA", from: t9am, to: t12pm, message: "work"},
+	}
+
+	// Idle gap from repoB — should NOT affect repoA segment
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repoB"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repoB"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 1)
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t12pm, result[0].to)
+}
+
+func TestTrimSegmentsByIdleGaps_SameRepoApplied(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", repo: "/repoA", from: t9am, to: t12pm, message: "work"},
+	}
+
+	// Idle gap from repoA — SHOULD affect repoA segment
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repoA"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repoA"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 2)
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t10am, result[0].to)
+	assert.Equal(t, t11am, result[1].from)
+	assert.Equal(t, t12pm, result[1].to)
+}
+
+func TestTrimSegmentsByIdleGaps_MultiRepoMixed(t *testing.T) {
+	segments := []sessionSegment{
+		{branch: "main", repo: "/repoA", from: t9am, to: t12pm, message: "workA"},
+		{branch: "feat", repo: "/repoB", from: t9am, to: t12pm, message: "workB"},
+	}
+
+	// repoA idle gap 10:00-11:00, repoB idle gap 9:30-10:30
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repoA"},
+		{ID: "s2", Timestamp: t930, Repo: "/repoB"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repoA"},
+		{ID: "a2", Timestamp: t1030, Repo: "/repoB"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+
+	// repoA: [9:00-10:00, 11:00-12:00]
+	repoAResult := filterSegmentsByRepo(result, "/repoA")
+	assert.Len(t, repoAResult, 2)
+	assert.Equal(t, t9am, repoAResult[0].from)
+	assert.Equal(t, t10am, repoAResult[0].to)
+	assert.Equal(t, t11am, repoAResult[1].from)
+	assert.Equal(t, t12pm, repoAResult[1].to)
+
+	// repoB: [9:00-9:30, 10:30-12:00]
+	repoBResult := filterSegmentsByRepo(result, "/repoB")
+	assert.Len(t, repoBResult, 2)
+	assert.Equal(t, t9am, repoBResult[0].from)
+	assert.Equal(t, t930, repoBResult[0].to)
+	assert.Equal(t, t1030, repoBResult[1].from)
+	assert.Equal(t, t12pm, repoBResult[1].to)
+}
+
+func TestTrimSegmentsByIdleGaps_EmptyRepoBackwardCompat(t *testing.T) {
+	// Segment with empty repo should be affected by ALL gaps
+	segments := []sessionSegment{
+		{branch: "main", repo: "", from: t9am, to: t12pm, message: "work"},
+	}
+
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t10am, Repo: "/repoA"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t11am, Repo: "/repoA"},
+	}
+
+	result := trimSegmentsByIdleGaps(segments, stops, starts)
+	assert.Len(t, result, 2)
+	assert.Equal(t, t9am, result[0].from)
+	assert.Equal(t, t10am, result[0].to)
+	assert.Equal(t, t11am, result[1].from)
+	assert.Equal(t, t12pm, result[1].to)
+}
+
+func TestBuildIdleGaps_PairsPerRepo(t *testing.T) {
+	// Stops and starts from different repos should be paired independently
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t9am, Repo: "/repoA"},
+		{ID: "s2", Timestamp: t930, Repo: "/repoB"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t10am, Repo: "/repoA"},
+		{ID: "a2", Timestamp: t1030, Repo: "/repoB"},
+	}
+
+	gaps := buildIdleGaps(stops, starts)
+	assert.Len(t, gaps, 2)
+
+	// Both repos should have their own gap
+	repoAGaps := filterGapsByRepoExact(gaps, "/repoA")
+	assert.Len(t, repoAGaps, 1)
+	assert.Equal(t, t9am, repoAGaps[0].stop)
+	assert.Equal(t, t10am, repoAGaps[0].start)
+
+	repoBGaps := filterGapsByRepoExact(gaps, "/repoB")
+	assert.Len(t, repoBGaps, 1)
+	assert.Equal(t, t930, repoBGaps[0].stop)
+	assert.Equal(t, t1030, repoBGaps[0].start)
+}
+
+func TestBuildIdleGaps_CrossRepoPairingPrevented(t *testing.T) {
+	// Stop from repoA should NOT pair with start from repoB
+	stops := []entry.ActivityStopEntry{
+		{ID: "s1", Timestamp: t9am, Repo: "/repoA"},
+	}
+	starts := []entry.ActivityStartEntry{
+		{ID: "a1", Timestamp: t10am, Repo: "/repoB"},
+	}
+
+	gaps := buildIdleGaps(stops, starts)
+	// repoA has stop but no start in its repo → no gap
+	assert.Len(t, gaps, 0)
+}
+
+func TestFilterGapsByRepo(t *testing.T) {
+	gaps := []idleGap{
+		{stop: t9am, start: t10am, repo: "/repoA"},
+		{stop: t10am, start: t11am, repo: "/repoB"},
+		{stop: t11am, start: t12pm, repo: ""}, // empty repo = universal
+	}
+
+	// Filter for repoA: should get repoA gap + empty-repo gap
+	filtered := filterGapsByRepo(gaps, "/repoA")
+	assert.Len(t, filtered, 2)
+	assert.Equal(t, "/repoA", filtered[0].repo)
+	assert.Equal(t, "", filtered[1].repo)
+
+	// Filter for repoB: should get repoB gap + empty-repo gap
+	filtered = filterGapsByRepo(gaps, "/repoB")
+	assert.Len(t, filtered, 2)
+	assert.Equal(t, "/repoB", filtered[0].repo)
+	assert.Equal(t, "", filtered[1].repo)
+
+	// Filter with empty repo: should get ALL gaps
+	filtered = filterGapsByRepo(gaps, "")
+	assert.Len(t, filtered, 3)
+}
+
+// --- Integration tests ---
+
+func TestBuildCheckoutSegments_MultiRepoWithCommits(t *testing.T) {
+	year, month := 2025, time.January
+	daysInMonth := 31
+
+	// Single checkout to main@repoA, then commits alternate repos
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+	}
+
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "commit in A"},
+		{ID: "cm2", Timestamp: time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), Branch: "feat", Repo: "/repoB", Message: "commit in B"},
+		{ID: "cm3", Timestamp: time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "back to A"},
+	}
+
+	now := time.Date(2025, 1, 2, 16, 0, 0, 0, time.UTC)
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, now)
+
+	// Synthetic checkouts injected at midpoints:
+	// cm1@repoA(10:00) → cm2@repoB(12:00): midpoint=11:00, checkout to feat@repoB
+	// cm2@repoB(12:00) → cm3@repoA(14:00): midpoint=13:00, checkout to main@repoA
+	//
+	// Timeline:
+	//   main@repoA 9:00-11:00 (commit at 10:00 splits: [9:00-10:00 "commit in A", 10:00-11:00 trailing])
+	//   feat@repoB 11:00-13:00 (commit at 12:00 splits: [11:00-12:00 "commit in B", 12:00-13:00 trailing])
+	//   main@repoA 13:00-16:00 (commit at 14:00 splits: [13:00-14:00 "back to A", 14:00-16:00 trailing])
+
+	repoASegs := filterSegmentsByRepo(segments, "/repoA")
+	repoBSegs := filterSegmentsByRepo(segments, "/repoB")
+
+	// repoA: 4 segments [9:00-10:00, 10:00-11:00, 13:00-14:00, 14:00-16:00]
+	assert.Equal(t, 4, len(repoASegs), "repoA segments")
+	assert.Equal(t, "commit in A", repoASegs[0].message)
+	assert.Equal(t, time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), repoASegs[0].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), repoASegs[0].to)
+	assert.Equal(t, "", repoASegs[1].message) // trailing
+	assert.Equal(t, time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), repoASegs[1].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), repoASegs[1].to)
+	assert.Equal(t, "back to A", repoASegs[2].message)
+	assert.Equal(t, time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), repoASegs[2].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), repoASegs[2].to)
+	assert.Equal(t, "", repoASegs[3].message) // trailing
+	assert.Equal(t, time.Date(2025, 1, 2, 14, 0, 0, 0, time.UTC), repoASegs[3].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 16, 0, 0, 0, time.UTC), repoASegs[3].to)
+
+	// repoB: 2 segments [11:00-12:00, 12:00-13:00]
+	assert.Equal(t, 2, len(repoBSegs), "repoB segments")
+	assert.Equal(t, "feat", repoBSegs[0].branch)
+	assert.Equal(t, "commit in B", repoBSegs[0].message)
+	assert.Equal(t, time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), repoBSegs[0].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), repoBSegs[0].to)
+	assert.Equal(t, "", repoBSegs[1].message) // trailing
+	assert.Equal(t, time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), repoBSegs[1].from)
+	assert.Equal(t, time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), repoBSegs[1].to)
+
+	// Verify no time double-counting: total = 9:00-16:00 = 420 minutes
+	totalMins := 0
+	for _, s := range segments {
+		totalMins += int(s.to.Sub(s.from).Minutes())
+	}
+	assert.Equal(t, 420, totalMins)
+}
+
+func TestBuildCheckoutSegments_CommitRepoFallbackToCheckoutRange(t *testing.T) {
+	year, month := 2025, time.January
+	daysInMonth := 31
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+		{ID: "c2", Timestamp: time.Date(2025, 1, 2, 15, 0, 0, 0, time.UTC), Next: "feat", Repo: "/repoA"},
+	}
+
+	// Commit with empty repo — should inherit /repoA from the checkout range
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), Branch: "main", Repo: "", Message: "legacy commit"},
+	}
+
+	segments := buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, afterMonth(year, month))
+
+	mainSegs := filterSegments(segments, "main")
+	assert.Equal(t, 2, len(mainSegs))
+
+	// Commit segment should inherit repo from checkout range
+	assert.Equal(t, "/repoA", mainSegs[0].repo)
+	assert.Equal(t, "legacy commit", mainSegs[0].message)
+
+	// Trailing segment should also have checkout range's repo
+	assert.Equal(t, "/repoA", mainSegs[1].repo)
+}
+
+func TestBuildReport_MultiRepoNoDoubleCounting(t *testing.T) {
+	year, month := 2025, time.January
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 9-17 = 480 min
+
+	// Single checkout, commits alternate between two repos
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+	}
+
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "work in A"},
+		{ID: "cm2", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Branch: "feat", Repo: "/repoB", Message: "work in B"},
+		{ID: "cm3", Timestamp: time.Date(2025, 1, 2, 15, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "more A"},
+	}
+
+	now := afterMonth(year, month)
+	report := BuildReport(checkouts, nil, commits, days, year, month, now, nil)
+
+	// Total across all rows should equal schedule capacity (480 min), not exceed it
+	totalMins := 0
+	for _, row := range report.Rows {
+		totalMins += row.TotalMinutes
+	}
+	assert.Equal(t, 480, totalMins, "total time should equal schedule capacity without double-counting")
+
+	// Should have two rows: main (repoA time) and feat (repoB time)
+	assert.Equal(t, 2, len(report.Rows))
+}
+
+func TestBuildDetailedReport_MultiRepoWithCommits(t *testing.T) {
+	year, month := 2025, time.January
+	from := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(year, month, 31, 0, 0, 0, 0, time.UTC)
+	days := []schedule.DaySchedule{workday(year, month, 2)} // 9-17 = 480 min
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+	}
+
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 11, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "work in A"},
+		{ID: "cm2", Timestamp: time.Date(2025, 1, 2, 13, 0, 0, 0, time.UTC), Branch: "feat", Repo: "/repoB", Message: "work in B"},
+		{ID: "cm3", Timestamp: time.Date(2025, 1, 2, 15, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA", Message: "more A"},
+	}
+
+	report := BuildDetailedReport(checkouts, nil, commits, days, from, to, afterMonth(year, month))
+
+	// Total across all rows should equal 480 min
+	totalMins := 0
+	for _, row := range report.Rows {
+		totalMins += row.TotalMinutes
+	}
+	assert.Equal(t, 480, totalMins, "total time should equal schedule capacity")
+
+	// Should have entries for both main and feat
+	assert.Equal(t, 2, len(report.Rows))
+}
+
+// --- Test helpers ---
+
+func filterSegmentsByRepo(segments []sessionSegment, repo string) []sessionSegment {
+	var result []sessionSegment
+	for _, s := range segments {
+		if s.repo == repo {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func filterGapsByRepoExact(gaps []idleGap, repo string) []idleGap {
+	var result []idleGap
+	for _, g := range gaps {
+		if g.repo == repo {
+			result = append(result, g)
+		}
+	}
+	return result
+}

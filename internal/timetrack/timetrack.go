@@ -197,11 +197,12 @@ func buildCheckoutBucket(
 		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
 	})
 
-	// Deduplicate: skip consecutive checkouts to the same branch
+	// Deduplicate: skip consecutive checkouts to the same branch+repo
 	if len(sorted) > 0 {
 		deduped := []entry.CheckoutEntry{sorted[0]}
 		for i := 1; i < len(sorted); i++ {
-			if cleanBranchName(sorted[i].Next) != cleanBranchName(sorted[i-1].Next) {
+			if cleanBranchName(sorted[i].Next) != cleanBranchName(sorted[i-1].Next) ||
+				sorted[i].Repo != sorted[i-1].Repo {
 				deduped = append(deduped, sorted[i])
 			}
 		}
@@ -222,6 +223,7 @@ func buildCheckoutBucket(
 	if lastBeforeIdx >= 0 {
 		pairs = append(pairs, checkoutRange{
 			branch: cleanBranchName(sorted[lastBeforeIdx].Next),
+			repo:   sorted[lastBeforeIdx].Repo,
 			from:   monthStart,
 		})
 	}
@@ -230,6 +232,7 @@ func buildCheckoutBucket(
 		if c.Timestamp.After(monthStart) && !c.Timestamp.After(monthEnd) {
 			pairs = append(pairs, checkoutRange{
 				branch: cleanBranchName(c.Next),
+				repo:   c.Repo,
 				from:   c.Timestamp,
 			})
 		}
@@ -487,6 +490,7 @@ func BuildDetailedReport(
 
 type checkoutRange struct {
 	branch string
+	repo   string
 	from   time.Time
 	to     time.Time
 }
