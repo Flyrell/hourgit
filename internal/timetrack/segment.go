@@ -31,7 +31,8 @@ func buildIdleGaps(stops []entry.ActivityStopEntry, starts []entry.ActivityStart
 		startsByRepo[s.Repo] = append(startsByRepo[s.Repo], s)
 	}
 
-	// Collect all repo keys
+	// Collect repo keys from stops only — a start without a preceding stop
+	// cannot form a gap, so repos with only starts are correctly skipped.
 	repos := make(map[string]bool)
 	for r := range stopsByRepo {
 		repos[r] = true
