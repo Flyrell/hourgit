@@ -184,6 +184,8 @@ func buildLogBucket(logs []entry.Entry, year int, month time.Month) (map[string]
 // buildCheckoutBucket computes per-branch, per-day minutes from checkout entries
 // clipped to schedule windows. Schedule window times are interpreted in the
 // timezone of `now` (the user's local timezone).
+// NOTE: Does not inject synthetic checkouts from commits. For multi-repo-aware
+// attribution, use buildCheckoutSegments → buildSegmentBucket instead.
 func buildCheckoutBucket(
 	checkouts []entry.CheckoutEntry,
 	year int, month time.Month, daysInMonth int,
