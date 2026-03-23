@@ -211,6 +211,7 @@ func buildSyntheticCheckouts(commits []entry.CommitEntry) []entry.CheckoutEntry 
 			ID:        "synthetic-" + curr.ID,
 			Type:      "checkout",
 			Timestamp: mid,
+			Previous:  prev.Branch,
 			Next:      curr.Branch,
 			Repo:      curr.Repo,
 		})
@@ -236,13 +237,14 @@ func buildCheckoutSegments(
 ) []sessionSegment {
 	loc := now.Location()
 
-	// Merge synthetic checkouts from commit-based repo switches
+	// Merge synthetic checkouts from commit-based repo switches.
+	// Allocate a new slice to avoid mutating the caller's backing array.
 	synthetic := buildSyntheticCheckouts(commits)
-	allCheckouts := append(checkouts, synthetic...)
+	sorted := make([]entry.CheckoutEntry, 0, len(checkouts)+len(synthetic))
+	sorted = append(sorted, checkouts...)
+	sorted = append(sorted, synthetic...)
 
 	// Sort checkouts chronologically
-	sorted := make([]entry.CheckoutEntry, len(allCheckouts))
-	copy(sorted, allCheckouts)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Timestamp.Before(sorted[j].Timestamp)
 	})

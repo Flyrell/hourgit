@@ -425,8 +425,10 @@ func TestBuildSyntheticCheckouts_MultiRepo(t *testing.T) {
 
 	// Midpoint of 9:00 and 11:00 = 10:00
 	assert.Equal(t, t10am, result[0].Timestamp)
+	assert.Equal(t, "main", result[0].Previous)
 	assert.Equal(t, "feat", result[0].Next)
 	assert.Equal(t, "/repoB", result[0].Repo)
+	assert.Equal(t, "checkout", result[0].Type)
 }
 
 func TestBuildSyntheticCheckouts_ConsecutiveSameRepo(t *testing.T) {
@@ -788,6 +790,16 @@ func TestBuildReport_MultiRepoNoDoubleCounting(t *testing.T) {
 
 	// Should have two rows: main (repoA time) and feat (repoB time)
 	assert.Equal(t, 2, len(report.Rows))
+
+	// Synthetic checkouts: midpoint at 12:00, midpoint at 14:00
+	// main@repoA: 9:00-12:00 (180 min) + 14:00-17:00 (180 min) = 360 min
+	// feat@repoB: 12:00-14:00 = 120 min
+	rowMain := findRow(report, "main")
+	rowFeat := findRow(report, "feat")
+	assert.NotNil(t, rowMain)
+	assert.NotNil(t, rowFeat)
+	assert.Equal(t, 360, rowMain.TotalMinutes)
+	assert.Equal(t, 120, rowFeat.TotalMinutes)
 }
 
 func TestBuildDetailedReport_MultiRepoWithCommits(t *testing.T) {
@@ -817,6 +829,36 @@ func TestBuildDetailedReport_MultiRepoWithCommits(t *testing.T) {
 
 	// Should have entries for both main and feat
 	assert.Equal(t, 2, len(report.Rows))
+
+	// Verify per-row distribution matches synthetic checkout midpoints
+	rowMain := findDetailedRow(report, "main")
+	rowFeat := findDetailedRow(report, "feat")
+	assert.NotNil(t, rowMain)
+	assert.NotNil(t, rowFeat)
+	assert.Equal(t, 360, rowMain.TotalMinutes)
+	assert.Equal(t, 120, rowFeat.TotalMinutes)
+}
+
+func TestBuildCheckoutSegments_DoesNotMutateCallerSlice(t *testing.T) {
+	year, month := 2025, time.January
+	daysInMonth := 31
+
+	checkouts := []entry.CheckoutEntry{
+		{ID: "c1", Timestamp: time.Date(2025, 1, 2, 9, 0, 0, 0, time.UTC), Next: "main", Repo: "/repoA"},
+	}
+	commits := []entry.CommitEntry{
+		{ID: "cm1", Timestamp: time.Date(2025, 1, 2, 10, 0, 0, 0, time.UTC), Branch: "main", Repo: "/repoA"},
+		{ID: "cm2", Timestamp: time.Date(2025, 1, 2, 12, 0, 0, 0, time.UTC), Branch: "feat", Repo: "/repoB"},
+	}
+
+	origLen := len(checkouts)
+	origFirst := checkouts[0]
+
+	buildCheckoutSegments(checkouts, commits, year, month, daysInMonth, afterMonth(year, month))
+
+	// Caller's slice must not be mutated by synthetic checkout injection
+	assert.Equal(t, origLen, len(checkouts))
+	assert.Equal(t, origFirst, checkouts[0])
 }
 
 // --- Test helpers ---
