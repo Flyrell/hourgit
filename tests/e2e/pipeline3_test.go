@@ -58,7 +58,10 @@ func TestPipeline3_TwoRepos_OneProject_Normal(t *testing.T) {
 	// Initialize Repo A with the project
 	env.MustRunInRepo("repo-a", "init", "--project", "Delta", "--yes")
 
-	// Initialize Repo B and assign to same project
+	// Initialize Repo B and assign to same project.
+	// init --yes without --project only installs the post-checkout hook (no project
+	// is created). The --yes flag auto-accepts shell completion install. The actual
+	// project assignment happens in the next command.
 	env.MustRunInRepo("repo-b", "init", "--yes")
 	env.MustRunInRepo("repo-b", "project", "assign", "Delta", "--force", "--yes")
 
@@ -126,12 +129,11 @@ func TestPipeline3_TwoRepos_OneProject_Normal(t *testing.T) {
 
 	// Verify same branch name in different repos uses Repo field for distinction
 	authCommits := filterCommitsByBranch(commits2, "feature-auth")
-	if len(authCommits) > 0 {
-		repoAAuth := filterCommitsByRepo(authCommits, repoA.Dir)
-		repoBAuth := filterCommitsByRepo(authCommits, repoB.Dir)
-		assert.NotEmpty(t, repoAAuth, "Should have feature-auth commits from repo-a")
-		assert.NotEmpty(t, repoBAuth, "Should have feature-auth commits from repo-b")
-	}
+	require.NotEmpty(t, authCommits, "Should have feature-auth commits from both repos")
+	repoAAuth := filterCommitsByRepo(authCommits, repoA.Dir)
+	repoBAuth := filterCommitsByRepo(authCommits, repoB.Dir)
+	assert.NotEmpty(t, repoAAuth, "Should have feature-auth commits from repo-a")
+	assert.NotEmpty(t, repoBAuth, "Should have feature-auth commits from repo-b")
 
 	// Test log CRUD operations
 	// Add
@@ -161,7 +163,9 @@ func TestPipeline3_TwoRepos_OneProject_Normal(t *testing.T) {
 	pdfOut := env.MustRunInRepo("repo-a", "report", "--month", "3", "--year", "2026", "--export", "pdf")
 	assert.Contains(t, pdfOut, ".pdf")
 
-	// Verify PDF file was created — simulated data covers March 2026 so a PDF must exist
+	// Verify PDF file was created — simulated data covers March 2026 so a PDF must exist.
+	// The PDF is generated in the binary's working directory, which is repoA.Dir
+	// because RunInRepo sets cmd.Dir to the repo path.
 	pdfPath := filepath.Join(repoA.Dir, "delta-2026-month-03.pdf")
 	assert.FileExists(t, pdfPath, "PDF export should create file for March 2026")
 }

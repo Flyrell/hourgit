@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Flyrell/hourgit/internal/entry"
+	"github.com/Flyrell/hourgit/internal/hashutil"
 	"github.com/Flyrell/hourgit/internal/project"
 	"github.com/stretchr/testify/require"
 )
@@ -64,6 +65,11 @@ func (env *TestEnv) AddRepo(name string) *TestRepo {
 	// Create multiple commits to build a pool of valid SHAs.
 	// Git reflog validates that SHAs reference real objects, so simulated
 	// reflog entries must use SHAs from actual commits.
+	//
+	// Each ReflogBuilder operation (Checkout/Commit) consumes 2 SHAs
+	// (oldSHA + newSHA), so 20 commits = 20 SHAs supports up to 10 reflog
+	// entries per repo. If the index exceeds the pool size, SHAs wrap via
+	// modulo (see ReflogBuilder.nextSHA).
 	for i := 0; i < 20; i++ {
 		n := fileCounter.Add(1)
 		filePath := filepath.Join(dir, fmt.Sprintf("seed-%d.txt", n))
@@ -121,13 +127,7 @@ func (env *TestEnv) runCmd(dir string, args ...string) (string, string, error) {
 	// Add --skip-updates and --skip-watcher to avoid interactive prompts and service checks
 	fullArgs := append([]string{"--skip-updates", "--skip-watcher"}, args...)
 	cmd := exec.Command(binaryPath, fullArgs...)
-	var filteredEnv []string
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "HOME=") {
-			filteredEnv = append(filteredEnv, e)
-		}
-	}
-	cmd.Env = append(filteredEnv, "HOME="+env.HomeDir)
+	cmd.Env = append(filterHostEnv(), "HOME="+env.HomeDir)
 	if dir != "" {
 		cmd.Dir = dir
 	}
@@ -152,13 +152,7 @@ func (env *TestEnv) git(dir string, args ...string) string {
 	env.T.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	var filteredEnv []string
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "HOME=") {
-			filteredEnv = append(filteredEnv, e)
-		}
-	}
-	cmd.Env = append(filteredEnv, "HOME="+env.HomeDir)
+	cmd.Env = append(filterHostEnv(), "HOME="+env.HomeDir)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -293,10 +287,27 @@ func (env *TestEnv) WriteActivityStart(slug string, timestamp time.Time, repo st
 	require.NoError(env.T, err)
 }
 
-// generateTestID creates a simple 7-char hex ID for test entries.
+// generateTestID creates a 7-char hex ID using the production hash scheme.
+// Each call produces a unique ID via an incrementing counter.
 func generateTestID() string {
 	n := fileCounter.Add(1)
-	return fmt.Sprintf("%07x", n)
+	return hashutil.GenerateIDFromSeed(fmt.Sprintf("e2e-activity-%d", n))
+}
+
+// filterHostEnv returns os.Environ() with HOME, XDG_CONFIG_HOME, and any
+// HOURGIT_-prefixed variables removed, preventing the host environment from
+// leaking into test subprocesses.
+func filterHostEnv() []string {
+	var filtered []string
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "HOME=") ||
+			strings.HasPrefix(e, "XDG_CONFIG_HOME=") ||
+			strings.HasPrefix(e, "HOURGIT_") {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return filtered
 }
 
 // --- Shared filter helpers ---

@@ -46,7 +46,10 @@ func TestPipeline2_TwoRepos_OneProject_Precise(t *testing.T) {
 	// Initialize Repo A with the project
 	env.MustRunInRepo("repo-a", "init", "--project", "Gamma", "--mode", "precise", "--yes")
 
-	// Initialize Repo B and assign to same project
+	// Initialize Repo B and assign to same project.
+	// init --yes without --project only installs the post-checkout hook (no project
+	// is created). The --yes flag auto-accepts shell completion install. The actual
+	// project assignment happens in the next command.
 	env.MustRunInRepo("repo-b", "init", "--yes")
 	env.MustRunInRepo("repo-b", "project", "assign", "Gamma", "--force", "--yes")
 
