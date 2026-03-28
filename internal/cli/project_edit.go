@@ -235,7 +235,7 @@ func promptProjectEdit(entry *project.ProjectEntry, pk PromptKit) (name, mode st
 		if currentThreshold <= 0 {
 			currentThreshold = project.DefaultIdleThresholdSeconds
 		}
-		thresholdStr, err := pk.PromptWithDefault("Idle threshold (seconds)", strconv.Itoa(currentThreshold))
+		thresholdStr, err := pk.PromptWithDefault("Idle threshold in seconds (e.g. 600 = 10min)", strconv.Itoa(currentThreshold))
 		if err != nil {
 			return "", "", 0, err
 		}

@@ -588,7 +588,7 @@ By default, Hourgit attributes all time between branch checkouts (within your sc
 ### How it works
 
 1. A background daemon watches file changes in your repository (excluding `.git/` and `.gitignore` patterns).
-2. After a configurable idle threshold (default: 600 seconds) with no file changes, the daemon records an `activity_stop` entry.
+2. After a configurable idle threshold (default: 600 seconds / 10 minutes) with no file changes, the daemon records an `activity_stop` entry.
 3. When file changes resume, the daemon records an `activity_start` entry.
 4. At report time, these idle gaps are trimmed from checkout sessions, giving you more accurate time attribution.
 

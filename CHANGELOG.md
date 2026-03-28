@@ -106,3 +106,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release: `init`, `log add`, `report`, `history` commands
 - Project management and schedule configuration
 - Shell completion generation
+
+[Unreleased]: https://github.com/Flyrell/hourgit/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/Flyrell/hourgit/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/Flyrell/hourgit/compare/v0.8.0...v0.8.1
+[0.8.0]: https://github.com/Flyrell/hourgit/compare/v0.7.3...v0.8.0
+[0.7.0]: https://github.com/Flyrell/hourgit/compare/v0.6.1...v0.7.0
+[0.6.0]: https://github.com/Flyrell/hourgit/compare/v0.5.3...v0.6.0
+[0.5.0]: https://github.com/Flyrell/hourgit/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/Flyrell/hourgit/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/Flyrell/hourgit/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Flyrell/hourgit/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/Flyrell/hourgit/releases/tag/v0.1.0

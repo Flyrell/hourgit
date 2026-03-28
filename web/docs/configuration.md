@@ -41,7 +41,7 @@ hourgit init --mode precise
 hourgit project add myproject --mode precise
 ```
 
-The idle threshold defaults to 600 seconds — after 600 seconds of no file changes, the daemon records an idle stop. When precise mode is enabled, Hourgit auto-installs a user-level OS service to run the watcher daemon.
+The idle threshold defaults to 600 seconds (10 minutes) — after 600 seconds of no file changes, the daemon records an idle stop. When precise mode is enabled, Hourgit auto-installs a user-level OS service to run the watcher daemon.
 
 ## Editing Defaults
 
