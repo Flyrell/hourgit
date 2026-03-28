@@ -62,7 +62,7 @@ func TestProjectAddModePrecise(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cfg.Projects, 1)
 	assert.True(t, cfg.Projects[0].Precise)
-	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, project.DefaultIdleThresholdSeconds, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectAddModeStandard(t *testing.T) {
@@ -77,7 +77,7 @@ func TestProjectAddModeStandard(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cfg.Projects, 1)
 	assert.False(t, cfg.Projects[0].Precise)
-	assert.Equal(t, 0, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 0, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectAddModeInvalid(t *testing.T) {

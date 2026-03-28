@@ -154,15 +154,15 @@ func (d *Daemon) reloadConfig() error {
 		if !p.Precise {
 			continue
 		}
-		threshold := p.IdleThresholdMinutes
+		threshold := p.IdleThresholdSeconds
 		if threshold <= 0 {
-			threshold = project.DefaultIdleThresholdMinutes
+			threshold = project.DefaultIdleThresholdSeconds
 		}
 		for _, repo := range p.Repos {
 			wanted[repo] = DaemonConfig{
 				Repo:      repo,
 				Slug:      p.Slug,
-				Threshold: time.Duration(threshold) * time.Minute,
+				Threshold: time.Duration(threshold) * time.Second,
 			}
 		}
 	}

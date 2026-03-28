@@ -374,7 +374,7 @@ func TestInitWithModePrecise(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cfg.Projects, 1)
 	assert.True(t, cfg.Projects[0].Precise)
-	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, project.DefaultIdleThresholdSeconds, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestInitWithModePreciseExistingProject(t *testing.T) {
@@ -400,7 +400,7 @@ func TestInitWithModePreciseExistingProject(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cfg.Projects, 1)
 	assert.True(t, cfg.Projects[0].Precise)
-	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, project.DefaultIdleThresholdSeconds, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestInitModePreciseRequiresProject(t *testing.T) {

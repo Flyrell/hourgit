@@ -2,7 +2,7 @@ package entry
 
 import "time"
 
-// ActivityStopEntry is written after idle_threshold_minutes of no file changes.
+// ActivityStopEntry is written after idle_threshold_seconds of no file changes.
 // Timestamp records the last observed file change, not when the debounce fired.
 type ActivityStopEntry struct {
 	ID        string    `json:"id"`

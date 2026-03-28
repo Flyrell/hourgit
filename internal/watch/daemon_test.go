@@ -24,7 +24,7 @@ func setupDaemonTest(t *testing.T) string {
 				Slug:                 "test",
 				Repos:                []string{"/some/repo"},
 				Precise:              true,
-				IdleThresholdMinutes: 5,
+				IdleThresholdSeconds: 300,
 			},
 		},
 	}
