@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -157,6 +158,12 @@ func (d *Daemon) reloadConfig() error {
 		threshold := p.IdleThresholdSeconds
 		if threshold <= 0 {
 			threshold = project.DefaultIdleThresholdSeconds
+		}
+		// Allow override via env var for e2e testing with short thresholds
+		if override := os.Getenv("HOURGIT_IDLE_THRESHOLD"); override != "" {
+			if v, err := strconv.Atoi(override); err == nil && v > 0 {
+				threshold = v
+			}
 		}
 		for _, repo := range p.Repos {
 			wanted[repo] = DaemonConfig{

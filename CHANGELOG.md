@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Watcher daemon e2e tests running real `hourgit watch` inside Docker (basic start/stop, multiple sessions, graceful shutdown, crash recovery, multi-repo, gitignore filtering)
+- `HOURGIT_IDLE_THRESHOLD` env var override for daemon idle threshold (enables short thresholds in e2e tests)
+
 ### Changed
 
 - **BREAKING**: Idle threshold config changed from minutes to seconds (`idle_threshold_minutes` → `idle_threshold_seconds`, default: 600s)
