@@ -133,6 +133,7 @@ func (env *TestEnv) TouchFile(repoName, filename string) {
 	require.NotNil(env.T, repo, "repo %q not found", repoName)
 
 	path := filepath.Join(repo.Dir, filename)
+	require.NoError(env.T, os.MkdirAll(filepath.Dir(path), 0755))
 	n := fileCounter.Add(1)
 	require.NoError(env.T, os.WriteFile(path, []byte(fmt.Sprintf("touch %d\n", n)), 0644))
 }
