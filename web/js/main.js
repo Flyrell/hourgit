@@ -130,9 +130,13 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
   var rejectBtn = document.getElementById('consent-reject');
 
   function loadGTM() {
-    // Update consent state
+    // Update consent state — grant all signals declared in the default block,
+    // otherwise the un-granted ad signals stay denied forever (0% consent rate).
     gtag('consent', 'update', {
-      'analytics_storage': 'granted'
+      'analytics_storage': 'granted',
+      'ad_storage': 'granted',
+      'ad_user_data': 'granted',
+      'ad_personalization': 'granted'
     });
 
     // Inject GTM script
