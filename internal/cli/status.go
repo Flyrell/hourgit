@@ -141,9 +141,9 @@ func runStatus(
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintf(w, "%s  %s  %s  %s\n",
 		Silent("Today:"),
-		Primary(entry.FormatMinutes(budget.LoggedMinutes)+" logged"),
+		Primary(entry.FormatMinutesRounded(budget.LoggedMinutes)+" logged"),
 		Silent("·"),
-		Text(entry.FormatMinutes(budget.RemainingMinutes)+" remaining"),
+		Text(entry.FormatMinutesRounded(budget.RemainingMinutes)+" remaining"),
 	)
 
 	// Schedule line

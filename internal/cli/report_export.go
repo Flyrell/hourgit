@@ -55,7 +55,7 @@ func renderExportPDF(data timetrack.ExportData, outputPath string) error {
 		weekday := day.Date.Weekday()
 		dayLabel := fmt.Sprintf("%s %d, %s",
 			day.Date.Month(), day.Date.Day(), weekday)
-		dayTotal := entry.FormatMinutes(day.TotalMinutes)
+		dayTotal := entry.FormatMinutesRounded(day.TotalMinutes)
 
 		// Day header row
 		m.AddRow(8,
@@ -78,7 +78,7 @@ func renderExportPDF(data timetrack.ExportData, outputPath string) error {
 				// Single-entry group where task == message: show as standalone row
 				m.AddRow(6,
 					text.NewCol(9, "  "+group.Task, props.Text{Size: 9}),
-					text.NewCol(3, entry.FormatMinutes(group.TotalMinutes), props.Text{
+					text.NewCol(3, entry.FormatMinutesRounded(group.TotalMinutes), props.Text{
 						Size:  9,
 						Align: align.Right,
 					}),
@@ -90,7 +90,7 @@ func renderExportPDF(data timetrack.ExportData, outputPath string) error {
 						Style: fontstyle.Bold,
 						Size:  9,
 					}),
-					text.NewCol(3, entry.FormatMinutes(group.TotalMinutes), props.Text{
+					text.NewCol(3, entry.FormatMinutesRounded(group.TotalMinutes), props.Text{
 						Style: fontstyle.Bold,
 						Size:  9,
 						Align: align.Right,
@@ -104,7 +104,7 @@ func renderExportPDF(data timetrack.ExportData, outputPath string) error {
 							Size:  8,
 							Color: &pdfMutedColor,
 						}),
-						text.NewCol(3, entry.FormatMinutes(e.Minutes), props.Text{
+						text.NewCol(3, entry.FormatMinutesRounded(e.Minutes), props.Text{
 							Size:  8,
 							Align: align.Right,
 							Color: &pdfMutedColor,
@@ -126,7 +126,7 @@ func renderExportPDF(data timetrack.ExportData, outputPath string) error {
 			Size:  12,
 			Color: &pdfHeaderColor,
 		}),
-		text.NewCol(3, entry.FormatMinutes(data.TotalMinutes), props.Text{
+		text.NewCol(3, entry.FormatMinutesRounded(data.TotalMinutes), props.Text{
 			Style: fontstyle.Bold,
 			Size:  12,
 			Align: align.Right,
