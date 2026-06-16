@@ -107,7 +107,7 @@ func locateAnyEntryInProject(homeDir, slug, hash string) (string, string, string
 	// Try as log entry
 	e, err := entry.ReadEntry(homeDir, slug, hash)
 	if err == nil {
-		detail := fmt.Sprintf("%s — %s", entry.FormatMinutes(e.Minutes), e.Message)
+		detail := fmt.Sprintf("%s — %s", entry.FormatMinutesRounded(e.Minutes), e.Message)
 		if e.Task != "" {
 			detail = fmt.Sprintf("[%s] %s", e.Task, detail)
 		}

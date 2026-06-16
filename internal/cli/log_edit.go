@@ -247,7 +247,7 @@ func applyFlagEdits(
 		computed := toMins - fromMins
 		if computed != minutes {
 			return e, fmt.Errorf("--duration (%s) does not match --from/%s to --to/%s (%s)",
-				durationFlag, fromFlag, toFlag, entry.FormatMinutes(computed))
+				durationFlag, fromFlag, toFlag, entry.FormatMinutesRounded(computed))
 		}
 		y, m, d := e.Start.Date()
 		e.Start = time.Date(y, m, d, fromTOD.Hour, fromTOD.Minute, 0, 0, e.Start.Location())
@@ -407,8 +407,8 @@ func printEditDiff(cmd *cobra.Command, before, after entry.Entry) {
 
 	if before.Minutes != after.Minutes {
 		_, _ = fmt.Fprintf(w, "  duration: %s → %s\n",
-			Silent(entry.FormatMinutes(before.Minutes)),
-			Primary(entry.FormatMinutes(after.Minutes)),
+			Silent(entry.FormatMinutesRounded(before.Minutes)),
+			Primary(entry.FormatMinutesRounded(after.Minutes)),
 		)
 	}
 

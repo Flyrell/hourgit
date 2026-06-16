@@ -359,16 +359,16 @@ func checkBudgetWarning(
 		if budget.RemainingMinutes <= 0 {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you have already logged your full schedule for this day (%s scheduled, %s logged).\n",
 				Warning("Warning:"),
-				Primary(entry.FormatMinutes(budget.ScheduledMinutes)),
-				Primary(entry.FormatMinutes(budget.LoggedMinutes)),
+				Primary(entry.FormatMinutesRounded(budget.ScheduledMinutes)),
+				Primary(entry.FormatMinutesRounded(budget.LoggedMinutes)),
 			)
 		} else {
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s you are about to log %s, but only %s remains in today's schedule (%s scheduled, %s already logged).\n",
 				Warning("Warning:"),
-				Primary(entry.FormatMinutes(minutes)),
-				Primary(entry.FormatMinutes(budget.RemainingMinutes)),
-				Primary(entry.FormatMinutes(budget.ScheduledMinutes)),
-				Primary(entry.FormatMinutes(budget.LoggedMinutes)),
+				Primary(entry.FormatMinutesRounded(minutes)),
+				Primary(entry.FormatMinutesRounded(budget.RemainingMinutes)),
+				Primary(entry.FormatMinutesRounded(budget.ScheduledMinutes)),
+				Primary(entry.FormatMinutesRounded(budget.LoggedMinutes)),
 			)
 		}
 
@@ -434,7 +434,7 @@ func writeAndPrintEntry(
 	}
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "logged %s for project '%s' (%s)\n",
-		Primary(entry.FormatMinutes(e.Minutes)),
+		Primary(entry.FormatMinutesRounded(e.Minutes)),
 		Primary(proj.Name),
 		Silent(e.ID),
 	)

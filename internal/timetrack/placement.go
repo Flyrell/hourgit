@@ -73,5 +73,5 @@ func FindAvailableSlot(
 		}
 	}
 
-	return time.Time{}, fmt.Errorf("no available slot for %s in today's schedule", entry.FormatMinutes(minutes))
+	return time.Time{}, fmt.Errorf("no available slot for %s in today's schedule", entry.FormatMinutesRounded(minutes))
 }
