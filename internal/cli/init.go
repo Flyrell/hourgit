@@ -150,7 +150,7 @@ func runInit(cmd *cobra.Command, dir, homeDir, projectName, mode string, force, 
 			if err := project.SetPreciseMode(homeDir, result.Entry.ID, true); err != nil {
 				return err
 			}
-			if err := project.SetIdleThreshold(homeDir, result.Entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
+			if err := project.SetIdleThreshold(homeDir, result.Entry.ID, project.DefaultIdleThresholdSeconds); err != nil {
 				return err
 			}
 			if err := watch.EnsureWatcherService(homeDir, binPath); err != nil {

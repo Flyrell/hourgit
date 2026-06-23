@@ -51,7 +51,7 @@ func runProjectAdd(cmd *cobra.Command, homeDir, name, mode, binPath string) erro
 		if err := project.SetPreciseMode(homeDir, entry.ID, true); err != nil {
 			return err
 		}
-		if err := project.SetIdleThreshold(homeDir, entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
+		if err := project.SetIdleThreshold(homeDir, entry.ID, project.DefaultIdleThresholdSeconds); err != nil {
 			return err
 		}
 		if err := watch.EnsureWatcherService(homeDir, binPath); err != nil {

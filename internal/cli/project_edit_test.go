@@ -126,7 +126,7 @@ func TestProjectEditModeStandardToPrecise(t *testing.T) {
 	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
 	assert.True(t, cfg.Projects[0].Precise)
-	assert.Equal(t, project.DefaultIdleThresholdMinutes, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, project.DefaultIdleThresholdSeconds, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectEditModePreciseToStandard(t *testing.T) {
@@ -292,18 +292,18 @@ func TestProjectEditIdleThresholdHappyPath(t *testing.T) {
 	entry, err := project.CreateProject(home, "My Project")
 	require.NoError(t, err)
 	require.NoError(t, project.SetPreciseMode(home, entry.ID, true))
-	require.NoError(t, project.SetIdleThreshold(home, entry.ID, project.DefaultIdleThresholdMinutes))
+	require.NoError(t, project.SetIdleThreshold(home, entry.ID, project.DefaultIdleThresholdSeconds))
 
-	stdout, err := execProjectEdit(home, "", "My Project", "", "", 15)
+	stdout, err := execProjectEdit(home, "", "My Project", "", "", 900)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "idle threshold")
-	assert.Contains(t, stdout, "10m")
-	assert.Contains(t, stdout, "15m")
+	assert.Contains(t, stdout, "600s")
+	assert.Contains(t, stdout, "900s")
 
 	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Equal(t, 15, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 900, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectEditIdleThresholdOnStandardProject(t *testing.T) {
@@ -339,18 +339,18 @@ func TestProjectEditIdleThresholdWithModeChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// Switch to precise and set idle threshold in one command
-	stdout, err := execProjectEdit(home, "", "My Project", "", "precise", 20)
+	stdout, err := execProjectEdit(home, "", "My Project", "", "precise", 1200)
 
 	assert.NoError(t, err)
 	assert.Contains(t, stdout, "precise")
 	assert.Contains(t, stdout, "idle threshold")
-	assert.Contains(t, stdout, "10m")
-	assert.Contains(t, stdout, "20m")
+	assert.Contains(t, stdout, "600s")
+	assert.Contains(t, stdout, "1200s")
 
 	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
 	assert.True(t, cfg.Projects[0].Precise)
-	assert.Equal(t, 20, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 1200, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectEditIdleThresholdWithModeChangeToStandard(t *testing.T) {
@@ -406,7 +406,7 @@ func TestProjectEditInteractivePreciseIdleThreshold(t *testing.T) {
 	entry, err := project.CreateProject(home, "My Project")
 	require.NoError(t, err)
 	require.NoError(t, project.SetPreciseMode(home, entry.ID, true))
-	require.NoError(t, project.SetIdleThreshold(home, entry.ID, 10))
+	require.NoError(t, project.SetIdleThreshold(home, entry.ID, 600))
 
 	stdout := new(bytes.Buffer)
 	cmd := projectEditCmd
@@ -420,9 +420,9 @@ func TestProjectEditInteractivePreciseIdleThreshold(t *testing.T) {
 			if promptCalls == 1 {
 				return defaultValue, nil // keep name
 			}
-			// Idle threshold prompt — change to 20
-			assert.Equal(t, "10", defaultValue)
-			return "20", nil
+			// Idle threshold prompt — change to 1200
+			assert.Equal(t, "600", defaultValue)
+			return "1200", nil
 		},
 		Select: func(title string, options []string) (int, error) {
 			// "precise" is first (current mode), keep it
@@ -435,12 +435,12 @@ func TestProjectEditInteractivePreciseIdleThreshold(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, promptCalls, "should prompt for name and idle threshold")
 	assert.Contains(t, stdout.String(), "idle threshold")
-	assert.Contains(t, stdout.String(), "10m")
-	assert.Contains(t, stdout.String(), "20m")
+	assert.Contains(t, stdout.String(), "600s")
+	assert.Contains(t, stdout.String(), "1200s")
 
 	cfg, err := project.ReadConfig(home)
 	require.NoError(t, err)
-	assert.Equal(t, 20, cfg.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 1200, cfg.Projects[0].IdleThresholdSeconds)
 }
 
 func TestProjectEditRegisteredAsSubcommand(t *testing.T) {
