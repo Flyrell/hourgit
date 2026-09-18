@@ -1,0 +1,17 @@
+# BuildKit per-Dockerfile ignore file: scopes the website build context without
+# affecting the CLI image built from the root Dockerfile.
+
+# Ignore everything, then allow back only what the website build reads.
+*
+!web
+!tools/docgen
+!tools/sitemap
+!.docker/web/nginx.conf
+
+# Generated output is rebuilt inside the image, never taken from the working tree.
+web/docs/**/*.html
+!web/docs/_template.html
+web/sitemap.xml
+
+# OS cruft must never reach the served tree.
+**/.DS_Store

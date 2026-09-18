@@ -74,7 +74,7 @@ tasks:
     deps: [docs, sitemap]
 
   web:dev:
-    desc: Serve website locally with Apache (port 8080)
+    desc: Serve website locally with nginx (port 8080)
     deps: [docs, sitemap]
     vars:
       WEB_VERSION:
@@ -84,7 +84,18 @@ tasks:
       - defer: find ./web -name '*.html' -exec sed -i '' 's/{{.WEB_VERSION}}/__VERSION__/g' {} +
       - >-
         docker run --rm -p 8080:80
-        -v "$PWD/web":/usr/local/apache2/htdocs/
-        -v "$PWD/web/httpd-dev.conf":/usr/local/apache2/conf/extra/dev.conf
-        httpd:alpine
-        sh -c "echo 'Include conf/extra/dev.conf' >> /usr/local/apache2/conf/httpd.conf && httpd-foreground"
+        -v "$PWD/web":/usr/share/nginx/html:ro
+        -v "$PWD/.docker/web/nginx.conf":/etc/nginx/conf.d/default.conf:ro
+        nginx:1.30-alpine-slim
+
+  web:image:
+    desc: Build the website Docker image locally
+    vars:
+      WEB_VERSION:
+        sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+    cmd: >-
+      docker build
+      -f .docker/web/Dockerfile
+      --build-arg VERSION={{.WEB_VERSION}}
+      -t hourgit-web:dev
+      .

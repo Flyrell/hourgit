@@ -1,0 +1,73 @@
+name: Build Website Image
+
+# Builds and pushes the website image; deployment happens outside CI.
+# Run it from a `v*` tag — a dispatch from a branch skips the job.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      # The registry host is private. Keeping it in a secret makes the runner
+      # mask it as `***` in every log line, including the pushed image refs.
+      IMAGE: ${{ secrets.REGISTRY_HOST }}/hourgit-web
+      # Log masking does not reach the build record artifact, which embeds the
+      # full image ref — so neither the record nor the summary is published.
+      DOCKER_BUILD_SUMMARY: false
+      DOCKER_BUILD_RECORD_UPLOAD: false
+    steps:
+      # With an empty host, login-action would send the credentials to Docker Hub.
+      - name: Check registry configuration
+        env:
+          REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+        run: |
+          if [ -z "${REGISTRY_HOST}" ]; then
+            echo "::error::REGISTRY_HOST secret is not set"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: .docker/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          # Pre-release tags (v1.2.3-rc1) publish the version tag only, so
+          # `latest` always points at a stable release.
+          tags: |
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ !contains(github.ref_name, '-') && format('{0}:latest', env.IMAGE) || '' }}
+          push: true
+          # Publish plain platform manifests — the registry is not required to
+          # understand attestation manifests.
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
