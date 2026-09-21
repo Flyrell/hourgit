@@ -72,7 +72,7 @@ func runHistory(cmd *cobra.Command, homeDir, projectFlag string, limit int) erro
 			return err
 		}
 		for _, e := range logs {
-			detail := entry.FormatMinutes(e.Minutes)
+			detail := entry.FormatMinutesRounded(e.Minutes)
 			if e.Task != "" {
 				detail += "  [" + e.Task + "]"
 			}

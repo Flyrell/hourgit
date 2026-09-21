@@ -47,7 +47,7 @@ func (m reportModel) renderDetailPanel() string {
 			marker = "> "
 		}
 
-		durStr := entry.FormatMinutes(ce.Minutes)
+		durStr := entry.FormatMinutesRounded(ce.Minutes)
 		msg := ce.Message
 		if msg == "" {
 			msg = "(no message)"
@@ -140,7 +140,7 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 
 		// Sum column
 		b.WriteString(" | ")
-		b.WriteString(padCenter(entry.FormatMinutes(row.TotalMinutes), dayColWidth))
+		b.WriteString(padCenter(entry.FormatMinutesRounded(row.TotalMinutes), dayColWidth))
 
 		for i := 0; i < visibleDays; i++ {
 			day := scrollX + i + 1
@@ -153,7 +153,7 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 			cd := row.Days[day]
 			cellText := ""
 			if cd != nil && cd.TotalMinutes > 0 {
-				cellText = padCenter(entry.FormatMinutes(cd.TotalMinutes), dayColWidth)
+				cellText = padCenter(entry.FormatMinutesRounded(cd.TotalMinutes), dayColWidth)
 				// Mark cells containing in-memory entries with an asterisk
 				hasInMemory := false
 				for _, ce := range cd.Entries {
@@ -163,7 +163,7 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 					}
 				}
 				if hasInMemory {
-					cellText = padCenter(entry.FormatMinutes(cd.TotalMinutes)+"*", dayColWidth)
+					cellText = padCenter(entry.FormatMinutesRounded(cd.TotalMinutes)+"*", dayColWidth)
 				}
 			} else if !scheduled {
 				cellText = padCenter("x", dayColWidth)
@@ -207,7 +207,7 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 
 	// Grand total in Sum column
 	b.WriteString(" | ")
-	b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutes(totalMinutes), dayColWidth)))
+	b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutesRounded(totalMinutes), dayColWidth)))
 
 	for i := 0; i < visibleDays; i++ {
 		day := scrollX + i + 1
@@ -225,9 +225,9 @@ func renderDetailedTable(data timetrack.DetailedReportData, scrollX, scrollY, vi
 		}
 		if dayTotal > 0 {
 			if weekend {
-				b.WriteString(weekendStyle.Bold(true).Render(padCenter(entry.FormatMinutes(dayTotal), dayColWidth)))
+				b.WriteString(weekendStyle.Bold(true).Render(padCenter(entry.FormatMinutesRounded(dayTotal), dayColWidth)))
 			} else {
-				b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutes(dayTotal), dayColWidth)))
+				b.WriteString(headerStyle.Render(padCenter(entry.FormatMinutesRounded(dayTotal), dayColWidth)))
 			}
 		} else if !scheduled {
 			b.WriteString(unscheduledStyle.Render(padCenter("x", dayColWidth)))

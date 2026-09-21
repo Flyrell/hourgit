@@ -1,6 +1,7 @@
 package entry
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,6 +63,51 @@ func TestFormatMinutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
 			assert.Equal(t, tt.want, FormatMinutes(tt.input))
+		})
+	}
+}
+
+func TestRoundMinutes(t *testing.T) {
+	tests := []struct {
+		input    int
+		interval int
+		want     int
+	}{
+		{0, 15, 0},
+		{7, 15, 0},
+		{8, 15, 15},
+		{14, 15, 15},
+		{15, 15, 15},
+		{22, 15, 15},
+		{23, 15, 30},
+		{187, 15, 180},
+		{188, 15, 195},
+		{-5, 15, -5},
+		{10, 1, 10}, // interval<=1 passes through unchanged
+		{10, 0, 10}, // degenerate interval passes through unchanged
+	}
+
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.input)+"@"+strconv.Itoa(tt.interval), func(t *testing.T) {
+			assert.Equal(t, tt.want, RoundMinutes(tt.input, tt.interval))
+		})
+	}
+}
+
+func TestFormatMinutesRounded(t *testing.T) {
+	tests := []struct {
+		input int
+		want  string
+	}{
+		{7, "0m"},
+		{8, "15m"},
+		{191, "3h 15m"},
+		{187, "3h"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			assert.Equal(t, tt.want, FormatMinutesRounded(tt.input))
 		})
 	}
 }

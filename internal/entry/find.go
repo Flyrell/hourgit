@@ -89,7 +89,7 @@ func FindAnyEntryAcrossProjects(homeDir, id string) (*FoundAnyEntry, error) {
 		// Try as log entry
 		e, err := ReadEntry(homeDir, slug, id)
 		if err == nil {
-			detail := fmt.Sprintf("%s — %s", FormatMinutes(e.Minutes), e.Message)
+			detail := fmt.Sprintf("%s — %s", FormatMinutesRounded(e.Minutes), e.Message)
 			if e.Task != "" {
 				detail = fmt.Sprintf("[%s] %s", e.Task, detail)
 			}

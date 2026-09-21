@@ -190,7 +190,7 @@ func (o *entrySelectorOverlay) View() string {
 	b.WriteString("\n\n")
 
 	for i, e := range o.entries {
-		label := fmt.Sprintf("%s  %s", entry.FormatMinutes(e.Minutes), e.Message)
+		label := fmt.Sprintf("%s  %s", entry.FormatMinutesRounded(e.Minutes), e.Message)
 		if !e.Persisted {
 			label += " (generated)"
 		}
@@ -641,7 +641,7 @@ func (o *removeOverlay) View() string {
 	b.WriteString(overlayTitleStyle.Render("Remove Entry"))
 	b.WriteString("\n\n")
 
-	label := fmt.Sprintf("%s  %s", entry.FormatMinutes(o.entry.Minutes), o.entry.Message)
+	label := fmt.Sprintf("%s  %s", entry.FormatMinutesRounded(o.entry.Minutes), o.entry.Message)
 	if !o.entry.Persisted {
 		label += " (generated)"
 	}

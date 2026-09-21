@@ -54,3 +54,20 @@ func FormatMinutes(m int) string {
 
 	return strings.Join(parts, " ")
 }
+
+// RoundMinutes rounds m to the nearest multiple of interval.
+// Midpoint rounds up (interval=15: 7→0, 8→15). Non-positive m or
+// interval<=1 returns m unchanged.
+func RoundMinutes(m, interval int) int {
+	if m <= 0 || interval <= 1 {
+		return m
+	}
+	return ((m + interval/2) / interval) * interval
+}
+
+// FormatMinutesRounded formats minutes, rounded to the nearest 15 minutes.
+// Use at display sites only — never to pre-fill interactive input defaults,
+// which round-trip through ParseDuration.
+func FormatMinutesRounded(m int) string {
+	return FormatMinutes(RoundMinutes(m, 15))
+}
