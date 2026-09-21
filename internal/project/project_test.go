@@ -383,15 +383,15 @@ func TestIdleThresholdGetSet(t *testing.T) {
 	cfg, err := ReadConfig(home)
 	require.NoError(t, err)
 
-	// Default returns DefaultIdleThresholdMinutes
-	assert.Equal(t, DefaultIdleThresholdMinutes, GetIdleThreshold(cfg, entry.ID))
+	// Default returns DefaultIdleThresholdSeconds
+	assert.Equal(t, DefaultIdleThresholdSeconds, GetIdleThreshold(cfg, entry.ID))
 
 	// Set custom value
-	require.NoError(t, SetIdleThreshold(home, entry.ID, 15))
+	require.NoError(t, SetIdleThreshold(home, entry.ID, 900))
 
 	cfg, err = ReadConfig(home)
 	require.NoError(t, err)
-	assert.Equal(t, 15, GetIdleThreshold(cfg, entry.ID))
+	assert.Equal(t, 900, GetIdleThreshold(cfg, entry.ID))
 }
 
 func TestPreciseModeSetNotFound(t *testing.T) {
@@ -417,7 +417,7 @@ func TestGetPreciseModeNotFound(t *testing.T) {
 
 func TestGetIdleThresholdNotFound(t *testing.T) {
 	cfg := &Config{}
-	assert.Equal(t, DefaultIdleThresholdMinutes, GetIdleThreshold(cfg, "nonexistent"))
+	assert.Equal(t, DefaultIdleThresholdSeconds, GetIdleThreshold(cfg, "nonexistent"))
 }
 
 func TestAnyPreciseProject(t *testing.T) {
@@ -439,7 +439,7 @@ func TestPreciseModeJSONRoundTrip(t *testing.T) {
 	original := &Config{
 		Defaults: schedule.DefaultSchedules(),
 		Projects: []ProjectEntry{
-			{ID: "abc1234", Name: "Test", Slug: "test", Repos: []string{}, Precise: true, IdleThresholdMinutes: 15},
+			{ID: "abc1234", Name: "Test", Slug: "test", Repos: []string{}, Precise: true, IdleThresholdSeconds: 900},
 		},
 	}
 
@@ -448,7 +448,7 @@ func TestPreciseModeJSONRoundTrip(t *testing.T) {
 	loaded, err := ReadConfig(home)
 	require.NoError(t, err)
 	assert.True(t, loaded.Projects[0].Precise)
-	assert.Equal(t, 15, loaded.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 900, loaded.Projects[0].IdleThresholdSeconds)
 }
 
 func TestPreciseModeBackwardCompat(t *testing.T) {
@@ -468,7 +468,7 @@ func TestPreciseModeBackwardCompat(t *testing.T) {
 	require.NoError(t, err)
 	// Defaults should be fine
 	assert.False(t, loaded.Projects[0].Precise)
-	assert.Equal(t, 0, loaded.Projects[0].IdleThresholdMinutes)
+	assert.Equal(t, 0, loaded.Projects[0].IdleThresholdSeconds)
 }
 
 func TestRenameProjectHappyPath(t *testing.T) {

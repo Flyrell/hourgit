@@ -24,7 +24,7 @@ func setupDaemonTest(t *testing.T) string {
 				Slug:                 "test",
 				Repos:                []string{"/some/repo"},
 				Precise:              true,
-				IdleThresholdMinutes: 5,
+				IdleThresholdSeconds: 300,
 			},
 		},
 	}
@@ -43,6 +43,25 @@ func TestDaemonReloadConfig(t *testing.T) {
 	// It may warn about repos not existing, but shouldn't error fatally
 	// In practice the watcher.Add will fail silently
 	_ = err
+}
+
+func TestDaemonReloadConfigEnvOverride(t *testing.T) {
+	home := setupDaemonTest(t)
+	writer := &mockEntryWriter{}
+	d := NewDaemon(home, writer)
+	d.state = NewWatchState()
+
+	// Set env var override to 5 seconds
+	t.Setenv("HOURGIT_IDLE_THRESHOLD", "5")
+
+	_ = d.reloadConfig()
+
+	// The debouncer should have the overridden threshold (5s, not config's 300s)
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, db := range d.debouncers {
+		assert.Equal(t, 5*time.Second, db.threshold, "env var should override config threshold")
+	}
 }
 
 func TestDaemonRecoverFromCrash(t *testing.T) {

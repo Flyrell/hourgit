@@ -22,7 +22,7 @@ var projectEditCmd = LeafCommand{
 		{Name: "project", Shorthand: "p", Usage: "project name or ID"},
 		{Name: "name", Shorthand: "n", Usage: "new project name"},
 		{Name: "mode", Shorthand: "m", Usage: "tracking mode: standard or precise"},
-		{Name: "idle-threshold", Shorthand: "t", Usage: "idle threshold in minutes (precise mode only)"},
+		{Name: "idle-threshold", Shorthand: "t", Usage: "idle threshold in seconds (precise mode only)"},
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		homeDir, err := os.UserHomeDir()
@@ -146,7 +146,7 @@ func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, 
 			if err := project.SetPreciseMode(homeDir, entry.ID, true); err != nil {
 				return err
 			}
-			if err := project.SetIdleThreshold(homeDir, entry.ID, project.DefaultIdleThresholdMinutes); err != nil {
+			if err := project.SetIdleThreshold(homeDir, entry.ID, project.DefaultIdleThresholdSeconds); err != nil {
 				return err
 			}
 			if err := watch.EnsureWatcherService(homeDir, binPath); err != nil {
@@ -171,7 +171,7 @@ func runProjectEdit(cmd *cobra.Command, homeDir, repoDir, identifier, nameFlag, 
 			return err
 		}
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", Text(fmt.Sprintf("idle threshold: %s → %s",
-			Silent(fmt.Sprintf("%dm", currentThreshold)), Primary(fmt.Sprintf("%dm", newIdleThreshold)))))
+			Silent(fmt.Sprintf("%ds", currentThreshold)), Primary(fmt.Sprintf("%ds", newIdleThreshold)))))
 	}
 
 	return nil
@@ -231,11 +231,11 @@ func promptProjectEdit(entry *project.ProjectEntry, pk PromptKit) (name, mode st
 
 	// Prompt for idle threshold if mode is/becomes precise
 	if mode == "precise" {
-		currentThreshold := entry.IdleThresholdMinutes
+		currentThreshold := entry.IdleThresholdSeconds
 		if currentThreshold <= 0 {
-			currentThreshold = project.DefaultIdleThresholdMinutes
+			currentThreshold = project.DefaultIdleThresholdSeconds
 		}
-		thresholdStr, err := pk.PromptWithDefault("Idle threshold (minutes)", strconv.Itoa(currentThreshold))
+		thresholdStr, err := pk.PromptWithDefault("Idle threshold in seconds (e.g. 600 = 10min)", strconv.Itoa(currentThreshold))
 		if err != nil {
 			return "", "", 0, err
 		}

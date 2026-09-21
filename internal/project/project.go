@@ -40,7 +40,7 @@ type ProjectEntry struct {
 	Repos                []string                 `json:"repos"`
 	Schedules            []schedule.ScheduleEntry `json:"schedules,omitempty"`
 	Precise              bool                     `json:"precise,omitempty"`
-	IdleThresholdMinutes int                      `json:"idle_threshold_minutes,omitempty"`
+	IdleThresholdSeconds int                      `json:"idle_threshold_seconds,omitempty"`
 }
 
 // Config holds the global hourgit configuration including projects and defaults.
@@ -369,8 +369,8 @@ func ResetSchedules(homeDir, projectID string) error {
 	return SetSchedules(homeDir, projectID, defaults)
 }
 
-// DefaultIdleThresholdMinutes is the default idle threshold for precise mode.
-const DefaultIdleThresholdMinutes = 10
+// DefaultIdleThresholdSeconds is the default idle threshold for precise mode (600s = 10 minutes).
+const DefaultIdleThresholdSeconds = 600
 
 // GetPreciseMode returns whether precise mode is enabled for a project.
 func GetPreciseMode(cfg *Config, projectID string) bool {
@@ -395,18 +395,18 @@ func SetPreciseMode(homeDir, projectID string, precise bool) error {
 	return WriteConfig(homeDir, cfg)
 }
 
-// GetIdleThreshold returns the idle threshold in minutes for a project.
-// Returns DefaultIdleThresholdMinutes if not set.
+// GetIdleThreshold returns the idle threshold in seconds for a project.
+// Returns DefaultIdleThresholdSeconds if not set.
 func GetIdleThreshold(cfg *Config, projectID string) int {
 	entry := FindProjectByID(cfg, projectID)
-	if entry == nil || entry.IdleThresholdMinutes <= 0 {
-		return DefaultIdleThresholdMinutes
+	if entry == nil || entry.IdleThresholdSeconds <= 0 {
+		return DefaultIdleThresholdSeconds
 	}
-	return entry.IdleThresholdMinutes
+	return entry.IdleThresholdSeconds
 }
 
-// SetIdleThreshold sets the idle threshold in minutes for a project.
-func SetIdleThreshold(homeDir, projectID string, minutes int) error {
+// SetIdleThreshold sets the idle threshold in seconds for a project.
+func SetIdleThreshold(homeDir, projectID string, seconds int) error {
 	cfg, err := ReadConfig(homeDir)
 	if err != nil {
 		return err
@@ -415,7 +415,7 @@ func SetIdleThreshold(homeDir, projectID string, minutes int) error {
 	if entry == nil {
 		return fmt.Errorf("project '%s' not found", projectID)
 	}
-	entry.IdleThresholdMinutes = minutes
+	entry.IdleThresholdSeconds = seconds
 	return WriteConfig(homeDir, cfg)
 }
 
